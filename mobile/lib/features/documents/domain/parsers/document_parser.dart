@@ -1,13 +1,21 @@
 import 'dart:typed_data';
 
 import '../../../../core/errors/app_failure.dart';
+import '../../../../core/platform/pdf_text_extractor.dart';
 import '../models/parsed_block.dart';
 
 class ParseRequest {
-  const ParseRequest({required this.bytes, required this.sourceName});
+  const ParseRequest({
+    required this.bytes,
+    required this.sourceName,
+    this.localPath,
+    this.cancellationToken,
+  });
 
   final Uint8List bytes;
   final String sourceName;
+  final String? localPath;
+  final ParseCancellationToken? cancellationToken;
 }
 
 sealed class ParseEvent {
