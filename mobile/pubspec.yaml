@@ -38,6 +38,7 @@ dependencies:
   go_router: ^17.3.0
   drift: ^2.34.3
   drift_flutter: ^0.3.1
+  sqlite3: ^3.5.0
   path_provider: ^2.1.6
   file_picker: ^11.0.2
   archive: ^4.0.9
@@ -71,6 +72,10 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/dictionary/ecdict.sqlite
+    - assets/dictionary/LICENSE-ECDICT
+    - assets/phrases/phrases.json
 
   # To add assets to your application, add an assets section, like this:
   # assets:
