@@ -16,11 +16,16 @@ class DictionaryEntry {
   final String definitionChinese;
 }
 
-class DictionaryRepository {
+abstract interface class DictionaryLookup {
+  Future<DictionaryEntry?> lookup(String surface);
+}
+
+class DictionaryRepository implements DictionaryLookup {
   const DictionaryRepository(this.database);
 
   final Database database;
 
+  @override
   Future<DictionaryEntry?> lookup(String surface) async {
     final normalized = surface.trim().replaceAll('’', "'").toLowerCase();
     if (normalized.isEmpty) return null;
