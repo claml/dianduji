@@ -1,0 +1,28 @@
+# Legacy web build and dependencies
+node_modules/
+dist/
+
+# Flutter / Dart generated state
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+coverage/
+**/ios/Flutter/.last_build_id
+
+# IDE and local tooling
+.idea/
+.vscode/
+*.iml
+.superpowers/
+
+# Local signing and secrets
+*.jks
+*.keystore
+key.properties
+android/local.properties
+
+# OS files
+.DS_Store
+Thumbs.db
