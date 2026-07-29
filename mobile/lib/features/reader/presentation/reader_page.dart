@@ -24,6 +24,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
   final _tokenKeys = <String, GlobalKey>{};
   var _opened = false;
   var _positionScheduled = false;
+  var _restoringPosition = false;
 
   @override
   void initState() {
@@ -50,7 +51,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     setState(() => _opened = true);
     final id = _controller.state.restoredSentenceId;
     if (id != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
+      _restoringPosition = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
         final sentence = _controller.state.sentences
             .where((candidate) => candidate.id == id)
             .firstOrNull;
@@ -60,7 +62,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
         final item = token == null
             ? _sentenceKeys[id]?.currentContext
             : _tokenKeys[token.id]?.currentContext;
-        if (item != null) Scrollable.ensureVisible(item, alignment: 0.15);
+        if (item != null) await Scrollable.ensureVisible(item, alignment: 0.15);
+        if (!mounted) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _restoringPosition = false;
+        });
       });
     }
   }
@@ -68,11 +74,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
   void _changed() { if (mounted) setState(() {}); }
 
   void _recordPosition() {
-    if (_positionScheduled) return;
+    if (_restoringPosition || _positionScheduled) return;
     _positionScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _positionScheduled = false;
-      if (mounted) _writePosition();
+      if (mounted && !_restoringPosition) _writePosition();
     });
   }
 
@@ -98,7 +104,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
 
   StoredReaderToken? _tokenForOffset(StoredReaderSentence sentence, int offset) {
     if (sentence.tokens.isEmpty) return null;
-    return sentence.tokens.lastWhere((token) => token.startOffset <= offset);
+    return sentence.tokens.lastWhere(
+      (token) => token.startOffset <= offset,
+      orElse: () => sentence.tokens.first,
+    );
   }
 
   int _nearestTokenOffset(StoredReaderSentence sentence) {

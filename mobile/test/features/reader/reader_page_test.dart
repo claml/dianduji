@@ -88,11 +88,43 @@ void main() {
     final token = documents.tokens.lastWhere((item) => item.startOffset <= saved.localOffset);
     expect(tester.getRect(find.byKey(Key(token.id))).top, lessThan(180));
   });
+
+  testWidgets('restores leading, trailing, and empty-token locators without throwing', (tester) async {
+    final token = StoredReaderToken(id: 'leading-token', ordinal: 0, surface: 'word', normalized: 'word', lemma: 'word', startOffset: 2, endOffset: 6);
+    await tester.pumpWidget(_page(_readerController(_LocatorDocuments(tokens: [token], localOffset: 0)), appKey: const ValueKey('leading')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('leading-token')), findsOneWidget);
+
+    await tester.pumpWidget(_page(_readerController(_LocatorDocuments(tokens: [token], localOffset: 999)), appKey: const ValueKey('trailing')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('leading-token')), findsOneWidget);
+
+    await tester.pumpWidget(_page(_readerController(_LocatorDocuments(tokens: const [], localOffset: 999)), appKey: const ValueKey('empty')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ReaderPage), findsOneWidget);
+  });
+
+  testWidgets('initial locator calibration never overwrites persisted progress', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(180, 200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final documents = _ScrollableDocuments()
+      ..lastLocator = const ReadingLocator(documentId: 'doc-1', paragraphId: 'p1', sentenceId: 'scroll-sentence', localOffset: 36);
+    final controller = _readerController(documents, delay: Duration.zero);
+    await tester.pumpWidget(_page(controller));
+    await tester.pumpAndSettle();
+    await controller.forceSave();
+
+    expect(documents.saved, isEmpty);
+    await tester.drag(find.byType(ListView), const Offset(0, -80));
+    await tester.pumpAndSettle();
+    await controller.forceSave();
+    expect(documents.saved, hasLength(1));
+  });
 }
 
-Widget _page(ReaderController controller, {bool withBackRoute = false}) => ProviderScope(
+Widget _page(ReaderController controller, {bool withBackRoute = false, Key? appKey}) => ProviderScope(
   overrides: [readingSettingsProvider.overrideWith((ref) => Stream.value(ReadingSettings()))],
-  child: MaterialApp(home: withBackRoute ? _PushReader(controller) : ReaderPage(documentId: 'doc-1', controller: controller)),
+  child: MaterialApp(key: appKey, home: withBackRoute ? _PushReader(controller) : ReaderPage(documentId: 'doc-1', controller: controller)),
 );
 
 class _PushReader extends StatefulWidget {
@@ -120,6 +152,13 @@ ReaderController _scrollController(_ScrollableDocuments documents) => ReaderCont
   progressDelay: const Duration(days: 1),
 );
 
+ReaderController _readerController(DocumentRepository documents, {Duration delay = const Duration(days: 1)}) => ReaderController(
+  documents: documents,
+  translation: TranslationViewModel(dictionary: const _Dictionary(), learning: const _Learning(), phraseRecognizer: PhraseRecognizer(const [])),
+  settings: ReadingSettings(),
+  progressDelay: delay,
+);
+
 const _locator = ReadingLocator(documentId: 'doc-1', paragraphId: 'p1', sentenceId: 's1', localOffset: 1);
 
 class _Documents implements DocumentRepository {
@@ -144,5 +183,20 @@ class _ScrollableDocuments implements DocumentRepository {
   @override Future<StoredReaderDocument> loadReaderDocument(String id) async => StoredReaderDocument(id: 'doc-1', title: 'Scrollable', readProgress: 0, lastLocator: lastLocator, sentences: [StoredReaderSentence(id: 'scroll-sentence', paragraphId: 'p1', ordinal: 0, text: tokens.map((token) => token.surface).join(' '), startOffset: 0, endOffset: 72, tokens: tokens)]);
   @override Future<void> recoverInterruptedImports() async {}
   @override Future<void> saveProgress(ReadingLocator locator, double progress) async => saved.add((locator, progress));
+  @override Stream<List<DocumentSummary>> watchDocuments() => const Stream.empty();
+}
+
+class _LocatorDocuments implements DocumentRepository {
+  _LocatorDocuments({required this.tokens, required this.localOffset});
+  final List<StoredReaderToken> tokens;
+  final int localOffset;
+  @override Future<void> deleteDocument(String id) async {}
+  @override Future<StoredReaderDocument> loadReaderDocument(String id) async => StoredReaderDocument(
+    id: 'doc-1', title: 'Locator', readProgress: 0,
+    lastLocator: ReadingLocator(documentId: 'doc-1', paragraphId: 'p1', sentenceId: 'locator-sentence', localOffset: localOffset),
+    sentences: [StoredReaderSentence(id: 'locator-sentence', paragraphId: 'p1', ordinal: 0, text: '  word', startOffset: 0, endOffset: 6, tokens: tokens)],
+  );
+  @override Future<void> recoverInterruptedImports() async {}
+  @override Future<void> saveProgress(ReadingLocator locator, double progress) async {}
   @override Stream<List<DocumentSummary>> watchDocuments() => const Stream.empty();
 }
