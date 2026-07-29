@@ -33,6 +33,32 @@ void main() {
     },
   );
 
+  testWidgets(
+    'a later successful import does not reopen a historic duplicate',
+    (tester) async {
+      final controller = DocumentImportController(
+        picker: _SequencePagePicker(),
+        importer: _SequencePageImporter(),
+        repository: _PageRepository(),
+      );
+      addTearDown(controller.dispose);
+      final opened = <String>[];
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DocumentLibraryPage(controller: controller, onOpen: opened.add),
+        ),
+      );
+
+      await tester.tap(find.byTooltip('导入文档'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('导入文档'));
+      await tester.pumpAndSettle();
+
+      expect(opened, ['doc-duplicate']);
+    },
+  );
+
   testWidgets('page asks for delete confirmation before delegating', (
     tester,
   ) async {
@@ -176,6 +202,47 @@ class _PageImporter implements DocumentImporter {
     startCalls++;
     yield const ImportState(
       documentId: 'doc-1',
+      status: ImportStatus.completed,
+      progress: 1,
+    );
+  }
+
+  @override
+  Stream<ImportState> retry(
+    String documentId,
+    SelectedFile selectedFile, {
+    ParseCancellationToken? cancellationToken,
+  }) async* {}
+}
+
+class _SequencePagePicker implements DocumentPicker {
+  var _next = 0;
+
+  @override
+  Future<SelectedFile?> pickDocument() async => SelectedFile(
+    path: '/incoming/lesson-${_next++}.txt',
+    originalName: 'lesson.txt',
+  );
+}
+
+class _SequencePageImporter implements DocumentImporter {
+  var _next = 0;
+
+  @override
+  Stream<ImportState> start(
+    SelectedFile selectedFile, {
+    ParseCancellationToken? cancellationToken,
+  }) async* {
+    if (_next++ == 0) {
+      yield const ImportState(
+        documentId: 'doc-duplicate',
+        status: ImportStatus.duplicate,
+        progress: 1,
+      );
+      return;
+    }
+    yield const ImportState(
+      documentId: 'doc-new',
       status: ImportStatus.completed,
       progress: 1,
     );

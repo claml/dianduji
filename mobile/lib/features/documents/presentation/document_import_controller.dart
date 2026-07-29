@@ -32,11 +32,11 @@ class DocumentImportController extends ChangeNotifier {
   DocumentLibraryState _state = const DocumentLibraryState();
   DocumentLibraryState get state => _state;
 
-  Future<void> pickAndImport() async {
+  Future<ImportState?> pickAndImport() async {
     try {
       final selected = await picker.pickDocument();
-      if (selected == null) return;
-      await importSelectedFile(selected);
+      if (selected == null) return null;
+      return importSelectedFile(selected);
     } on AppFailure catch (failure) {
       _setState(errorMessage: _messageFor(failure));
     } on Object {
@@ -45,9 +45,10 @@ class DocumentImportController extends ChangeNotifier {
             '\u9009\u62e9\u6587\u4ef6\u5931\u8d25\uff0c\u8bf7\u91cd\u65b0\u9009\u62e9\u3002',
       );
     }
+    return null;
   }
 
-  Future<void> importSelectedFile(SelectedFile selectedFile) {
+  Future<ImportState?> importSelectedFile(SelectedFile selectedFile) {
     final token = ParseCancellationToken();
     return _consume(
       importer.start(selectedFile, cancellationToken: token),
@@ -89,14 +90,16 @@ class DocumentImportController extends ChangeNotifier {
 
   void setSort(DocumentLibrarySort value) => _setState(sort: value);
 
-  Future<void> _consume(
+  Future<ImportState?> _consume(
     Stream<ImportState> stream, {
     required ParseCancellationToken cancellationToken,
   }) async {
+    ImportState? latest;
     _activeCancellations.add(cancellationToken);
     _setState(errorMessage: null);
     try {
       await for (final importState in stream) {
+        latest = importState;
         _imports[importState.documentId] = importState;
         _cancellations[importState.documentId] = cancellationToken;
         if (importState.status == ImportStatus.duplicate) {
@@ -122,6 +125,7 @@ class DocumentImportController extends ChangeNotifier {
     } finally {
       _activeCancellations.remove(cancellationToken);
     }
+    return latest;
   }
 
   void _receiveDocuments(List<DocumentSummary> documents) {

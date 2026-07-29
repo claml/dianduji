@@ -54,14 +54,14 @@ class _DocumentLibraryPageState extends ConsumerState<DocumentLibraryPage> {
               onSortChanged: controller.setSort,
             ),
             if (state.errorMessage != null)
-              Semantics(
-                liveRegion: true,
-                label: state.errorMessage,
-                child: ExcludeSemantics(
-                  child: Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 16,
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 16,
+                child: Semantics(
+                  liveRegion: true,
+                  label: state.errorMessage,
+                  child: ExcludeSemantics(
                     child: Center(
                       child: Material(
                         color: Theme.of(context).colorScheme.inverseSurface,
@@ -89,12 +89,9 @@ class _DocumentLibraryPageState extends ConsumerState<DocumentLibraryPage> {
   }
 
   Future<void> _pickAndImport(DocumentImportController controller) async {
-    await controller.pickAndImport();
-    final duplicate = controller.state.imports.values
-        .where((state) => state.status == ImportStatus.duplicate)
-        .lastOrNull;
-    if (duplicate != null) {
-      widget.onOpen?.call(duplicate.documentId);
+    final result = await controller.pickAndImport();
+    if (result?.status == ImportStatus.duplicate) {
+      widget.onOpen?.call(result!.documentId);
     }
   }
 
