@@ -5,7 +5,8 @@ import '../../phrases/domain/phrase_recognizer.dart';
 import '../../documents/domain/models/parsed_block.dart';
 import '../data/dictionary_repository.dart';
 
-export '../../learning/data/learning_repository.dart' show LearningRepository;
+export '../../learning/data/learning_repository.dart'
+    show LearningContext, LearningRepository, SavedPhraseDraft;
 
 enum TranslationStatus { idle, loading, found, notFound, failed }
 
@@ -88,7 +89,11 @@ class TranslationViewModel extends ChangeNotifier {
         ),
       );
       if (entry.definitionChinese.trim().isNotEmpty) {
-        await learning.recordLookup(surface: selected.surface, entry: entry);
+        await learning.recordLookup(
+          surface: selected.surface,
+          entry: entry,
+          context: const LearningContext(),
+        );
       }
     } on Object catch (error) {
       if (generation != _requestGeneration) return;

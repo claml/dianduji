@@ -145,6 +145,9 @@ class LookupRecord {
     required this.phonetic,
     required this.partOfSpeech,
     required this.definition,
+    this.sourceDocumentId,
+    this.sourceDocumentTitle = '',
+    this.contextSentence = '',
   });
 
   final String surface;
@@ -152,6 +155,9 @@ class LookupRecord {
   final String phonetic;
   final String partOfSpeech;
   final String definition;
+  final String? sourceDocumentId;
+  final String sourceDocumentTitle;
+  final String contextSentence;
 }
 
 class SavedPhraseRecord {
@@ -419,6 +425,9 @@ class LearningDao extends DatabaseAccessor<AppDatabase>
             phonetic: Value(record.phonetic),
             partOfSpeech: Value(record.partOfSpeech),
             definition: Value(record.definition),
+            sourceDocumentId: Value(record.sourceDocumentId),
+            sourceDocumentTitle: Value(record.sourceDocumentTitle),
+            contextSentence: Value(record.contextSentence),
             firstLookupAt: now,
             lastLookupAt: now,
           ),
@@ -432,6 +441,9 @@ class LearningDao extends DatabaseAccessor<AppDatabase>
         VocabularyEntriesCompanion(
           lookupCount: Value(existing.lookupCount + 1),
           lastLookupAt: Value(now),
+          sourceDocumentId: Value(record.sourceDocumentId),
+          sourceDocumentTitle: Value(record.sourceDocumentTitle),
+          contextSentence: Value(record.contextSentence),
         ),
       );
     });

@@ -118,7 +118,11 @@ class _RecordingLearningRepository implements LearningRepository {
   Future<void> recordLookup({
     required String surface,
     required DictionaryEntry entry,
+    required LearningContext context,
   }) async {
     records.add((surface, entry.word));
   }
+
+  @override
+  Future<void> savePhrase(SavedPhraseDraft phrase) async {}
 }

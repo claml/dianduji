@@ -17,22 +17,35 @@ class DianDuJiApp extends StatefulWidget {
 class _DianDuJiAppState extends State<DianDuJiApp> {
   ReadingSettings _settings = ReadingSettings();
   var _selectedIndex = 0;
+  late final GoRouter _router;
+  late final ValueNotifier<_AppShellState> _shell;
 
   @override
-  Widget build(BuildContext context) {
-    final router = GoRouter(
+  void initState() {
+    super.initState();
+    _shell = ValueNotifier(
+      _AppShellState(selectedIndex: _selectedIndex, settings: _settings),
+    );
+    _router = GoRouter(
       routes: [
         GoRoute(
           path: '/',
-          builder: (context, state) => _AppHome(
-            selectedIndex: _selectedIndex,
-            settings: _settings,
-            onSelected: (index) => setState(() => _selectedIndex = index),
-            onSettingsChanged: (value) => setState(() => _settings = value),
+          builder: (context, state) => ValueListenableBuilder(
+            valueListenable: _shell,
+            builder: (context, shell, child) => _AppHome(
+              selectedIndex: shell.selectedIndex,
+              settings: shell.settings,
+              onSelected: _select,
+              onSettingsChanged: _changeSettings,
+            ),
           ),
         ),
       ],
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: '点读机',
@@ -43,9 +56,36 @@ class _DianDuJiAppState extends State<DianDuJiApp> {
       themeMode: _settings.theme == ReaderTheme.night
           ? ThemeMode.dark
           : ThemeMode.light,
-      routerConfig: router,
+      routerConfig: _router,
     );
   }
+
+  @override
+  void dispose() {
+    _shell.dispose();
+    _router.dispose();
+    super.dispose();
+  }
+
+  void _select(int index) {
+    _selectedIndex = index;
+    _shell.value = _AppShellState(selectedIndex: index, settings: _settings);
+  }
+
+  void _changeSettings(ReadingSettings settings) {
+    setState(() => _settings = settings);
+    _shell.value = _AppShellState(
+      selectedIndex: _selectedIndex,
+      settings: settings,
+    );
+  }
+}
+
+class _AppShellState {
+  const _AppShellState({required this.selectedIndex, required this.settings});
+
+  final int selectedIndex;
+  final ReadingSettings settings;
 }
 
 class _AppHome extends StatelessWidget {
