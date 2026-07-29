@@ -126,21 +126,10 @@ class _RecordingLearningRepository implements LearningRepository {
 
   @override
   Future<void> savePhrase(SavedPhraseDraft phrase) async {}
-  @override
-  Stream<List<VocabularyListItem>> watchVocabulary(VocabularyQuery query) =>
-      const Stream.empty();
-  @override
-  Stream<List<SavedPhraseListItem>> watchSavedPhrases(SavedPhraseQuery query) =>
-      const Stream.empty();
-  @override
-  Future<void> addManualVocabulary(ManualVocabularyDraft draft) async {}
-  @override
-  Future<void> updateProficiency(
-    String lemma,
-    VocabularyProficiency value,
-  ) async {}
-  @override
-  Future<void> deleteVocabulary(String lemma) async {}
-  @override
-  Future<void> deleteSavedPhrase(String phraseKey) async {}
+  @override Stream<List<VocabularyListItem>> watchVocabulary(VocabularyQuery query) => const Stream.empty();
+  @override Stream<List<SavedPhraseListItem>> watchSavedPhrases(SavedPhraseQuery query) => const Stream.empty();
+  @override Future<void> addManualVocabulary(ManualVocabularyDraft draft) async {}
+  @override Future<void> updateProficiency(String lemma, VocabularyProficiency value) async {}
+  @override Future<void> deleteVocabulary(String lemma) async {}
+  @override Future<void> deleteSavedPhrase(String phraseKey) async {}
 }
