@@ -70,8 +70,8 @@ dev_dependencies:
 hooks:
   user_defines:
     sqlite3:
-      source: system
-      name_windows: winsqlite3
+      source: source
+      path: third_party/sqlite/sqlite3.c
 flutter:
 
   # The following line ensures that the Material Icons font is

@@ -94,33 +94,31 @@ void main() {
         ),
         isTrue,
       );
-
-      controller.dispose();
-      await firstRuntime.close();
-
-      final restartedRuntime = await initializeAppRuntime(
-        databaseFactory: databaseFactory,
-        supportDirectoryProvider: () async => supportDirectory,
-      );
-      final restartedRepository = DriftDocumentRepository(
-        restartedRuntime.database,
-      );
-      try {
-        final restored = await Future.wait(
-          importedIds.map(restartedRepository.loadReaderDocument),
-        );
-        final restoredText = restored
-            .expand((document) => document.sentences)
-            .map((sentence) => sentence.text)
-            .join('\n');
-        expect(restoredText, contains('Hello from UTF-8.'));
-        expect(restoredText, contains('你好'));
-        expect(restoredText, contains('Hello from DOCX.'));
-      } finally {
-        await restartedRuntime.close();
-      }
     } finally {
       controller.dispose();
+      await firstRuntime.close();
+    }
+
+    final restartedRuntime = await initializeAppRuntime(
+      databaseFactory: databaseFactory,
+      supportDirectoryProvider: () async => supportDirectory,
+    );
+    final restartedRepository = DriftDocumentRepository(
+      restartedRuntime.database,
+    );
+    try {
+      final restored = await Future.wait(
+        importedIds.map(restartedRepository.loadReaderDocument),
+      );
+      final restoredText = restored
+          .expand((document) => document.sentences)
+          .map((sentence) => sentence.text)
+          .join('\n');
+      expect(restoredText, contains('Hello from UTF-8.'));
+      expect(restoredText, contains('你好'));
+      expect(restoredText, contains('Hello from DOCX.'));
+    } finally {
+      await restartedRuntime.close();
     }
   });
 }
