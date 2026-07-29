@@ -212,6 +212,158 @@ class DocumentsDao extends DatabaseAccessor<AppDatabase>
     with _$DocumentsDaoMixin {
   DocumentsDao(super.attachedDatabase);
 
+  static const _structureBatchSize = 500;
+
+  Stream<List<Document>> watchAllDocuments() {
+    return (select(
+      documents,
+    )..orderBy([(row) => OrderingTerm.asc(row.createdAt)])).watch();
+  }
+
+  Future<Document?> findByContentHash(String contentHash) {
+    return (select(
+      documents,
+    )..where((row) => row.contentHash.equals(contentHash))).getSingleOrNull();
+  }
+
+  Future<Document?> findDocument(String documentId) {
+    return (select(
+      documents,
+    )..where((row) => row.id.equals(documentId))).getSingleOrNull();
+  }
+
+  Future<void> insertQueued(DocumentsCompanion document) {
+    return into(documents).insert(document);
+  }
+
+  Future<void> updateImportStatus(
+    String documentId, {
+    required String status,
+    double? progress,
+    String? failureCode,
+    String? failureMessage,
+    bool clearFailure = false,
+  }) {
+    return (update(documents)..where((row) => row.id.equals(documentId))).write(
+      DocumentsCompanion(
+        parseStatus: Value(status),
+        parseProgress: progress == null
+            ? const Value.absent()
+            : Value(progress),
+        failureCode: clearFailure ? const Value(null) : Value(failureCode),
+        failureMessage: clearFailure
+            ? const Value(null)
+            : Value(failureMessage),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> replaceStructure({
+    required String documentId,
+    required List<ParagraphsCompanion> paragraphRows,
+    required List<SentencesCompanion> sentenceRows,
+    required List<TokensCompanion> tokenRows,
+    required List<PhraseOccurrencesCompanion> phraseRows,
+  }) {
+    return transaction(() async {
+      await _clearStructure(documentId);
+      await _insertInBatches(
+        paragraphRows,
+        (batch, rows) => batch.insertAll(paragraphs, rows),
+      );
+      await _insertInBatches(
+        sentenceRows,
+        (batch, rows) => batch.insertAll(sentences, rows),
+      );
+      await _insertInBatches(
+        tokenRows,
+        (batch, rows) => batch.insertAll(tokens, rows),
+      );
+      await _insertInBatches(
+        phraseRows,
+        (batch, rows) => batch.insertAll(phraseOccurrences, rows),
+      );
+      await (update(
+        documents,
+      )..where((row) => row.id.equals(documentId))).write(
+        DocumentsCompanion(
+          wordCount: Value(tokenRows.length),
+          paragraphCount: Value(paragraphRows.length),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    });
+  }
+
+  Future<void> clearStructure(String documentId) {
+    return transaction(() => _clearStructure(documentId));
+  }
+
+  Future<void> _clearStructure(String documentId) {
+    return (delete(
+      paragraphs,
+    )..where((row) => row.documentId.equals(documentId))).go();
+  }
+
+  Future<void> _insertInBatches<T>(
+    List<T> rows,
+    void Function(Batch batch, List<T> rows) insert,
+  ) async {
+    for (var start = 0; start < rows.length; start += _structureBatchSize) {
+      final end = (start + _structureBatchSize).clamp(0, rows.length);
+      await batch((batch) => insert(batch, rows.sublist(start, end)));
+    }
+  }
+
+  Future<List<Sentence>> loadSentences(String documentId) {
+    return (select(sentences)
+          ..where((row) => row.documentId.equals(documentId))
+          ..orderBy([(row) => OrderingTerm.asc(row.ordinal)]))
+        .get();
+  }
+
+  Future<List<Token>> loadTokens(String documentId) {
+    return (select(tokens)
+          ..where((row) => row.documentId.equals(documentId))
+          ..orderBy([
+            (row) => OrderingTerm.asc(row.sentenceId),
+            (row) => OrderingTerm.asc(row.ordinal),
+          ]))
+        .get();
+  }
+
+  Future<void> saveReadingProgress({
+    required String documentId,
+    required String encodedLocator,
+    required double progress,
+  }) {
+    return (update(documents)..where((row) => row.id.equals(documentId))).write(
+      DocumentsCompanion(
+        lastReadLocator: Value(encodedLocator),
+        readProgress: Value(progress),
+        lastOpenedAt: Value(DateTime.now()),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  Future<void> recoverInterruptedImports({
+    required String failureCode,
+    required String failureMessage,
+  }) {
+    return (update(
+      documents,
+    )..where((row) => row.parseStatus.equals('parsing'))).write(
+      DocumentsCompanion(
+        parseStatus: const Value('failed'),
+        failureCode: Value(failureCode),
+        failureMessage: Value(failureMessage),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   Future<void> deleteDocument(String documentId) {
     return transaction(() async {
       await (delete(documents)..where((row) => row.id.equals(documentId))).go();
