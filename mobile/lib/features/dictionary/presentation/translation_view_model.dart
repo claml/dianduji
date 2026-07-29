@@ -45,6 +45,8 @@ class TranslationViewModel extends ChangeNotifier {
   Future<void> lookup({
     required List<TokenSpan> tokens,
     required int selectedTokenOrdinal,
+    LearningContext context = const LearningContext(),
+    bool autoSaveVocabulary = true,
   }) async {
     if (selectedTokenOrdinal < 0 || selectedTokenOrdinal >= tokens.length) {
       throw RangeError.index(
@@ -88,11 +90,11 @@ class TranslationViewModel extends ChangeNotifier {
           phrases: phrases,
         ),
       );
-      if (entry.definitionChinese.trim().isNotEmpty) {
+      if (autoSaveVocabulary && entry.definitionChinese.trim().isNotEmpty) {
         await learning.recordLookup(
           surface: selected.surface,
           entry: entry,
-          context: const LearningContext(),
+          context: context,
         );
       }
     } on Object catch (error) {

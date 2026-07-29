@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../dictionary/presentation/translation_detail.dart';
+import '../../dictionary/presentation/translation_view_model.dart';
 import 'widgets/token_text.dart';
 
 export 'widgets/token_text.dart' show ReaderToken;
@@ -13,10 +14,30 @@ class ReaderSentence {
 }
 
 class ReaderScreen extends StatefulWidget {
-  const ReaderScreen({required this.title, required this.sentences, super.key});
+  const ReaderScreen({
+    required this.title,
+    required this.sentences,
+    this.selectedTokenId,
+    this.translationState,
+    this.onTokenTap,
+    this.onCloseTranslation,
+    this.fontSize = 16,
+    this.lineHeight = 1.6,
+    this.sentenceKeyFor,
+    this.scrollController,
+    super.key,
+  });
 
   final String title;
   final List<ReaderSentence> sentences;
+  final String? selectedTokenId;
+  final TranslationState? translationState;
+  final void Function(ReaderSentence sentence, ReaderToken token)? onTokenTap;
+  final VoidCallback? onCloseTranslation;
+  final double fontSize;
+  final double lineHeight;
+  final Key? Function(String sentenceId)? sentenceKeyFor;
+  final ScrollController? scrollController;
 
   @override
   State<ReaderScreen> createState() => _ReaderScreenState();
@@ -25,10 +46,12 @@ class ReaderScreen extends StatefulWidget {
 class _ReaderScreenState extends State<ReaderScreen> {
   String? _selectedTokenId;
 
+  String? get _activeTokenId => widget.selectedTokenId ?? _selectedTokenId;
+
   ReaderToken? get _selectedToken {
     for (final sentence in widget.sentences) {
       for (final token in sentence.tokens) {
-        if (token.id == _selectedTokenId) return token;
+        if (token.id == _activeTokenId) return token;
       }
     }
     return null;
@@ -69,7 +92,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
           SizedBox(
             key: const Key('translation-side-pane'),
             width: 360,
-            child: TranslationDetail(word: selected.surface, onClose: _close),
+            child: TranslationDetail(state: widget.translationState, word: selected.surface, onClose: _close),
           ),
         ],
       ],
@@ -107,7 +130,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                   ),
                 ),
               ),
-              child: TranslationDetail(word: selected.surface, onClose: _close),
+              child: TranslationDetail(state: widget.translationState, word: selected.surface, onClose: _close),
             ),
           ),
       ],
@@ -117,15 +140,17 @@ class _ReaderScreenState extends State<ReaderScreen> {
   Widget _article() {
     final colorScheme = Theme.of(context).colorScheme;
     return ListView.separated(
+      controller: widget.scrollController,
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 56),
       itemCount: widget.sentences.length,
       separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final sentence = widget.sentences[index];
         final selectedSentence = sentence.tokens.any(
-          (token) => token.id == _selectedTokenId,
+          (token) => token.id == _activeTokenId,
         );
         return AnimatedContainer(
+          key: widget.sentenceKeyFor?.call(sentence.id),
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
               : const Duration(milliseconds: 160),
@@ -142,8 +167,14 @@ class _ReaderScreenState extends State<ReaderScreen> {
               for (final token in sentence.tokens)
                 TokenText(
                   token: token,
-                  selected: token.id == _selectedTokenId,
-                  onTap: () => setState(() => _selectedTokenId = token.id),
+                  selected: token.id == _activeTokenId,
+                  onTap: () {
+                    widget.onTokenTap?.call(sentence, token);
+                    if (widget.selectedTokenId == null) {
+                      setState(() => _selectedTokenId = token.id);
+                    }
+                  },
+                  style: TextStyle(fontSize: widget.fontSize, height: widget.lineHeight),
                 ),
             ],
           ),
@@ -152,5 +183,8 @@ class _ReaderScreenState extends State<ReaderScreen> {
     );
   }
 
-  void _close() => setState(() => _selectedTokenId = null);
+  void _close() {
+    widget.onCloseTranslation?.call();
+    if (widget.selectedTokenId == null) setState(() => _selectedTokenId = null);
+  }
 }

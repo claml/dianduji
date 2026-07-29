@@ -6,6 +6,7 @@ import '../features/learning/presentation/phrase_book_screen.dart';
 import '../features/learning/presentation/vocabulary_screen.dart';
 import '../features/settings/data/reading_settings.dart';
 import '../features/settings/presentation/settings_screen.dart';
+import '../features/reader/presentation/reader_page.dart';
 
 class DianDuJiApp extends StatefulWidget {
   const DianDuJiApp({super.key});
@@ -43,7 +44,7 @@ class _DianDuJiAppState extends State<DianDuJiApp> {
         ),
         GoRoute(
           path: '/reader/:documentId',
-          builder: (context, state) => _ReaderDestination(
+          builder: (context, state) => ReaderPage(
             documentId: state.pathParameters['documentId']!,
           ),
         ),
@@ -149,8 +150,9 @@ class _AppHome extends StatelessWidget {
   }
 }
 
-class _ReaderDestination extends StatelessWidget {
-  const _ReaderDestination({required this.documentId});
+// ignore: unused_element
+class _LegacyReaderDestination extends StatelessWidget {
+  const _LegacyReaderDestination({required this.documentId});
 
   final String documentId;
 

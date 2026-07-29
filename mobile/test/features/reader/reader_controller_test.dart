@@ -1,0 +1,118 @@
+import 'dart:async';
+
+import 'package:dian_du_ji/features/dictionary/data/dictionary_repository.dart';
+import 'package:dian_du_ji/features/dictionary/presentation/translation_view_model.dart';
+import 'package:dian_du_ji/features/documents/data/drift_document_repository.dart';
+import 'package:dian_du_ji/features/documents/domain/document_models.dart';
+import 'package:dian_du_ji/features/phrases/domain/phrase_recognizer.dart';
+import 'package:dian_du_ji/features/reader/domain/reading_locator.dart';
+import 'package:dian_du_ji/features/reader/presentation/reader_controller.dart';
+import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  late _Documents documents;
+  late _Dictionary dictionary;
+  late ReaderController controller;
+
+  setUp(() {
+    documents = _Documents();
+    dictionary = _Dictionary();
+    controller = ReaderController(
+      documents: documents,
+      translation: TranslationViewModel(
+        dictionary: dictionary,
+        learning: const _Learning(),
+        phraseRecognizer: PhraseRecognizer(const []),
+      ),
+      settings: ReadingSettings(),
+      progressDelay: Duration.zero,
+    );
+  });
+
+  test('loads stored sentences in ordinal order and restores by locator', () async {
+    documents.document = _document(lastLocator: _locator('s1', 2));
+
+    await controller.open('doc-1');
+
+    expect(controller.state.sentences.map((sentence) => sentence.id), ['s1', 's2']);
+    expect(controller.state.restoredSentenceId, 's1');
+    expect(controller.state.restoredLocalOffset, 2);
+  });
+
+  test('tap selects immediately and dispatches exactly one lookup', () async {
+    documents.document = _document();
+    dictionary.pending = Completer<DictionaryEntry?>();
+    await controller.open('doc-1');
+
+    final future = controller.selectToken(sentenceId: 's1', tokenId: 't2');
+
+    expect(controller.state.selectedTokenId, 't2');
+    expect(controller.state.selectedSentenceId, 's1');
+    expect(dictionary.calls, 1);
+    dictionary.pending!.complete(null);
+    await future;
+  });
+
+  test('records a sentence locator, force-saves it, and never saves after dispose', () async {
+    documents.document = _document();
+    await controller.open('doc-1');
+
+    controller.updateReadingPosition(sentenceId: 's2', localOffset: 3, progress: 0.8);
+    await controller.forceSave();
+    expect(documents.saved, [(_locator('s2', 3), 0.8)]);
+
+    controller.dispose();
+    controller.updateReadingPosition(sentenceId: 's1', localOffset: 0, progress: 0.2);
+    await Future<void>.delayed(Duration.zero);
+    expect(documents.saved, [(_locator('s2', 3), 0.8)]);
+  });
+}
+
+StoredReaderDocument _document({ReadingLocator? lastLocator}) => StoredReaderDocument(
+  id: 'doc-1',
+  title: 'Lesson',
+  readProgress: 0.2,
+  lastLocator: lastLocator,
+  sentences: const [
+    StoredReaderSentence(
+      id: 's2', paragraphId: 'p1', ordinal: 2, text: 'Second.', startOffset: 8, endOffset: 15,
+      tokens: [StoredReaderToken(id: 't3', ordinal: 0, surface: 'Second', normalized: 'second', lemma: 'second', startOffset: 0, endOffset: 6)],
+    ),
+    StoredReaderSentence(
+      id: 's1', paragraphId: 'p1', ordinal: 1, text: 'First word.', startOffset: 0, endOffset: 7,
+      tokens: [
+        StoredReaderToken(id: 't1', ordinal: 0, surface: 'First', normalized: 'first', lemma: 'first', startOffset: 0, endOffset: 5),
+        StoredReaderToken(id: 't2', ordinal: 1, surface: 'word', normalized: 'word', lemma: 'word', startOffset: 6, endOffset: 10),
+      ],
+    ),
+  ],
+);
+
+ReadingLocator _locator(String sentenceId, int offset) => ReadingLocator(documentId: 'doc-1', paragraphId: 'p1', sentenceId: sentenceId, localOffset: offset);
+
+class _Dictionary implements DictionaryLookup {
+  var calls = 0;
+  Completer<DictionaryEntry?>? pending;
+  @override
+  Future<DictionaryEntry?> lookup(String surface) {
+    calls++;
+    return pending?.future ?? Future.value(null);
+  }
+}
+
+class _Documents implements DocumentRepository {
+  StoredReaderDocument document = _document();
+  final saved = <(ReadingLocator, double)>[];
+  @override Future<void> deleteDocument(String id) async {}
+  @override Future<StoredReaderDocument> loadReaderDocument(String id) async => document;
+  @override Future<void> recoverInterruptedImports() async {}
+  @override Future<void> saveProgress(ReadingLocator locator, double progress) async => saved.add((locator, progress));
+  @override Stream<List<DocumentSummary>> watchDocuments() => const Stream.empty();
+}
+
+class _Learning implements LearningRepository {
+  const _Learning();
+  @override Future<void> recordLookup({required String surface, required DictionaryEntry entry, required LearningContext context}) async {}
+  @override Future<void> savePhrase(SavedPhraseDraft phrase) async {}
+}

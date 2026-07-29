@@ -12,12 +12,14 @@ class TokenText extends StatelessWidget {
     required this.token,
     required this.selected,
     required this.onTap,
+    this.style,
     super.key,
   });
 
   final ReaderToken token;
   final bool selected;
   final VoidCallback onTap;
+  final TextStyle? style;
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +46,7 @@ class TokenText extends StatelessWidget {
               ),
             ),
           ),
-          child: Text(token.surface),
+          child: Text(token.surface, style: style),
         ),
       ),
     );
