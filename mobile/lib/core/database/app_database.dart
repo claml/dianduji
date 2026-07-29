@@ -154,6 +154,30 @@ class LookupRecord {
   final String definition;
 }
 
+class SavedPhraseRecord {
+  const SavedPhraseRecord({
+    required this.id,
+    required this.phraseKey,
+    required this.surface,
+    required this.type,
+    required this.meaning,
+    required this.contextSentence,
+    required this.sourceDocumentTitle,
+    required this.createdAt,
+    this.sourceDocumentId,
+  });
+
+  final String id;
+  final String phraseKey;
+  final String surface;
+  final String type;
+  final String meaning;
+  final String contextSentence;
+  final String? sourceDocumentId;
+  final String sourceDocumentTitle;
+  final DateTime createdAt;
+}
+
 @DriftDatabase(
   tables: [
     Documents,
@@ -165,7 +189,7 @@ class LookupRecord {
     SavedPhrases,
     AppSettings,
   ],
-  daos: [DocumentsDao, LearningDao],
+  daos: [DocumentsDao, LearningDao, SettingsDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
@@ -274,4 +298,65 @@ class LearningDao extends DatabaseAccessor<AppDatabase>
     )..addColumns([count])).getSingle();
     return row.read(count) ?? 0;
   }
+
+  Future<void> savePhrase(SavedPhraseRecord record) {
+    return transaction(() async {
+      final existing = await findPhrase(record.phraseKey);
+      if (existing == null) {
+        await into(savedPhrases).insert(
+          SavedPhrasesCompanion.insert(
+            id: record.id,
+            phraseKey: record.phraseKey,
+            surface: record.surface,
+            type: record.type,
+            meaning: record.meaning,
+            contextSentence: record.contextSentence,
+            sourceDocumentId: Value(record.sourceDocumentId),
+            sourceDocumentTitle: record.sourceDocumentTitle,
+            createdAt: record.createdAt,
+          ),
+        );
+        return;
+      }
+      await (update(
+        savedPhrases,
+      )..where((row) => row.phraseKey.equals(record.phraseKey))).write(
+        SavedPhrasesCompanion(
+          surface: Value(record.surface),
+          type: Value(record.type),
+          meaning: Value(record.meaning),
+          contextSentence: Value(record.contextSentence),
+          sourceDocumentId: Value(record.sourceDocumentId),
+          sourceDocumentTitle: Value(record.sourceDocumentTitle),
+        ),
+      );
+    });
+  }
+
+  Future<SavedPhrase?> findPhrase(String phraseKey) {
+    return (select(
+      savedPhrases,
+    )..where((row) => row.phraseKey.equals(phraseKey))).getSingleOrNull();
+  }
+}
+
+@DriftAccessor(tables: [AppSettings])
+class SettingsDao extends DatabaseAccessor<AppDatabase>
+    with _$SettingsDaoMixin {
+  SettingsDao(super.attachedDatabase);
+
+  Future<void> setValue(String key, String value) {
+    return into(appSettings).insertOnConflictUpdate(
+      AppSettingsCompanion.insert(key: key, value: value),
+    );
+  }
+
+  Future<String?> getValue(String key) async {
+    final row = await (select(
+      appSettings,
+    )..where((row) => row.key.equals(key))).getSingleOrNull();
+    return row?.value;
+  }
+
+  Future<int> countSettings() async => (await select(appSettings).get()).length;
 }

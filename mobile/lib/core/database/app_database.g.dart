@@ -4779,6 +4779,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final DocumentsDao documentsDao = DocumentsDao(this as AppDatabase);
   late final LearningDao learningDao = LearningDao(this as AppDatabase);
+  late final SettingsDao settingsDao = SettingsDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -8675,4 +8676,16 @@ class LearningDaoManager {
       );
   $$SavedPhrasesTableTableManager get savedPhrases =>
       $$SavedPhrasesTableTableManager(_db.attachedDatabase, _db.savedPhrases);
+}
+
+mixin _$SettingsDaoMixin on DatabaseAccessor<AppDatabase> {
+  $AppSettingsTable get appSettings => attachedDatabase.appSettings;
+  SettingsDaoManager get managers => SettingsDaoManager(this);
+}
+
+class SettingsDaoManager {
+  final _$SettingsDaoMixin _db;
+  SettingsDaoManager(this._db);
+  $$AppSettingsTableTableManager get appSettings =>
+      $$AppSettingsTableTableManager(_db.attachedDatabase, _db.appSettings);
 }

@@ -70,7 +70,7 @@ void main() {
       await database
           .into(database.paragraphs)
           .insert(
-          ParagraphsCompanion.insert(
+            ParagraphsCompanion.insert(
               id: 'paragraph-1',
               documentId: documentId,
               ordinal: 0,
@@ -80,7 +80,7 @@ void main() {
       await database
           .into(database.sentences)
           .insert(
-          SentencesCompanion.insert(
+            SentencesCompanion.insert(
               id: 'sentence-1',
               documentId: documentId,
               paragraphId: 'paragraph-1',
@@ -93,7 +93,7 @@ void main() {
       await database
           .into(database.tokens)
           .insert(
-          TokensCompanion.insert(
+            TokensCompanion.insert(
               id: 'token-1',
               documentId: documentId,
               sentenceId: 'sentence-1',
@@ -108,7 +108,7 @@ void main() {
       await database
           .into(database.phraseOccurrences)
           .insert(
-          PhraseOccurrencesCompanion.insert(
+            PhraseOccurrencesCompanion.insert(
               id: 'occurrence-1',
               documentId: documentId,
               sentenceId: 'sentence-1',
@@ -155,4 +155,50 @@ void main() {
       expect(await database.learningDao.countSavedPhrases(), 1);
     },
   );
+
+  test('settings upsert replaces one key without duplicating rows', () async {
+    await database.settingsDao.setValue('reader.theme', 'day');
+    await database.settingsDao.setValue('reader.theme', 'eyeCare');
+
+    expect(await database.settingsDao.getValue('reader.theme'), 'eyeCare');
+    expect(await database.settingsDao.countSettings(), 1);
+  });
+
+  test('saved phrase key stays unique when its context is refreshed', () async {
+    final first = DateTime.utc(2026, 7, 28);
+    final later = DateTime.utc(2026, 7, 29);
+    await database.learningDao.savePhrase(
+      SavedPhraseRecord(
+        id: 'phrase-1',
+        phraseKey: 'look-up',
+        surface: 'look up',
+        type: 'phrasalVerb',
+        meaning: '查阅',
+        contextSentence: 'Look it up.',
+        sourceDocumentTitle: 'Lesson one',
+        createdAt: first,
+      ),
+    );
+    await database.learningDao.savePhrase(
+      SavedPhraseRecord(
+        id: 'phrase-2',
+        phraseKey: 'look-up',
+        surface: 'look up',
+        type: 'phrasalVerb',
+        meaning: '查阅；抬头看',
+        contextSentence: 'She looked up at the sky.',
+        sourceDocumentTitle: 'Lesson two',
+        createdAt: later,
+      ),
+    );
+
+    expect(await database.learningDao.countSavedPhrases(), 1);
+    final phrase = await database.learningDao.findPhrase('look-up');
+    expect(phrase?.meaning, '查阅；抬头看');
+    expect(phrase?.contextSentence, 'She looked up at the sky.');
+    expect(
+      phrase?.createdAt.millisecondsSinceEpoch,
+      first.millisecondsSinceEpoch,
+    );
+  });
 }

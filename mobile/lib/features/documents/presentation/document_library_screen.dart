@@ -41,6 +41,7 @@ class DocumentLibraryScreen extends StatelessWidget {
     this.onRetry,
     this.onCancel,
     this.onDelete,
+    this.showNavigation = true,
     super.key,
   });
 
@@ -51,6 +52,7 @@ class DocumentLibraryScreen extends StatelessWidget {
   final ValueChanged<String>? onRetry;
   final ValueChanged<String>? onCancel;
   final ValueChanged<String>? onDelete;
+  final bool showNavigation;
 
   @override
   Widget build(BuildContext context) {
@@ -70,7 +72,9 @@ class DocumentLibraryScreen extends StatelessWidget {
             ],
           ),
           body: tablet ? _tabletBody(context) : _documentList(context),
-          bottomNavigationBar: tablet ? null : const _BottomNavigation(),
+          bottomNavigationBar: tablet || !showNavigation
+              ? null
+              : const _BottomNavigation(),
         );
       },
     );
@@ -82,8 +86,10 @@ class DocumentLibraryScreen extends StatelessWidget {
         .firstOrNull;
     return Row(
       children: [
-        const _LibraryRail(),
-        const VerticalDivider(width: 1),
+        if (showNavigation) ...[
+          const _LibraryRail(),
+          const VerticalDivider(width: 1),
+        ],
         SizedBox(
           key: const Key('document-list-pane'),
           width: 380,
