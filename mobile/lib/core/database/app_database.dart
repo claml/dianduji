@@ -351,17 +351,25 @@ class DocumentsDao extends DatabaseAccessor<AppDatabase>
   Future<void> recoverInterruptedImports({
     required String failureCode,
     required String failureMessage,
-  }) {
-    return (update(
-      documents,
-    )..where((row) => row.parseStatus.equals('parsing'))).write(
-      DocumentsCompanion(
-        parseStatus: const Value('failed'),
-        failureCode: Value(failureCode),
-        failureMessage: Value(failureMessage),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+  }) async {
+    await transaction(() async {
+      final interrupted = await (select(
+        documents,
+      )..where((row) => row.parseStatus.equals('parsing'))).get();
+      for (final document in interrupted) {
+        await _clearStructure(document.id);
+      }
+      await (update(
+        documents,
+      )..where((row) => row.parseStatus.equals('parsing'))).write(
+        DocumentsCompanion(
+          parseStatus: const Value('failed'),
+          failureCode: Value(failureCode),
+          failureMessage: Value(failureMessage),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    });
   }
 
   Future<void> deleteDocument(String documentId) {

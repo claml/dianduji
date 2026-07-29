@@ -110,6 +110,10 @@ void main() {
     () async {
       await importStore.createQueued(_record());
       await importStore.markParsing('doc-1');
+      await importStore.replaceStructure('doc-1', const [
+        ParsedBlock(text: 'Partially persisted sentence.'),
+      ]);
+      expect(await database.documentsDao.countStructureFor('doc-1'), 5);
 
       await repository.recoverInterruptedImports();
 
@@ -121,6 +125,7 @@ void main() {
         'Import interrupted locally. Retry to continue.',
       );
       expect(await importStore.findByContentHash('content-hash'), 'doc-1');
+      expect(await database.documentsDao.countStructureFor('doc-1'), 0);
     },
   );
 
