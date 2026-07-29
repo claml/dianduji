@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'providers.dart';
 import '../features/documents/presentation/document_library_page.dart';
-import '../features/learning/presentation/phrase_book_screen.dart';
-import '../features/learning/presentation/vocabulary_screen.dart';
+import '../features/learning/presentation/learning_pages.dart';
 import '../features/settings/data/reading_settings.dart';
-import '../features/settings/presentation/settings_screen.dart';
+import '../features/settings/presentation/persisted_settings_page.dart';
 import '../features/reader/presentation/reader_page.dart';
 
-class DianDuJiApp extends StatefulWidget {
+class DianDuJiApp extends ConsumerStatefulWidget {
   const DianDuJiApp({super.key});
 
   @override
-  State<DianDuJiApp> createState() => _DianDuJiAppState();
+  ConsumerState<DianDuJiApp> createState() => _DianDuJiAppState();
 }
 
-class _DianDuJiAppState extends State<DianDuJiApp> {
-  ReadingSettings _settings = ReadingSettings();
+class _DianDuJiAppState extends ConsumerState<DianDuJiApp> {
   var _selectedIndex = 0;
   late final GoRouter _router;
   late final ValueNotifier<_AppShellState> _shell;
@@ -24,9 +24,7 @@ class _DianDuJiAppState extends State<DianDuJiApp> {
   @override
   void initState() {
     super.initState();
-    _shell = ValueNotifier(
-      _AppShellState(selectedIndex: _selectedIndex, settings: _settings),
-    );
+    _shell = ValueNotifier(_AppShellState(selectedIndex: _selectedIndex));
     _router = GoRouter(
       routes: [
         GoRoute(
@@ -35,18 +33,15 @@ class _DianDuJiAppState extends State<DianDuJiApp> {
             valueListenable: _shell,
             builder: (context, shell, child) => _AppHome(
               selectedIndex: shell.selectedIndex,
-              settings: shell.settings,
               onSelected: _select,
-              onSettingsChanged: _changeSettings,
               onOpenDocument: _openDocument,
             ),
           ),
         ),
         GoRoute(
           path: '/reader/:documentId',
-          builder: (context, state) => ReaderPage(
-            documentId: state.pathParameters['documentId']!,
-          ),
+          builder: (context, state) =>
+              ReaderPage(documentId: state.pathParameters['documentId']!),
         ),
       ],
     );
@@ -54,14 +49,16 @@ class _DianDuJiAppState extends State<DianDuJiApp> {
 
   @override
   Widget build(BuildContext context) {
+    final settings =
+        ref.watch(readingSettingsProvider).valueOrNull ?? ReadingSettings();
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: '点读机',
-      theme: _settings.theme == ReaderTheme.eyeCare
+      theme: settings.theme == ReaderTheme.eyeCare
           ? _theme(const Color(0xFF6D7D47), const Color(0xFFF5F3E8))
           : _theme(const Color(0xFF3D7AED), const Color(0xFFFBFCFE)),
       darkTheme: _darkTheme(),
-      themeMode: _settings.theme == ReaderTheme.night
+      themeMode: settings.theme == ReaderTheme.night
           ? ThemeMode.dark
           : ThemeMode.light,
       routerConfig: _router,
@@ -77,49 +74,36 @@ class _DianDuJiAppState extends State<DianDuJiApp> {
 
   void _select(int index) {
     _selectedIndex = index;
-    _shell.value = _AppShellState(selectedIndex: index, settings: _settings);
-  }
-
-  void _changeSettings(ReadingSettings settings) {
-    setState(() => _settings = settings);
-    _shell.value = _AppShellState(
-      selectedIndex: _selectedIndex,
-      settings: settings,
-    );
+    _shell.value = _AppShellState(selectedIndex: index);
   }
 
   void _openDocument(String documentId) => _router.go('/reader/$documentId');
 }
 
 class _AppShellState {
-  const _AppShellState({required this.selectedIndex, required this.settings});
+  const _AppShellState({required this.selectedIndex});
 
   final int selectedIndex;
-  final ReadingSettings settings;
 }
 
 class _AppHome extends StatelessWidget {
   const _AppHome({
     required this.selectedIndex,
-    required this.settings,
     required this.onSelected,
-    required this.onSettingsChanged,
     required this.onOpenDocument,
   });
 
   final int selectedIndex;
-  final ReadingSettings settings;
   final ValueChanged<int> onSelected;
-  final ValueChanged<ReadingSettings> onSettingsChanged;
   final ValueChanged<String> onOpenDocument;
 
   @override
   Widget build(BuildContext context) {
     final content = switch (selectedIndex) {
       0 => DocumentLibraryPage(onOpen: onOpenDocument),
-      1 => const VocabularyScreen(entries: []),
-      2 => const PhraseBookScreen(phrases: []),
-      _ => SettingsScreen(initial: settings, onChanged: onSettingsChanged),
+      1 => const VocabularyPage(),
+      2 => const PhraseBookPage(),
+      _ => const PersistedSettingsPage(),
     };
     return LayoutBuilder(
       builder: (context, constraints) {

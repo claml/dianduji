@@ -15,9 +15,12 @@ import '../features/documents/domain/document_structure_builder.dart';
 import '../features/documents/domain/import_document_use_case.dart';
 import '../features/documents/presentation/document_import_controller.dart';
 import '../features/learning/data/drift_learning_repository.dart';
+import '../features/learning/data/csv_export_service.dart';
 import '../features/learning/data/learning_repository.dart';
+import '../features/learning/presentation/learning_controllers.dart';
 import '../features/phrases/domain/phrase_recognizer.dart';
 import '../features/settings/data/reading_settings.dart';
+import '../features/settings/data/cache_cleanup_service.dart';
 import '../features/settings/data/settings_repository.dart';
 import 'app_runtime.dart';
 
@@ -49,6 +52,26 @@ final learningRepositoryProvider = Provider<LearningRepository>((ref) {
   return DriftLearningRepository(ref.watch(appDatabaseProvider).learningDao);
 });
 
+final csvExportServiceProvider = Provider<CsvExportService>((ref) {
+  return const CsvExportService(
+    destinationPicker: FilePickerCsvDestinationPicker(),
+    writer: LocalCsvFileWriter(),
+  );
+});
+
+final vocabularyControllerProvider =
+    ChangeNotifierProvider.autoDispose<VocabularyController>((ref) {
+      return VocabularyController(
+        ref.watch(learningRepositoryProvider),
+        ref.watch(csvExportServiceProvider),
+      );
+    });
+
+final phraseBookControllerProvider =
+    ChangeNotifierProvider.autoDispose<PhraseBookController>((ref) {
+      return PhraseBookController(ref.watch(learningRepositoryProvider));
+    });
+
 final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   final repository = DriftSettingsRepository(
     ref.watch(appDatabaseProvider).settingsDao,
@@ -59,6 +82,12 @@ final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
 
 final readingSettingsProvider = StreamProvider<ReadingSettings>((ref) {
   return ref.watch(settingsRepositoryProvider).watch();
+});
+
+final cacheCleanupServiceProvider = Provider<CacheCleanupService>((ref) {
+  return DirectoryCacheCleanupService(
+    appSupportDirectory: ref.watch(appSupportDirectoryProvider),
+  );
 });
 
 final importDocumentUseCaseProvider = Provider<ImportDocumentUseCase>((ref) {

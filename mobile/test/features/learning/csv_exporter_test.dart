@@ -17,9 +17,9 @@ void main() {
       ),
     ]);
 
-    expect(bytes.take(3), [0xef, 0xbb, 0xbf]);
+    expect(bytes.take(3), isNot([0xef, 0xbb, 0xbf]));
     expect(
-      utf8.decode(bytes.skip(3).toList()),
+      utf8.decode(bytes),
       '单词,音标,词性,释义,熟练度,查询次数,来源\r\n'
       'language,ˈlæŋɡwɪdʒ,n.,"语言, ""表达""\r\n交流工具",模糊,3,The Little Prince\r\n',
     );

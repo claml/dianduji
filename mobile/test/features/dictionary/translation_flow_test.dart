@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dian_du_ji/features/dictionary/data/dictionary_repository.dart';
+import 'package:dian_du_ji/features/learning/data/learning_repository.dart';
 import 'package:dian_du_ji/features/dictionary/presentation/translation_view_model.dart';
 import 'package:dian_du_ji/features/documents/domain/text/tokenizer.dart';
 import 'package:dian_du_ji/features/phrases/domain/phrase_recognizer.dart';
@@ -125,4 +126,21 @@ class _RecordingLearningRepository implements LearningRepository {
 
   @override
   Future<void> savePhrase(SavedPhraseDraft phrase) async {}
+  @override
+  Stream<List<VocabularyListItem>> watchVocabulary(VocabularyQuery query) =>
+      const Stream.empty();
+  @override
+  Stream<List<SavedPhraseListItem>> watchSavedPhrases(SavedPhraseQuery query) =>
+      const Stream.empty();
+  @override
+  Future<void> addManualVocabulary(ManualVocabularyDraft draft) async {}
+  @override
+  Future<void> updateProficiency(
+    String lemma,
+    VocabularyProficiency value,
+  ) async {}
+  @override
+  Future<void> deleteVocabulary(String lemma) async {}
+  @override
+  Future<void> deleteSavedPhrase(String phraseKey) async {}
 }

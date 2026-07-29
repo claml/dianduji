@@ -8663,6 +8663,7 @@ mixin _$LearningDaoMixin on DatabaseAccessor<AppDatabase> {
   $VocabularyEntriesTable get vocabularyEntries =>
       attachedDatabase.vocabularyEntries;
   $SavedPhrasesTable get savedPhrases => attachedDatabase.savedPhrases;
+  $DocumentsTable get documents => attachedDatabase.documents;
   LearningDaoManager get managers => LearningDaoManager(this);
 }
 
@@ -8676,6 +8677,8 @@ class LearningDaoManager {
       );
   $$SavedPhrasesTableTableManager get savedPhrases =>
       $$SavedPhrasesTableTableManager(_db.attachedDatabase, _db.savedPhrases);
+  $$DocumentsTableTableManager get documents =>
+      $$DocumentsTableTableManager(_db.attachedDatabase, _db.documents);
 }
 
 mixin _$SettingsDaoMixin on DatabaseAccessor<AppDatabase> {

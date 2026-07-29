@@ -41,7 +41,7 @@ Uint8List exportVocabularyCsv(Iterable<VocabularyExportRow> rows) {
       ..write('\r\n');
   }
   final body = output.toString().replaceFirst('\n', '\r\n');
-  return Uint8List.fromList([0xef, 0xbb, 0xbf, ...utf8.encode(body)]);
+  return Uint8List.fromList(utf8.encode(body));
 }
 
 String _escape(String value) {

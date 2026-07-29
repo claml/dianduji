@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dian_du_ji/app/app.dart';
 import 'package:dian_du_ji/app/providers.dart';
 import 'package:dian_du_ji/core/platform/pdf_text_extractor.dart';
@@ -7,6 +9,10 @@ import 'package:dian_du_ji/features/documents/data/services/file_intake_service.
 import 'package:dian_du_ji/features/documents/domain/document_models.dart';
 import 'package:dian_du_ji/features/documents/domain/import_document_use_case.dart';
 import 'package:dian_du_ji/features/documents/presentation/document_import_controller.dart';
+import 'package:dian_du_ji/features/dictionary/data/dictionary_repository.dart';
+import 'package:dian_du_ji/features/learning/data/learning_repository.dart';
+import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
+import 'package:dian_du_ji/features/settings/data/settings_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -40,7 +46,9 @@ void main() {
   ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(_app());
+    final settings = _SettingsRepository();
+    addTearDown(settings.dispose);
+    await tester.pumpWidget(_app(settings));
     await tester.tap(find.text('设置').last);
     await tester.pumpAndSettle();
 
@@ -52,21 +60,48 @@ void main() {
       ThemeMode.dark,
     );
   });
+
+  testWidgets('application theme is restored after an app restart', (
+    tester,
+  ) async {
+    final settings = _SettingsRepository();
+    addTearDown(settings.dispose);
+    await tester.pumpWidget(_app(settings));
+    await tester.tap(find.text('设置').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('夜间'));
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(_app(settings));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<MaterialApp>(find.byType(MaterialApp)).themeMode,
+      ThemeMode.dark,
+    );
+  });
 }
 
-Widget _app() => ProviderScope(
-  overrides: [
-    documentImportControllerProvider.overrideWith((ref) {
-      final controller = DocumentImportController(
-        picker: const _Picker(),
-        importer: const _Importer(),
-        repository: const _Repository(),
-      );
-      return controller;
-    }),
-  ],
-  child: const DianDuJiApp(),
-);
+Widget _app([_SettingsRepository? repository]) {
+  final settings = repository ?? _SettingsRepository();
+  return ProviderScope(
+    overrides: [
+      documentImportControllerProvider.overrideWith((ref) {
+        final controller = DocumentImportController(
+          picker: const _Picker(),
+          importer: const _Importer(),
+          repository: const _Repository(),
+        );
+        return controller;
+      }),
+      learningRepositoryProvider.overrideWithValue(const _LearningRepository()),
+      settingsRepositoryProvider.overrideWithValue(settings),
+    ],
+    child: const DianDuJiApp(),
+  );
+}
 
 class _Picker implements DocumentPicker {
   const _Picker();
@@ -102,4 +137,63 @@ class _Repository implements DocumentRepository {
   Future<void> saveProgress(locator, double progress) async {}
   @override
   Stream<List<DocumentSummary>> watchDocuments() => const Stream.empty();
+}
+
+class _SettingsRepository implements SettingsRepository {
+  final _changes = StreamController<ReadingSettings>.broadcast();
+  ReadingSettings value = ReadingSettings();
+
+  @override
+  Future<ReadingSettings> load() async => value;
+
+  @override
+  Future<void> save(ReadingSettings settings) async {
+    value = settings;
+    _changes.add(settings);
+  }
+
+  @override
+  Stream<ReadingSettings> watch() async* {
+    yield value;
+    yield* _changes.stream;
+  }
+
+  void dispose() => _changes.close();
+}
+
+class _LearningRepository implements LearningRepository {
+  const _LearningRepository();
+
+  @override
+  Stream<List<VocabularyListItem>> watchVocabulary(VocabularyQuery query) =>
+      const Stream.empty();
+
+  @override
+  Stream<List<SavedPhraseListItem>> watchSavedPhrases(SavedPhraseQuery query) =>
+      const Stream.empty();
+
+  @override
+  Future<void> addManualVocabulary(ManualVocabularyDraft draft) async {}
+
+  @override
+  Future<void> deleteSavedPhrase(String phraseKey) async {}
+
+  @override
+  Future<void> deleteVocabulary(String lemma) async {}
+
+  @override
+  Future<void> recordLookup({
+    required String surface,
+    required DictionaryEntry entry,
+    required LearningContext context,
+  }) async {}
+
+  @override
+  Future<void> savePhrase(SavedPhraseDraft phrase) async {}
+
+  @override
+  Future<void> updateProficiency(
+    String lemma,
+    VocabularyProficiency value,
+  ) async {}
 }

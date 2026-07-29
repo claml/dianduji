@@ -184,6 +184,26 @@ class SavedPhraseRecord {
   final DateTime createdAt;
 }
 
+class VocabularyEntryWithSource {
+  const VocabularyEntryWithSource({
+    required this.entry,
+    required this.sourceExists,
+  });
+
+  final VocabularyEntry entry;
+  final bool sourceExists;
+}
+
+class SavedPhraseWithSource {
+  const SavedPhraseWithSource({
+    required this.entry,
+    required this.sourceExists,
+  });
+
+  final SavedPhrase entry;
+  final bool sourceExists;
+}
+
 @DriftDatabase(
   tables: [
     Documents,
@@ -406,7 +426,7 @@ class DocumentsDao extends DatabaseAccessor<AppDatabase>
   }
 }
 
-@DriftAccessor(tables: [VocabularyEntries, SavedPhrases])
+@DriftAccessor(tables: [VocabularyEntries, SavedPhrases, Documents])
 class LearningDao extends DatabaseAccessor<AppDatabase>
     with _$LearningDaoMixin {
   LearningDao(super.attachedDatabase);
@@ -461,6 +481,106 @@ class LearningDao extends DatabaseAccessor<AppDatabase>
       vocabularyEntries,
     )..addColumns([count])).getSingle();
     return row.read(count) ?? 0;
+  }
+
+  Stream<List<VocabularyEntryWithSource>> watchVocabularyEntries() {
+    final query = select(vocabularyEntries).join([
+      leftOuterJoin(
+        documents,
+        documents.id.equalsExp(vocabularyEntries.sourceDocumentId),
+      ),
+    ]);
+    return query.watch().map(
+      (rows) => rows.map((row) {
+        final entry = row.readTable(vocabularyEntries);
+        return VocabularyEntryWithSource(
+          entry: entry,
+          sourceExists:
+              entry.sourceDocumentId == null ||
+              row.readTableOrNull(documents) != null,
+        );
+      }).toList(),
+    );
+  }
+
+  Stream<List<SavedPhraseWithSource>> watchSavedPhraseEntries() {
+    final query = select(savedPhrases).join([
+      leftOuterJoin(
+        documents,
+        documents.id.equalsExp(savedPhrases.sourceDocumentId),
+      ),
+    ]);
+    return query.watch().map(
+      (rows) => rows.map((row) {
+        final entry = row.readTable(savedPhrases);
+        return SavedPhraseWithSource(
+          entry: entry,
+          sourceExists:
+              entry.sourceDocumentId == null ||
+              row.readTableOrNull(documents) != null,
+        );
+      }).toList(),
+    );
+  }
+
+  Future<bool> sourceDocumentExists(String? documentId) async {
+    if (documentId == null) return true;
+    return (await (select(
+          documents,
+        )..where((row) => row.id.equals(documentId))).getSingleOrNull()) !=
+        null;
+  }
+
+  Future<void> addManualVocabulary({
+    required String lemma,
+    required String displayWord,
+    required String phonetic,
+    required String partOfSpeech,
+    required String definition,
+    required int proficiency,
+  }) {
+    return transaction(() async {
+      final existing = await findByLemma(lemma);
+      if (existing != null) throw StateError('Vocabulary already exists.');
+      final now = DateTime.now();
+      await into(vocabularyEntries).insert(
+        VocabularyEntriesCompanion.insert(
+          id: lemma,
+          lemma: lemma,
+          displayWord: displayWord,
+          phonetic: Value(phonetic),
+          partOfSpeech: Value(partOfSpeech),
+          definition: Value(definition),
+          proficiency: Value(proficiency),
+          lookupCount: const Value(0),
+          firstLookupAt: now,
+          lastLookupAt: now,
+        ),
+      );
+    });
+  }
+
+  Future<void> updateVocabularyProficiency(String lemma, int proficiency) {
+    return transaction(() async {
+      await (update(vocabularyEntries)..where((row) => row.lemma.equals(lemma)))
+          .write(VocabularyEntriesCompanion(proficiency: Value(proficiency)));
+    });
+  }
+
+  Future<void> deleteVocabulary(String lemma) {
+    return transaction(() async {
+      await (delete(
+        vocabularyEntries,
+      )..where((row) => row.lemma.equals(lemma))).go();
+    });
+  }
+
+  Future<void> deleteSavedPhrase(String phraseKey) {
+    return transaction(() async {
+      await (delete(
+        savedPhrases,
+      )..where((row) => row.phraseKey.equals(phraseKey))).go();
+    });
   }
 
   Future<int> countSavedPhrases() async {
@@ -518,8 +638,10 @@ class SettingsDao extends DatabaseAccessor<AppDatabase>
   SettingsDao(super.attachedDatabase);
 
   Future<void> setValue(String key, String value) {
-    return into(appSettings).insertOnConflictUpdate(
-      AppSettingsCompanion.insert(key: key, value: value),
+    return transaction(
+      () => into(appSettings).insertOnConflictUpdate(
+        AppSettingsCompanion.insert(key: key, value: value),
+      ),
     );
   }
 
