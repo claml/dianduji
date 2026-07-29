@@ -31,6 +31,12 @@ void main() {
       expect(detectFileFormat(bytes, 'lesson.data'), FileFormat.txt);
     });
 
+    test('recognizes GB18030 text without trusting its extension', () {
+      final bytes = Uint8List.fromList([0xc4, 0xe3, 0xba, 0xc3]);
+
+      expect(detectFileFormat(bytes, 'lesson.data'), FileFormat.txt);
+    });
+
     test('rejects unsupported binary data', () {
       final bytes = Uint8List.fromList([0, 159, 146, 150, 0, 1]);
 

@@ -53,6 +53,8 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -80,6 +82,9 @@ flutter:
     - assets/dictionary/ecdict.sqlite
     - assets/dictionary/LICENSE-ECDICT
     - assets/phrases/phrases.json
+    - integration_test/fixtures/sample_utf8.txt
+    - integration_test/fixtures/sample_gb18030.txt
+    - integration_test/fixtures/sample.docx
 
   # To add assets to your application, add an assets section, like this:
   # assets:

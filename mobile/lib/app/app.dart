@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../features/documents/presentation/document_library_screen.dart';
+import 'providers.dart';
+import '../features/documents/presentation/document_library_page.dart';
 import '../features/learning/presentation/phrase_book_screen.dart';
 import '../features/learning/presentation/vocabulary_screen.dart';
 import '../features/settings/data/reading_settings.dart';
@@ -104,9 +106,10 @@ class _AppHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final content = switch (selectedIndex) {
-      0 => const DocumentLibraryScreen(
-        state: DocumentLibraryState(),
-        showNavigation: false,
+      0 => DocumentLibraryPage(
+        controllerLoader: () => ProviderScope.containerOf(
+          context,
+        ).read(documentImportControllerProvider),
       ),
       1 => const VocabularyScreen(entries: []),
       2 => const PhraseBookScreen(phrases: []),

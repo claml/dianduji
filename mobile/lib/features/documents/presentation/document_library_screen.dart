@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../domain/import_document_use_case.dart';
+
+enum DocumentLibrarySort { lastOpened, title, importTime }
+
 enum LibraryDocumentStatus { queued, parsing, completed, failed, cancelled }
 
 class LibraryDocument {
@@ -26,10 +30,18 @@ class DocumentLibraryState {
   const DocumentLibraryState({
     this.documents = const [],
     this.selectedDocumentId,
+    this.errorMessage,
+    this.searchQuery = '',
+    this.sort = DocumentLibrarySort.lastOpened,
+    this.imports = const {},
   });
 
   final List<LibraryDocument> documents;
   final String? selectedDocumentId;
+  final String? errorMessage;
+  final String searchQuery;
+  final DocumentLibrarySort sort;
+  final Map<String, ImportState> imports;
 }
 
 class DocumentLibraryScreen extends StatelessWidget {

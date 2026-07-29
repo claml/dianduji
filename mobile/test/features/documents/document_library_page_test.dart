@@ -1,0 +1,122 @@
+import 'dart:async';
+
+import 'package:dian_du_ji/core/platform/pdf_text_extractor.dart';
+import 'package:dian_du_ji/features/documents/data/drift_document_repository.dart';
+import 'package:dian_du_ji/features/documents/data/file_picker_document_picker.dart';
+import 'package:dian_du_ji/features/documents/data/services/file_intake_service.dart';
+import 'package:dian_du_ji/features/documents/domain/document_models.dart';
+import 'package:dian_du_ji/features/documents/domain/import_document_use_case.dart';
+import 'package:dian_du_ji/features/documents/presentation/document_import_controller.dart';
+import 'package:dian_du_ji/features/documents/presentation/document_library_page.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  testWidgets(
+    'page binds import and retry callbacks without rebuilding the controller',
+    (tester) async {
+      final importer = _PageImporter();
+      final controller = DocumentImportController(
+        picker: _PagePicker(),
+        importer: importer,
+        repository: _PageRepository(),
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(home: DocumentLibraryPage(controller: controller)),
+      );
+      await tester.tap(find.byTooltip('导入文档'));
+      await tester.pump();
+
+      expect(importer.startCalls, 1);
+    },
+  );
+
+  testWidgets('page asks for delete confirmation before delegating', (
+    tester,
+  ) async {
+    final repository = _PageRepository();
+    final controller = DocumentImportController(
+      picker: _PagePicker(),
+      importer: _PageImporter(),
+      repository: repository,
+    );
+    addTearDown(controller.dispose);
+    repository.emit(const [
+      DocumentSummary(
+        id: 'doc-1',
+        title: 'Lesson',
+        sourceName: 'lesson.txt',
+        localPath: '/sandbox/hash.bin',
+        format: 'txt',
+        status: 'failed',
+        progress: 0,
+        wordCount: 0,
+        readProgress: 0,
+      ),
+    ]);
+    await tester.pumpWidget(
+      MaterialApp(home: DocumentLibraryPage(controller: controller)),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('删除文档'));
+    await tester.pumpAndSettle();
+    expect(find.text('删除这篇文档？'), findsOneWidget);
+    await tester.tap(find.text('删除'));
+    await tester.pumpAndSettle();
+
+    expect(repository.deleted, ['doc-1']);
+  });
+}
+
+class _PagePicker implements DocumentPicker {
+  @override
+  Future<SelectedFile?> pickDocument() async => const SelectedFile(
+    path: '/incoming/lesson.txt',
+    originalName: 'lesson.txt',
+  );
+}
+
+class _PageImporter implements DocumentImporter {
+  var startCalls = 0;
+
+  @override
+  Stream<ImportState> start(
+    SelectedFile selectedFile, {
+    ParseCancellationToken? cancellationToken,
+  }) async* {
+    startCalls++;
+    yield const ImportState(
+      documentId: 'doc-1',
+      status: ImportStatus.completed,
+      progress: 1,
+    );
+  }
+
+  @override
+  Stream<ImportState> retry(
+    String documentId,
+    SelectedFile selectedFile, {
+    ParseCancellationToken? cancellationToken,
+  }) async* {}
+}
+
+class _PageRepository implements DocumentRepository {
+  final _documents = StreamController<List<DocumentSummary>>.broadcast();
+  final deleted = <String>[];
+  void emit(List<DocumentSummary> value) => _documents.add(value);
+  @override
+  Future<void> deleteDocument(String documentId) async =>
+      deleted.add(documentId);
+  @override
+  Future<StoredReaderDocument> loadReaderDocument(String documentId) =>
+      throw UnimplementedError();
+  @override
+  Future<void> recoverInterruptedImports() async {}
+  @override
+  Future<void> saveProgress(locator, double progress) async {}
+  @override
+  Stream<List<DocumentSummary>> watchDocuments() => _documents.stream;
+}

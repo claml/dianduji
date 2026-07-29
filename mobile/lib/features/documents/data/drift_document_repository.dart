@@ -26,6 +26,7 @@ class DriftDocumentRepository
               id: document.id,
               title: document.title,
               sourceName: document.sourceName,
+              localPath: document.localPath,
               format: document.format,
               status: document.parseStatus,
               progress: document.parseProgress,
@@ -33,6 +34,8 @@ class DriftDocumentRepository
               readProgress: document.readProgress,
               failureCode: document.failureCode,
               failureMessage: document.failureMessage,
+              importedAt: document.createdAt,
+              lastOpenedAt: document.updatedAt,
             ),
           )
           .toList(growable: false),

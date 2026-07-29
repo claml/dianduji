@@ -1,0 +1,3 @@
+Hello from UTF-8.
+
+This fixture remains readable after import.

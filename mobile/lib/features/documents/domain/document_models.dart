@@ -5,6 +5,7 @@ class DocumentSummary {
     required this.id,
     required this.title,
     required this.sourceName,
+    this.localPath = '',
     required this.format,
     required this.status,
     required this.progress,
@@ -12,11 +13,14 @@ class DocumentSummary {
     required this.readProgress,
     this.failureCode,
     this.failureMessage,
+    this.importedAt,
+    this.lastOpenedAt,
   });
 
   final String id;
   final String title;
   final String sourceName;
+  final String localPath;
   final String format;
   final String status;
   final double progress;
@@ -24,6 +28,8 @@ class DocumentSummary {
   final double readProgress;
   final String? failureCode;
   final String? failureMessage;
+  final DateTime? importedAt;
+  final DateTime? lastOpenedAt;
 }
 
 class StoredReaderDocument {

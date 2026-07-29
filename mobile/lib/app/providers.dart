@@ -1,23 +1,19 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/database/app_database.dart';
-import '../core/platform/pdf_text_extractor.dart';
 import '../features/dictionary/data/dictionary_repository.dart';
 import '../features/documents/data/drift_document_import_store.dart';
 import '../features/documents/data/drift_document_repository.dart';
-import '../features/documents/data/parsers/docx_document_parser.dart';
-import '../features/documents/data/parsers/pdf_document_parser.dart';
-import '../features/documents/data/parsers/txt_document_parser.dart';
+import '../features/documents/data/default_document_parser_resolver.dart';
+import '../features/documents/data/default_import_intake.dart';
 import '../features/documents/data/services/file_intake_service.dart';
-import '../features/documents/domain/detect_file_format.dart';
+import '../features/documents/data/file_picker_document_picker.dart';
 import '../features/documents/domain/document_structure_builder.dart';
-import '../features/documents/domain/file_format.dart';
 import '../features/documents/domain/import_document_use_case.dart';
-import '../features/documents/domain/parsers/document_parser.dart';
+import '../features/documents/presentation/document_import_controller.dart';
 import '../features/learning/data/drift_learning_repository.dart';
 import '../features/learning/data/learning_repository.dart';
 import '../features/phrases/domain/phrase_recognizer.dart';
@@ -72,55 +68,28 @@ final importDocumentUseCaseProvider = Provider<ImportDocumentUseCase>((ref) {
     phraseRecognizer: ref.watch(phraseRecognizerProvider),
   );
   return ImportDocumentUseCase(
-    intake: _AppImportIntake(
+    intake: DefaultImportIntake(
       FileIntakeService(
         sandboxDirectory: Directory(
           '${ref.watch(appSupportDirectoryProvider).path}${Platform.pathSeparator}documents',
         ),
       ),
     ),
-    parsers: _AppDocumentParserResolver(),
+    parsers: DefaultDocumentParserResolver(),
     store: DriftDocumentImportStore(database: database, builder: builder),
     createId: const Uuid().v4,
   );
 });
 
-class _AppImportIntake implements ImportIntake {
-  const _AppImportIntake(this._files);
+final documentPickerProvider = Provider<DocumentPicker>((ref) {
+  return const FilePickerDocumentPicker();
+});
 
-  final FileIntakeService _files;
-
-  @override
-  Future<PreparedImportFile> prepare(SelectedFile selectedFile) async {
-    final intake = await _files.copyIntoSandbox(selectedFile);
-    final bytes = await File(intake.localPath).readAsBytes();
-    return PreparedImportFile(
-      intake: intake,
-      format: detectFileFormat(bytes, selectedFile.originalName),
-      bytes: bytes,
-    );
-  }
-}
-
-class _AppDocumentParserResolver implements DocumentParserResolver {
-  final PdfTextExtractor _pdfExtractor = const _UnavailablePdfTextExtractor();
-
-  @override
-  DocumentParser forFormat(FileFormat format) => switch (format) {
-    FileFormat.txt => const TxtDocumentParser(),
-    FileFormat.docx => const DocxDocumentParser(),
-    FileFormat.pdf => PdfDocumentParser(extractor: _pdfExtractor),
-  };
-}
-
-class _UnavailablePdfTextExtractor implements PdfTextExtractor {
-  const _UnavailablePdfTextExtractor();
-
-  @override
-  Stream<PdfPageText> extract(
-    String path, {
-    required ParseCancellationToken cancellationToken,
-  }) async* {
-    throw const PdfExtractionException(PdfExtractionError.unavailable);
-  }
-}
+final documentImportControllerProvider =
+    ChangeNotifierProvider.autoDispose<DocumentImportController>((ref) {
+      return DocumentImportController(
+        picker: ref.watch(documentPickerProvider),
+        importer: ref.watch(importDocumentUseCaseProvider),
+        repository: ref.watch(documentRepositoryProvider),
+      );
+    });

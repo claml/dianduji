@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
+import 'package:charset/charset.dart';
 
 import '../../../core/errors/app_failure.dart';
 import 'file_format.dart';
@@ -48,6 +49,11 @@ bool _looksLikeUtfText(Uint8List bytes) {
     utf8.decode(bytes, allowMalformed: false);
     return true;
   } on FormatException {
-    return false;
+    try {
+      final decoded = const GbkCodec(allowMalformed: false).decode(bytes);
+      return !decoded.contains('\uFFFD');
+    } on FormatException {
+      return false;
+    }
   }
 }

@@ -78,7 +78,20 @@ abstract interface class DocumentImportStore {
   Future<void> clearStructure(String documentId);
 }
 
-class ImportDocumentUseCase {
+abstract interface class DocumentImporter {
+  Stream<ImportState> start(
+    SelectedFile selectedFile, {
+    ParseCancellationToken? cancellationToken,
+  });
+
+  Stream<ImportState> retry(
+    String documentId,
+    SelectedFile selectedFile, {
+    ParseCancellationToken? cancellationToken,
+  });
+}
+
+class ImportDocumentUseCase implements DocumentImporter {
   const ImportDocumentUseCase({
     required this.intake,
     required this.parsers,
@@ -91,6 +104,7 @@ class ImportDocumentUseCase {
   final DocumentImportStore store;
   final String Function() createId;
 
+  @override
   Stream<ImportState> start(
     SelectedFile selectedFile, {
     ParseCancellationToken? cancellationToken,
@@ -98,6 +112,7 @@ class ImportDocumentUseCase {
     return _run(selectedFile, cancellationToken: cancellationToken);
   }
 
+  @override
   Stream<ImportState> retry(
     String documentId,
     SelectedFile selectedFile, {
