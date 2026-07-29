@@ -150,21 +150,6 @@ class _AppHome extends StatelessWidget {
   }
 }
 
-// ignore: unused_element
-class _LegacyReaderDestination extends StatelessWidget {
-  const _LegacyReaderDestination({required this.documentId});
-
-  final String documentId;
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('\u9605\u8bfb\u5668')),
-    body: Center(
-      child: Text('\u6b63\u5728\u6253\u5f00\u6587\u6863 $documentId'),
-    ),
-  );
-}
-
 ThemeData _theme(Color seed, Color surface) {
   const graphite = Color(0xFF252A32);
   return ThemeData(

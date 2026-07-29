@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/platform/android_pronunciation_service.dart';
 import '../../../core/platform/pronunciation_service.dart';
+import '../../phrases/domain/phrase_recognizer.dart';
 import 'translation_view_model.dart';
 
 class TranslationDetail extends StatefulWidget {
@@ -17,7 +20,7 @@ class TranslationDetail extends StatefulWidget {
   final TranslationState? state;
   final String? word;
   final VoidCallback onClose;
-  final Future<void> Function(SavedPhraseDraft phrase)? onSavePhrase;
+  final Future<void> Function(PhraseMatch phrase)? onSavePhrase;
   final PronunciationService? pronunciation;
 
   @override
@@ -26,6 +29,9 @@ class TranslationDetail extends StatefulWidget {
 
 class _TranslationDetailState extends State<TranslationDetail> {
   String? _feedback;
+  late final PronunciationService _pronunciation =
+      widget.pronunciation ?? AndroidPronunciationService();
+  var _stopped = false;
 
   TranslationState get _state => widget.state ?? TranslationState(
     status: TranslationStatus.loading,
@@ -53,7 +59,7 @@ class _TranslationDetailState extends State<TranslationDetail> {
                   icon: const Icon(Icons.volume_up_outlined),
                 ),
               ),
-              IconButton(tooltip: '关闭释义', onPressed: widget.onClose, icon: const Icon(Icons.close_rounded)),
+              IconButton(tooltip: '关闭释义', onPressed: _close, icon: const Icon(Icons.close_rounded)),
             ]),
             const SizedBox(height: 8),
             Expanded(child: _body(state)),
@@ -95,7 +101,7 @@ class _TranslationDetailState extends State<TranslationDetail> {
               subtitle: Text(phrase.meaning),
               trailing: widget.onSavePhrase == null ? null : IconButton(
                 tooltip: '保存短语',
-                onPressed: () => _savePhrase(phrase, state),
+                onPressed: () => _savePhrase(phrase),
                 icon: const Icon(Icons.bookmark_add_outlined),
               ),
             ),
@@ -105,20 +111,30 @@ class _TranslationDetailState extends State<TranslationDetail> {
   }
 
   Future<void> _speak() async {
-    final result = await (widget.pronunciation ?? AndroidPronunciationService()).speak(_state.surface);
+    final result = await _pronunciation.speak(_state.surface);
     if (!mounted || result == PronunciationResult.spoken) return;
     setState(() => _feedback = '本机未安装英语语音');
   }
 
-  Future<void> _savePhrase(dynamic phrase, TranslationState state) async {
-    await widget.onSavePhrase!(SavedPhraseDraft(
-      key: phrase.key,
-      surface: phrase.surface,
-      type: phrase.type,
-      meaning: phrase.meaning,
-      contextSentence: '',
-      context: const LearningContext(),
-    ));
+  Future<void> _savePhrase(PhraseMatch phrase) async {
+    await widget.onSavePhrase!(phrase);
     if (mounted) setState(() => _feedback = '短语已保存');
+  }
+
+  void _close() {
+    widget.onClose();
+    unawaited(_stop());
+  }
+
+  Future<void> _stop() {
+    if (_stopped) return Future.value();
+    _stopped = true;
+    return _pronunciation.stop();
+  }
+
+  @override
+  void dispose() {
+    unawaited(_stop());
+    super.dispose();
   }
 }

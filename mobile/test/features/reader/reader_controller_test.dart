@@ -5,6 +5,7 @@ import 'package:dian_du_ji/features/dictionary/presentation/translation_view_mod
 import 'package:dian_du_ji/features/documents/data/drift_document_repository.dart';
 import 'package:dian_du_ji/features/documents/domain/document_models.dart';
 import 'package:dian_du_ji/features/phrases/domain/phrase_recognizer.dart';
+import 'package:dian_du_ji/features/phrases/domain/phrase_type.dart';
 import 'package:dian_du_ji/features/reader/domain/reading_locator.dart';
 import 'package:dian_du_ji/features/reader/presentation/reader_controller.dart';
 import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
@@ -67,6 +68,31 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(documents.saved, [(_locator('s2', 3), 0.8)]);
   });
+
+  test('saves a selected phrase once with the selected sentence context', () async {
+    final learning = _SavingLearning();
+    controller = ReaderController(
+      documents: documents,
+      translation: TranslationViewModel(
+        dictionary: dictionary,
+        learning: learning,
+        phraseRecognizer: PhraseRecognizer(const []),
+      ),
+      settings: ReadingSettings(),
+    );
+    await controller.open('doc-1');
+    await controller.selectToken(sentenceId: 's1', tokenId: 't2');
+
+    await controller.savePhrase(const PhraseMatch(
+      key: 'first-word', surface: 'First word', type: PhraseType.collocation,
+      meaning: '第一词', confidence: 1, startTokenOrdinal: 0, endTokenOrdinal: 1,
+    ));
+
+    expect(learning.saved, hasLength(1));
+    expect(learning.saved.single.context.documentId, 'doc-1');
+    expect(learning.saved.single.context.documentTitle, 'Lesson');
+    expect(learning.saved.single.contextSentence, 'First word.');
+  });
 }
 
 StoredReaderDocument _document({ReadingLocator? lastLocator}) => StoredReaderDocument(
@@ -115,4 +141,10 @@ class _Learning implements LearningRepository {
   const _Learning();
   @override Future<void> recordLookup({required String surface, required DictionaryEntry entry, required LearningContext context}) async {}
   @override Future<void> savePhrase(SavedPhraseDraft phrase) async {}
+}
+
+class _SavingLearning implements LearningRepository {
+  final saved = <SavedPhraseDraft>[];
+  @override Future<void> recordLookup({required String surface, required DictionaryEntry entry, required LearningContext context}) async {}
+  @override Future<void> savePhrase(SavedPhraseDraft phrase) async => saved.add(phrase);
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
 import '../../dictionary/presentation/translation_view_model.dart';
+import '../../documents/domain/document_models.dart';
 import '../../settings/data/reading_settings.dart';
 import 'reader_controller.dart';
 import 'reader_screen.dart';
@@ -20,7 +21,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
   late final bool _ownsController;
   final _scrollController = ScrollController();
   final _sentenceKeys = <String, GlobalKey>{};
+  final _tokenKeys = <String, GlobalKey>{};
   var _opened = false;
+  var _positionScheduled = false;
 
   @override
   void initState() {
@@ -48,7 +51,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     final id = _controller.state.restoredSentenceId;
     if (id != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        final item = _sentenceKeys[id]?.currentContext;
+        final sentence = _controller.state.sentences
+            .where((candidate) => candidate.id == id)
+            .firstOrNull;
+        final token = sentence == null
+            ? null
+            : _tokenForOffset(sentence, _controller.state.restoredLocalOffset);
+        final item = token == null
+            ? _sentenceKeys[id]?.currentContext
+            : _tokenKeys[token.id]?.currentContext;
         if (item != null) Scrollable.ensureVisible(item, alignment: 0.15);
       });
     }
@@ -57,6 +68,15 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
   void _changed() { if (mounted) setState(() {}); }
 
   void _recordPosition() {
+    if (_positionScheduled) return;
+    _positionScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _positionScheduled = false;
+      if (mounted) _writePosition();
+    });
+  }
+
+  void _writePosition() {
     final state = _controller.state;
     if (state.sentences.isEmpty || !_scrollController.hasClients) return;
     var sentence = state.sentences.first;
@@ -70,9 +90,30 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
         sentence = candidate;
       }
     }
+    final token = _tokenForOffset(sentence, _nearestTokenOffset(sentence));
     final progress = _scrollController.position.maxScrollExtent == 0
         ? 0.0 : _scrollController.position.pixels / _scrollController.position.maxScrollExtent;
-    _controller.updateReadingPosition(sentenceId: sentence.id, localOffset: 0, progress: progress);
+    _controller.updateReadingPosition(sentenceId: sentence.id, localOffset: token?.startOffset ?? 0, progress: progress);
+  }
+
+  StoredReaderToken? _tokenForOffset(StoredReaderSentence sentence, int offset) {
+    if (sentence.tokens.isEmpty) return null;
+    return sentence.tokens.lastWhere((token) => token.startOffset <= offset);
+  }
+
+  int _nearestTokenOffset(StoredReaderSentence sentence) {
+    var nearest = sentence.tokens.first;
+    var distance = double.infinity;
+    for (final token in sentence.tokens) {
+      final box = _tokenKeys[token.id]?.currentContext?.findRenderObject() as RenderBox?;
+      if (box == null) continue;
+      final candidateDistance = (box.localToGlobal(Offset.zero).dy - 96).abs();
+      if (candidateDistance < distance) {
+        distance = candidateDistance;
+        nearest = token;
+      }
+    }
+    return nearest.startOffset;
   }
 
   @override
@@ -100,9 +141,11 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
         fontSize: settings.fontSize,
         lineHeight: settings.lineHeight,
         sentenceKeyFor: (id) => _sentenceKeys.putIfAbsent(id, GlobalKey.new),
+        tokenKeyFor: (id) => _tokenKeys.putIfAbsent(id, GlobalKey.new),
         scrollController: _scrollController,
         onTokenTap: (sentence, token) => _controller.selectToken(sentenceId: sentence.id, tokenId: token.id),
         onCloseTranslation: _controller.closeTranslation,
+        onSavePhrase: _controller.savePhrase,
       ),
     );
   }

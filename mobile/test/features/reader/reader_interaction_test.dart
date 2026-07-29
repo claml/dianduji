@@ -1,4 +1,5 @@
 import 'package:dian_du_ji/features/reader/presentation/reader_screen.dart';
+import 'package:dian_du_ji/features/reader/presentation/widgets/token_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -97,4 +98,14 @@ void main() {
     expect(find.byKey(const Key('translation-side-pane')), findsOneWidget);
     expect(find.byKey(const Key('translation-bottom-sheet')), findsNothing);
   });
+
+  testWidgets('short tokens retain a 48 by 48 dp tap target', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: TokenText(token: ReaderToken(id: 'short-token', surface: 'I'), selected: false, onTap: _noop))));
+
+    final size = tester.getSize(find.byKey(const Key('short-token')));
+    expect(size.width, greaterThanOrEqualTo(48));
+    expect(size.height, greaterThanOrEqualTo(48));
+  });
 }
+
+void _noop() {}

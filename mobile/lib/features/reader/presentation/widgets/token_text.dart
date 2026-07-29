@@ -13,6 +13,7 @@ class TokenText extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.style,
+    this.widgetKey,
     super.key,
   });
 
@@ -20,6 +21,7 @@ class TokenText extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final TextStyle? style;
+  final Key? widgetKey;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +36,8 @@ class TokenText extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 48),
+          key: widgetKey,
+          constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 10),
           decoration: BoxDecoration(

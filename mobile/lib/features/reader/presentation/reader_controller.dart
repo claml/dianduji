@@ -5,6 +5,7 @@ import '../../documents/data/drift_document_repository.dart';
 import '../../documents/domain/document_models.dart';
 import '../../documents/domain/models/parsed_block.dart';
 import '../../settings/data/reading_settings.dart';
+import '../../phrases/domain/phrase_recognizer.dart';
 import '../domain/reading_locator.dart';
 import 'reader_view_model.dart';
 
@@ -141,6 +142,24 @@ class ReaderController extends ChangeNotifier {
       sentences: _state.sentences,
       restoredSentenceId: _state.restoredSentenceId,
       restoredLocalOffset: _state.restoredLocalOffset,
+    ));
+  }
+
+  Future<void> savePhrase(PhraseMatch phrase) {
+    final sentenceId = _state.selectedSentenceId;
+    if (sentenceId == null) throw StateError('No selected sentence.');
+    final sentence = _state.requireSentence(sentenceId);
+    return translation.learning.savePhrase(SavedPhraseDraft(
+      key: phrase.key,
+      surface: phrase.surface,
+      type: phrase.type,
+      meaning: phrase.meaning,
+      contextSentence: sentence.text,
+      context: LearningContext(
+        documentId: _state.document?.id,
+        documentTitle: _state.document?.title ?? '',
+        sentence: sentence.text,
+      ),
     ));
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../dictionary/presentation/translation_detail.dart';
 import '../../dictionary/presentation/translation_view_model.dart';
+import '../../phrases/domain/phrase_recognizer.dart';
 import 'widgets/token_text.dart';
 
 export 'widgets/token_text.dart' show ReaderToken;
@@ -25,6 +26,8 @@ class ReaderScreen extends StatefulWidget {
     this.lineHeight = 1.6,
     this.sentenceKeyFor,
     this.scrollController,
+    this.tokenKeyFor,
+    this.onSavePhrase,
     super.key,
   });
 
@@ -38,6 +41,8 @@ class ReaderScreen extends StatefulWidget {
   final double lineHeight;
   final Key? Function(String sentenceId)? sentenceKeyFor;
   final ScrollController? scrollController;
+  final Key? Function(String tokenId)? tokenKeyFor;
+  final Future<void> Function(PhraseMatch phrase)? onSavePhrase;
 
   @override
   State<ReaderScreen> createState() => _ReaderScreenState();
@@ -92,7 +97,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
           SizedBox(
             key: const Key('translation-side-pane'),
             width: 360,
-            child: TranslationDetail(state: widget.translationState, word: selected.surface, onClose: _close),
+            child: TranslationDetail(state: widget.translationState, word: selected.surface, onClose: _close, onSavePhrase: widget.onSavePhrase),
           ),
         ],
       ],
@@ -130,7 +135,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                   ),
                 ),
               ),
-              child: TranslationDetail(state: widget.translationState, word: selected.surface, onClose: _close),
+              child: TranslationDetail(state: widget.translationState, word: selected.surface, onClose: _close, onSavePhrase: widget.onSavePhrase),
             ),
           ),
       ],
@@ -175,6 +180,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
                     }
                   },
                   style: TextStyle(fontSize: widget.fontSize, height: widget.lineHeight),
+                  widgetKey: widget.tokenKeyFor?.call(token.id),
                 ),
             ],
           ),

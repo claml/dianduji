@@ -66,6 +66,28 @@ void main() {
 
     expect(documents.saved, [(_locator, 0.5)]);
   });
+
+  testWidgets('records a stable token offset and restores that token after rebuild', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(180, 200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final documents = _ScrollableDocuments();
+    final first = _scrollController(documents);
+    await tester.pumpWidget(_page(first));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView), const Offset(0, -240));
+    await tester.pumpAndSettle();
+    await first.forceSave();
+    final saved = documents.saved.single.$1;
+    expect(saved.localOffset, greaterThan(0));
+
+    documents.lastLocator = saved;
+    final restored = _scrollController(documents);
+    await tester.pumpWidget(_page(restored));
+    await tester.pumpAndSettle();
+    final token = documents.tokens.lastWhere((item) => item.startOffset <= saved.localOffset);
+    expect(tester.getRect(find.byKey(Key(token.id))).top, lessThan(180));
+  });
 }
 
 Widget _page(ReaderController controller, {bool withBackRoute = false}) => ProviderScope(
@@ -91,6 +113,13 @@ ReaderController _controller(_Documents documents) => ReaderController(
   progressDelay: const Duration(days: 1),
 );
 
+ReaderController _scrollController(_ScrollableDocuments documents) => ReaderController(
+  documents: documents,
+  translation: TranslationViewModel(dictionary: const _Dictionary(), learning: const _Learning(), phraseRecognizer: PhraseRecognizer(const [])),
+  settings: ReadingSettings(),
+  progressDelay: const Duration(days: 1),
+);
+
 const _locator = ReadingLocator(documentId: 'doc-1', paragraphId: 'p1', sentenceId: 's1', localOffset: 1);
 
 class _Documents implements DocumentRepository {
@@ -104,3 +133,16 @@ class _Documents implements DocumentRepository {
 
 class _Dictionary implements DictionaryLookup { const _Dictionary(); @override Future<DictionaryEntry?> lookup(String surface) async => null; }
 class _Learning implements LearningRepository { const _Learning(); @override Future<void> recordLookup({required String surface, required DictionaryEntry entry, required LearningContext context}) async {} @override Future<void> savePhrase(SavedPhraseDraft phrase) async {} }
+
+class _ScrollableDocuments implements DocumentRepository {
+  _ScrollableDocuments()
+      : tokens = List.generate(24, (index) => StoredReaderToken(id: 'scroll-$index', ordinal: index, surface: 'w$index', normalized: 'w$index', lemma: 'w$index', startOffset: index * 3, endOffset: index * 3 + 2));
+  final List<StoredReaderToken> tokens;
+  ReadingLocator? lastLocator;
+  final saved = <(ReadingLocator, double)>[];
+  @override Future<void> deleteDocument(String id) async {}
+  @override Future<StoredReaderDocument> loadReaderDocument(String id) async => StoredReaderDocument(id: 'doc-1', title: 'Scrollable', readProgress: 0, lastLocator: lastLocator, sentences: [StoredReaderSentence(id: 'scroll-sentence', paragraphId: 'p1', ordinal: 0, text: tokens.map((token) => token.surface).join(' '), startOffset: 0, endOffset: 72, tokens: tokens)]);
+  @override Future<void> recoverInterruptedImports() async {}
+  @override Future<void> saveProgress(ReadingLocator locator, double progress) async => saved.add((locator, progress));
+  @override Stream<List<DocumentSummary>> watchDocuments() => const Stream.empty();
+}
