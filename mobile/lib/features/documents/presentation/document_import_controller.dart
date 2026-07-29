@@ -77,13 +77,7 @@ class DocumentImportController extends ChangeNotifier {
 
   Future<void> cancel(String documentId) async {
     final token = _cancellations[documentId];
-    if (token != null) {
-      token.cancel();
-    } else {
-      for (final active in _activeCancellations) {
-        active.cancel();
-      }
-    }
+    token?.cancel();
   }
 
   Future<void> delete(String documentId) =>
@@ -145,27 +139,35 @@ class DocumentImportController extends ChangeNotifier {
     String? searchQuery,
     DocumentLibrarySort? sort,
   }) {
+    final nextSearchQuery = searchQuery ?? _state.searchQuery;
+    final nextSort = sort ?? _state.sort;
     final next = DocumentLibraryState(
-      documents: _libraryDocuments(),
+      documents: _libraryDocuments(
+        searchQuery: nextSearchQuery,
+        sort: nextSort,
+      ),
       selectedDocumentId: selectedDocumentId ?? _state.selectedDocumentId,
       errorMessage: errorMessage,
-      searchQuery: searchQuery ?? _state.searchQuery,
-      sort: sort ?? _state.sort,
+      searchQuery: nextSearchQuery,
+      sort: nextSort,
       imports: Map.unmodifiable(_imports),
     );
     _state = next;
     notifyListeners();
   }
 
-  List<LibraryDocument> _libraryDocuments() {
-    final query = _state.searchQuery.trim().toLowerCase();
+  List<LibraryDocument> _libraryDocuments({
+    required String searchQuery,
+    required DocumentLibrarySort sort,
+  }) {
+    final query = searchQuery.trim().toLowerCase();
     final records = _records.values.where((document) {
       return query.isEmpty ||
           document.title.toLowerCase().contains(query) ||
           document.sourceName.toLowerCase().contains(query);
     }).toList();
     records.sort(
-      (left, right) => switch (_state.sort) {
+      (left, right) => switch (sort) {
         DocumentLibrarySort.title => left.title.compareTo(right.title),
         DocumentLibrarySort.importTime => _compareDates(
           left.importedAt,

@@ -53,6 +53,8 @@ class DocumentLibraryScreen extends StatelessWidget {
     this.onRetry,
     this.onCancel,
     this.onDelete,
+    this.onSearchChanged,
+    this.onSortChanged,
     this.showNavigation = true,
     super.key,
   });
@@ -64,6 +66,8 @@ class DocumentLibraryScreen extends StatelessWidget {
   final ValueChanged<String>? onRetry;
   final ValueChanged<String>? onCancel;
   final ValueChanged<String>? onDelete;
+  final ValueChanged<String>? onSearchChanged;
+  final ValueChanged<DocumentLibrarySort>? onSortChanged;
   final bool showNavigation;
 
   @override
@@ -80,8 +84,44 @@ class DocumentLibraryScreen extends StatelessWidget {
                 onPressed: onImport,
                 icon: const Icon(Icons.add_rounded),
               ),
+              PopupMenuButton<DocumentLibrarySort>(
+                tooltip: '\u6392\u5e8f\u6587\u6863',
+                onSelected: onSortChanged,
+                itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: DocumentLibrarySort.lastOpened,
+                    child: Text('\u6309\u6700\u8fd1\u6253\u5f00\u6392\u5e8f'),
+                  ),
+                  PopupMenuItem(
+                    value: DocumentLibrarySort.title,
+                    child: Text('\u6309\u6807\u9898\u6392\u5e8f'),
+                  ),
+                  PopupMenuItem(
+                    value: DocumentLibrarySort.importTime,
+                    child: Text('\u6309\u5bfc\u5165\u65f6\u95f4\u6392\u5e8f'),
+                  ),
+                ],
+                icon: const Icon(Icons.sort_rounded),
+              ),
               const SizedBox(width: 8),
             ],
+            bottom: onSearchChanged == null
+                ? null
+                : PreferredSize(
+                    preferredSize: const Size.fromHeight(60),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                      child: TextField(
+                        key: const Key('document-search'),
+                        onChanged: onSearchChanged,
+                        decoration: const InputDecoration(
+                          prefixIcon: Icon(Icons.search_rounded),
+                          hintText:
+                              '\u641c\u7d22\u6807\u9898\u6216\u6587\u4ef6\u540d',
+                        ),
+                      ),
+                    ),
+                  ),
           ),
           body: tablet ? _tabletBody(context) : _documentList(context),
           bottomNavigationBar: tablet || !showNavigation
@@ -139,8 +179,7 @@ class DocumentLibraryScreen extends StatelessWidget {
           selected: document.id == state.selectedDocumentId,
           onTap: () {
             onSelect?.call(document.id);
-            if (MediaQuery.sizeOf(context).width < 600 &&
-                document.status == LibraryDocumentStatus.completed) {
+            if (document.status == LibraryDocumentStatus.completed) {
               onOpen?.call(document.id);
             }
           },

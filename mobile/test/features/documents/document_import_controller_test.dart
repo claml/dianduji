@@ -146,6 +146,31 @@ void main() {
     await importer.finishStart();
   });
 
+  test(
+    'cancel with an unknown id leaves another active import running',
+    () async {
+      importer.holdStart = true;
+      final controller = DocumentImportController(
+        picker: _FakePicker(
+          result: const SelectedFile(
+            path: '/incoming/lesson.txt',
+            originalName: 'lesson.txt',
+          ),
+        ),
+        importer: importer,
+        repository: repository,
+      );
+      addTearDown(controller.dispose);
+
+      unawaited(controller.pickAndImport());
+      await importer.started.future;
+      await controller.cancel('not-the-active-document');
+
+      expect(importer.startCancellation!.isCancelled, isFalse);
+      await importer.finishStart();
+    },
+  );
+
   test('retry uses the sandbox copy and preserves the document id', () async {
     final controller = DocumentImportController(
       picker: _FakePicker(),
@@ -260,7 +285,10 @@ class _FakeImporter implements DocumentImporter {
     startCalls++;
     startCancellation = cancellationToken;
     if (!started.isCompleted) started.complete();
-    if (holdStart) await _heldEvents.future;
+    if (holdStart) {
+      yield const ImportState(documentId: 'doc-1', status: ImportStatus.queued);
+      await _heldEvents.future;
+    }
     yield* Stream.fromIterable(
       startEvents.isEmpty
           ? const [

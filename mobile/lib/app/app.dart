@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import 'providers.dart';
 import '../features/documents/presentation/document_library_page.dart';
 import '../features/learning/presentation/phrase_book_screen.dart';
 import '../features/learning/presentation/vocabulary_screen.dart';
@@ -39,7 +37,14 @@ class _DianDuJiAppState extends State<DianDuJiApp> {
               settings: shell.settings,
               onSelected: _select,
               onSettingsChanged: _changeSettings,
+              onOpenDocument: _openDocument,
             ),
+          ),
+        ),
+        GoRoute(
+          path: '/reader/:documentId',
+          builder: (context, state) => _ReaderDestination(
+            documentId: state.pathParameters['documentId']!,
           ),
         ),
       ],
@@ -81,6 +86,8 @@ class _DianDuJiAppState extends State<DianDuJiApp> {
       settings: settings,
     );
   }
+
+  void _openDocument(String documentId) => _router.go('/reader/$documentId');
 }
 
 class _AppShellState {
@@ -96,21 +103,19 @@ class _AppHome extends StatelessWidget {
     required this.settings,
     required this.onSelected,
     required this.onSettingsChanged,
+    required this.onOpenDocument,
   });
 
   final int selectedIndex;
   final ReadingSettings settings;
   final ValueChanged<int> onSelected;
   final ValueChanged<ReadingSettings> onSettingsChanged;
+  final ValueChanged<String> onOpenDocument;
 
   @override
   Widget build(BuildContext context) {
     final content = switch (selectedIndex) {
-      0 => DocumentLibraryPage(
-        controllerLoader: () => ProviderScope.containerOf(
-          context,
-        ).read(documentImportControllerProvider),
-      ),
+      0 => DocumentLibraryPage(onOpen: onOpenDocument),
       1 => const VocabularyScreen(entries: []),
       2 => const PhraseBookScreen(phrases: []),
       _ => SettingsScreen(initial: settings, onChanged: onSettingsChanged),
@@ -142,6 +147,20 @@ class _AppHome extends StatelessWidget {
       },
     );
   }
+}
+
+class _ReaderDestination extends StatelessWidget {
+  const _ReaderDestination({required this.documentId});
+
+  final String documentId;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('\u9605\u8bfb\u5668')),
+    body: Center(
+      child: Text('\u6b63\u5728\u6253\u5f00\u6587\u6863 $documentId'),
+    ),
+  );
 }
 
 ThemeData _theme(Color seed, Color surface) {

@@ -69,7 +69,93 @@ void main() {
 
     expect(repository.deleted, ['doc-1']);
   });
+
+  testWidgets(
+    'page creates its controller on first display and shows watched documents',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repository = _PageRepository();
+      final controller = DocumentImportController(
+        picker: _PagePicker(),
+        importer: _PageImporter(),
+        repository: repository,
+      );
+      addTearDown(controller.dispose);
+      var loaderCalls = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DocumentLibraryPage(
+            controllerLoader: () {
+              loaderCalls++;
+              return controller;
+            },
+          ),
+        ),
+      );
+      repository.emit([_pageSummary('doc-1', 'Imported lesson')]);
+      await tester.pump();
+
+      expect(loaderCalls, 1);
+      expect(find.text('Imported lesson'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'page exposes search and sort controls and opens a selected document',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repository = _PageRepository();
+      final controller = DocumentImportController(
+        picker: _PagePicker(),
+        importer: _PageImporter(),
+        repository: repository,
+      );
+      addTearDown(controller.dispose);
+      String? openedId;
+      repository.emit([
+        _pageSummary('doc-1', 'Zulu lesson'),
+        _pageSummary('doc-2', 'Alpha lesson'),
+      ]);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DocumentLibraryPage(
+            controller: controller,
+            onOpen: (id) => openedId = id,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.enterText(find.byKey(const Key('document-search')), 'Alpha');
+      await tester.pump();
+      expect(find.text('Zulu lesson'), findsNothing);
+      expect(find.text('Alpha lesson'), findsOneWidget);
+      await tester.tap(find.byTooltip('排序文档'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('按标题排序'));
+      await tester.pump();
+      expect(controller.state.sort.name, 'title');
+      await tester.tap(find.text('Alpha lesson'));
+      await tester.pump();
+      expect(openedId, 'doc-2');
+    },
+  );
 }
+
+DocumentSummary _pageSummary(String id, String title) => DocumentSummary(
+  id: id,
+  title: title,
+  sourceName: '$title.txt',
+  localPath: '/sandbox/$id',
+  format: 'txt',
+  status: 'completed',
+  progress: 1,
+  wordCount: 1,
+  readProgress: 0,
+);
 
 class _PagePicker implements DocumentPicker {
   @override

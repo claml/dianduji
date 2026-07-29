@@ -1,34 +1,40 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../app/providers.dart';
+import '../domain/import_document_use_case.dart';
 import 'document_import_controller.dart';
 import 'document_library_screen.dart';
 
-class DocumentLibraryPage extends StatefulWidget {
-  const DocumentLibraryPage({this.controller, this.controllerLoader, super.key})
-    : assert(controller != null || controllerLoader != null);
+class DocumentLibraryPage extends ConsumerStatefulWidget {
+  const DocumentLibraryPage({
+    this.controller,
+    this.controllerLoader,
+    this.onOpen,
+    super.key,
+  });
 
   final DocumentImportController? controller;
   final DocumentImportController Function()? controllerLoader;
+  final ValueChanged<String>? onOpen;
 
   @override
-  State<DocumentLibraryPage> createState() => _DocumentLibraryPageState();
+  ConsumerState<DocumentLibraryPage> createState() =>
+      _DocumentLibraryPageState();
 }
 
-class _DocumentLibraryPageState extends State<DocumentLibraryPage> {
+class _DocumentLibraryPageState extends ConsumerState<DocumentLibraryPage> {
   late DocumentImportController? _controller = widget.controller;
 
   @override
   Widget build(BuildContext context) {
-    final controller = _controller;
-    if (controller == null) {
-      return DocumentLibraryScreen(
-        state: const DocumentLibraryState(),
-        showNavigation: false,
-        onImport: _pickAndImport,
-      );
-    }
+    final DocumentImportController controller =
+        _controller ??
+        widget.controllerLoader?.call() ??
+        ref.watch(documentImportControllerProvider);
+    _controller ??= controller;
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
@@ -38,11 +44,14 @@ class _DocumentLibraryPageState extends State<DocumentLibraryPage> {
             DocumentLibraryScreen(
               state: state,
               showNavigation: false,
-              onImport: () => unawaited(controller.pickAndImport()),
+              onImport: () => unawaited(_pickAndImport(controller)),
+              onOpen: widget.onOpen,
               onSelect: controller.select,
               onRetry: (id) => unawaited(controller.retry(id)),
               onCancel: (id) => unawaited(controller.cancel(id)),
               onDelete: _confirmDelete,
+              onSearchChanged: controller.setSearchQuery,
+              onSortChanged: controller.setSort,
             ),
             if (state.errorMessage != null)
               Semantics(
@@ -79,12 +88,14 @@ class _DocumentLibraryPageState extends State<DocumentLibraryPage> {
     );
   }
 
-  Future<void> _pickAndImport() async {
-    final controller = _controller ?? widget.controllerLoader!.call();
-    if (_controller == null && mounted) {
-      setState(() => _controller = controller);
-    }
+  Future<void> _pickAndImport(DocumentImportController controller) async {
     await controller.pickAndImport();
+    final duplicate = controller.state.imports.values
+        .where((state) => state.status == ImportStatus.duplicate)
+        .lastOrNull;
+    if (duplicate != null) {
+      widget.onOpen?.call(duplicate.documentId);
+    }
   }
 
   Future<void> _confirmDelete(String documentId) async {
