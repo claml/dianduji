@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dian_du_ji/app/app.dart';
 import 'package:dian_du_ji/app/app_runtime.dart';
 import 'package:dian_du_ji/app/providers.dart';
@@ -7,19 +9,37 @@ import 'package:path_provider/path_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await initializeApplication(
+    runtimeInitializer: initializeAppRuntime,
+    recoverInterruptedImports: (runtime) {
+      return runtime.database.documentsDao.recoverInterruptedImports(
+        failureCode: 'storage',
+        failureMessage: '导入在本机中断，请重试。',
+      );
+    },
+    supportDirectoryProvider: getApplicationSupportDirectory,
+    runApplication: runApp,
+  );
+}
+
+Future<void> initializeApplication({
+  required Future<AppRuntime> Function() runtimeInitializer,
+  required Future<void> Function(AppRuntime runtime) recoverInterruptedImports,
+  required Future<Directory> Function() supportDirectoryProvider,
+  required void Function(Widget app) runApplication,
+}) async {
+  AppRuntime? runtime;
   try {
-    final runtime = await initializeAppRuntime();
-    await runtime.database.documentsDao.recoverInterruptedImports(
-      failureCode: 'storage',
-      failureMessage: '导入在本机中断，请重试。',
-    );
-    final supportDirectory = await getApplicationSupportDirectory();
-    runApp(
+    final initializedRuntime = await runtimeInitializer();
+    runtime = initializedRuntime;
+    await recoverInterruptedImports(initializedRuntime);
+    final supportDirectory = await supportDirectoryProvider();
+    runApplication(
       ProviderScope(
         overrides: [
           appRuntimeProvider.overrideWith((ref) {
-            ref.onDispose(() => runtime.close());
-            return runtime;
+            ref.onDispose(() => initializedRuntime.close());
+            return initializedRuntime;
           }),
           appSupportDirectoryProvider.overrideWithValue(supportDirectory),
         ],
@@ -27,7 +47,8 @@ Future<void> main() async {
       ),
     );
   } on Object catch (error) {
-    runApp(_StartupErrorApp(error: error));
+    if (runtime != null) await runtime.close();
+    runApplication(_StartupErrorApp(error: error));
   }
 }
 

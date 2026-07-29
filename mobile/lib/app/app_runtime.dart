@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -26,24 +28,48 @@ class AppRuntime {
   }
 }
 
-Future<AppRuntime> initializeAppRuntime() async {
-  final database = createAppDatabase();
+typedef RuntimeDictionaryOpener =
+    Future<DictionaryRepository> Function(Directory supportDirectory);
+typedef RuntimePhraseLoader = Future<PhraseRecognizer> Function();
+
+Future<AppRuntime> initializeAppRuntime({
+  AppDatabase Function()? databaseFactory,
+  Future<Directory> Function()? supportDirectoryProvider,
+  RuntimeDictionaryOpener? dictionaryOpener,
+  RuntimePhraseLoader? phraseRecognizerLoader,
+}) async {
+  final database = (databaseFactory ?? createAppDatabase)();
+  DictionaryRepository? dictionary;
   try {
-    final supportDirectory = await getApplicationSupportDirectory();
-    final dictionary = await DictionaryAssetStore(
-      supportDirectory: supportDirectory,
-      assetReader: rootBundle.load,
-    ).open();
-    final phraseRecognizer = await PhraseCatalogLoader(
-      assetReader: rootBundle.load,
-    ).load();
+    final supportDirectory =
+        await (supportDirectoryProvider ?? getApplicationSupportDirectory)();
+    dictionary = await (dictionaryOpener ?? _openBundledDictionary)(
+      supportDirectory,
+    );
+    final phraseRecognizer =
+        await (phraseRecognizerLoader ?? _loadBundledPhrases)();
     return AppRuntime(
       database: database,
       dictionary: dictionary,
       phraseRecognizer: phraseRecognizer,
     );
   } on Object {
+    // ignore: deprecated_member_use
+    dictionary?.database.dispose();
     await database.close();
     rethrow;
   }
+}
+
+Future<DictionaryRepository> _openBundledDictionary(
+  Directory supportDirectory,
+) {
+  return DictionaryAssetStore(
+    supportDirectory: supportDirectory,
+    assetReader: rootBundle.load,
+  ).open();
+}
+
+Future<PhraseRecognizer> _loadBundledPhrases() {
+  return PhraseCatalogLoader(assetReader: rootBundle.load).load();
 }
