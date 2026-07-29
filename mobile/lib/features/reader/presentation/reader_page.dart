@@ -9,9 +9,15 @@ import 'reader_controller.dart';
 import 'reader_screen.dart';
 
 class ReaderPage extends ConsumerStatefulWidget {
-  const ReaderPage({required this.documentId, this.controller, super.key});
+  const ReaderPage({
+    required this.documentId,
+    this.controller,
+    this.restoreItem,
+    super.key,
+  });
   final String documentId;
   final ReaderController? controller;
+  final Future<void> Function(BuildContext target)? restoreItem;
   @override
   ConsumerState<ReaderPage> createState() => _ReaderPageState();
 }
@@ -62,11 +68,19 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
         final item = token == null
             ? _sentenceKeys[id]?.currentContext
             : _tokenKeys[token.id]?.currentContext;
-        if (item != null) await Scrollable.ensureVisible(item, alignment: 0.15);
-        if (!mounted) return;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _restoringPosition = false;
-        });
+        try {
+          if (item != null) await _restoreItem(item);
+        } on Object {
+          // A failed programmatic calibration must not permanently suppress user saves.
+        } finally {
+          if (!mounted) {
+            _restoringPosition = false;
+          } else {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _restoringPosition = false;
+            });
+          }
+        }
       });
     }
   }
@@ -96,7 +110,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
         sentence = candidate;
       }
     }
-    final token = _tokenForOffset(sentence, _nearestTokenOffset(sentence));
+    final offset = _nearestTokenOffset(sentence);
+    final token = offset == null ? null : _tokenForOffset(sentence, offset);
     final progress = _scrollController.position.maxScrollExtent == 0
         ? 0.0 : _scrollController.position.pixels / _scrollController.position.maxScrollExtent;
     _controller.updateReadingPosition(sentenceId: sentence.id, localOffset: token?.startOffset ?? 0, progress: progress);
@@ -110,7 +125,13 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     );
   }
 
-  int _nearestTokenOffset(StoredReaderSentence sentence) {
+  Future<void> _restoreItem(BuildContext item) {
+    return widget.restoreItem?.call(item) ??
+        Scrollable.ensureVisible(item, alignment: 0.15);
+  }
+
+  int? _nearestTokenOffset(StoredReaderSentence sentence) {
+    if (sentence.tokens.isEmpty) return null;
     var nearest = sentence.tokens.first;
     var distance = double.infinity;
     for (final token in sentence.tokens) {
