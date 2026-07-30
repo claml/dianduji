@@ -10,10 +10,33 @@ class PersistedSettingsPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(readingSettingsProvider);
-    final settings = state.valueOrNull ?? ReadingSettings();
+    final controller = ref.read(persistedSettingsControllerProvider);
 
-    Future<void> save(ReadingSettings value) =>
-        ref.read(settingsRepositoryProvider).save(value);
+    if (state.isLoading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('设置')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+    final settings = state.settings;
+    if (settings == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('设置')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('设置加载失败'),
+              const SizedBox(height: 8),
+              FilledButton(
+                onPressed: controller.retry,
+                child: const Text('重试'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('设置')),
@@ -30,7 +53,7 @@ class PersistedSettingsPage extends ConsumerWidget {
             ],
             selected: {settings.theme},
             onSelectionChanged: (values) =>
-                save(_copySettings(settings, theme: values.single)),
+                controller.updateTheme(values.single),
           ),
           const SizedBox(height: 16),
           Text('字号 ${settings.fontSize.round()}'),
@@ -40,8 +63,7 @@ class PersistedSettingsPage extends ConsumerWidget {
             max: 24,
             divisions: 12,
             label: settings.fontSize.round().toString(),
-            onChanged: (value) =>
-                save(_copySettings(settings, fontSize: value)),
+            onChanged: controller.updateFontSize,
           ),
           Text('行距 ${settings.lineHeight.toStringAsFixed(1)}'),
           Slider(
@@ -50,15 +72,13 @@ class PersistedSettingsPage extends ConsumerWidget {
             max: 2,
             divisions: 6,
             label: settings.lineHeight.toStringAsFixed(1),
-            onChanged: (value) =>
-                save(_copySettings(settings, lineHeight: value)),
+            onChanged: controller.updateLineHeight,
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
             title: const Text('自动收录生词'),
             value: settings.autoSaveVocabulary,
-            onChanged: (value) =>
-                save(_copySettings(settings, autoSaveVocabulary: value)),
+            onChanged: controller.updateAutoSaveVocabulary,
           ),
           const Divider(),
           const ListTile(
@@ -103,23 +123,18 @@ class PersistedSettingsPage extends ConsumerWidget {
     );
     if (confirmed != true) return;
 
-    await ref.read(cacheCleanupServiceProvider).clearRebuildableCaches();
+    try {
+      await ref.read(cacheCleanupServiceProvider).clearRebuildableCaches();
+    } on Object {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('缓存清理失败，请重试')));
+      return;
+    }
     if (!context.mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('缓存已清理')));
   }
 }
-
-ReadingSettings _copySettings(
-  ReadingSettings settings, {
-  ReaderTheme? theme,
-  double? fontSize,
-  double? lineHeight,
-  bool? autoSaveVocabulary,
-}) => ReadingSettings(
-  theme: theme ?? settings.theme,
-  fontSize: fontSize ?? settings.fontSize,
-  lineHeight: lineHeight ?? settings.lineHeight,
-  autoSaveVocabulary: autoSaveVocabulary ?? settings.autoSaveVocabulary,
-);

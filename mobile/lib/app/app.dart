@@ -49,16 +49,15 @@ class _DianDuJiAppState extends ConsumerState<DianDuJiApp> {
 
   @override
   Widget build(BuildContext context) {
-    final settings =
-        ref.watch(readingSettingsProvider).valueOrNull ?? ReadingSettings();
+    final settings = ref.watch(readingSettingsProvider).settings;
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: '点读机',
-      theme: settings.theme == ReaderTheme.eyeCare
+      theme: settings?.theme == ReaderTheme.eyeCare
           ? _theme(const Color(0xFF6D7D47), const Color(0xFFF5F3E8))
           : _theme(const Color(0xFF3D7AED), const Color(0xFFFBFCFE)),
       darkTheme: _darkTheme(),
-      themeMode: settings.theme == ReaderTheme.night
+      themeMode: settings?.theme == ReaderTheme.night
           ? ThemeMode.dark
           : ThemeMode.light,
       routerConfig: _router,

@@ -2,26 +2,26 @@ import 'dart:typed_data';
 
 import 'package:dian_du_ji/features/learning/data/csv_export_service.dart';
 import 'package:dian_du_ji/features/learning/domain/csv_exporter.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('cancelled destination performs no write', () async {
-    final writer = _Writer();
+  test('cancelled destination is an explicit result', () async {
+    final destination = _Destination(null);
     final result = await CsvExportService(
-      destinationPicker: _Picker(null),
-      writer: writer,
+      destination: destination,
     ).exportVocabulary(const []);
+
     expect(result, isA<CsvExportCancelled>());
-    expect(writer.writes, isEmpty);
+    expect(destination.calls, 1);
+    expect(destination.bytes, isNotEmpty);
   });
 
-  test('writes RFC CSV bytes only after a destination is selected', () async {
-    final writer = _Writer();
-    await CsvExportService(
-      destinationPicker: _Picker('selected.csv'),
-      writer: writer,
-    ).exportVocabulary(const [
-      VocabularyExportRow(
+  test(
+    'service sends exact RFC CSV bytes to the selected destination',
+    () async {
+      final destination = _Destination('selected.csv');
+      final row = const VocabularyExportRow(
         word: 'a',
         phonetic: '',
         partOfSpeech: '',
@@ -29,23 +29,64 @@ void main() {
         proficiency: '陌生',
         lookupCount: 1,
         source: '',
-      ),
-    ]);
-    expect(writer.writes.single.$1, 'selected.csv');
-    expect(writer.writes.single.$2.take(3), isNot([0xef, 0xbb, 0xbf]));
-  });
+      );
+
+      final result = await CsvExportService(
+        destination: destination,
+      ).exportVocabulary([row]);
+
+      expect(result, isA<CsvExportSaved>());
+      expect(destination.bytes, exportVocabularyCsv([row]));
+    },
+  );
+
+  test(
+    'production file picker adapter always forwards nonempty bytes',
+    () async {
+      Uint8List? receivedBytes;
+      String? receivedName;
+      final destination = FilePickerCsvDestinationPicker(
+        saveFile:
+            ({
+              required String fileName,
+              required FileType type,
+              required List<String> allowedExtensions,
+              required Uint8List bytes,
+            }) async {
+              receivedName = fileName;
+              receivedBytes = bytes;
+              expect(type, FileType.custom);
+              expect(allowedExtensions, ['csv']);
+              return 'content://saved.csv';
+            },
+      );
+
+      final result = await destination.saveCsv(
+        suggestedName: '点读机生词.csv',
+        bytes: Uint8List.fromList([1, 2, 3]),
+      );
+
+      expect(result, 'content://saved.csv');
+      expect(receivedName, '点读机生词.csv');
+      expect(receivedBytes, [1, 2, 3]);
+    },
+  );
 }
 
-class _Picker implements CsvDestinationPicker {
-  const _Picker(this.path);
+class _Destination implements CsvDestinationPicker {
+  _Destination(this.path);
+
   final String? path;
-  @override
-  Future<String?> saveCsv({required String suggestedName}) async => path;
-}
+  var calls = 0;
+  Uint8List bytes = Uint8List(0);
 
-class _Writer implements CsvFileWriter {
-  final writes = <(String, Uint8List)>[];
   @override
-  Future<void> write(String path, Uint8List bytes) async =>
-      writes.add((path, bytes));
+  Future<String?> saveCsv({
+    required String suggestedName,
+    required Uint8List bytes,
+  }) async {
+    calls++;
+    this.bytes = bytes;
+    return path;
+  }
 }

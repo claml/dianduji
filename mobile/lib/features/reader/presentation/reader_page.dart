@@ -22,7 +22,8 @@ class ReaderPage extends ConsumerStatefulWidget {
   ConsumerState<ReaderPage> createState() => _ReaderPageState();
 }
 
-class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObserver {
+class _ReaderPageState extends ConsumerState<ReaderPage>
+    with WidgetsBindingObserver {
   late final ReaderController _controller;
   late final bool _ownsController;
   final _scrollController = ScrollController();
@@ -37,15 +38,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _ownsController = widget.controller == null;
-    _controller = widget.controller ?? ReaderController(
-      documents: ref.read(documentRepositoryProvider),
-      translation: TranslationViewModel(
-        dictionary: ref.read(dictionaryLookupProvider),
-        learning: ref.read(learningRepositoryProvider),
-        phraseRecognizer: ref.read(phraseRecognizerProvider),
-      ),
-      settings: ReadingSettings(),
-    );
+    _controller =
+        widget.controller ??
+        ReaderController(
+          documents: ref.read(documentRepositoryProvider),
+          translation: TranslationViewModel(
+            dictionary: ref.read(dictionaryLookupProvider),
+            learning: ref.read(learningRepositoryProvider),
+            phraseRecognizer: ref.read(phraseRecognizerProvider),
+          ),
+          settings: ReadingSettings(autoSaveVocabulary: false),
+        );
     _controller.addListener(_changed);
     _scrollController.addListener(_recordPosition);
     _open();
@@ -85,7 +88,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     }
   }
 
-  void _changed() { if (mounted) setState(() {}); }
+  void _changed() {
+    if (mounted) setState(() {});
+  }
 
   void _recordPosition() {
     if (_restoringPosition || _positionScheduled) return;
@@ -102,7 +107,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     var sentence = state.sentences.first;
     var closestDistance = double.infinity;
     for (final candidate in state.sentences) {
-      final box = _sentenceKeys[candidate.id]?.currentContext?.findRenderObject() as RenderBox?;
+      final box =
+          _sentenceKeys[candidate.id]?.currentContext?.findRenderObject()
+              as RenderBox?;
       if (box == null) continue;
       final distance = (box.localToGlobal(Offset.zero).dy - 96).abs();
       if (distance < closestDistance) {
@@ -113,11 +120,20 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     final offset = _nearestTokenOffset(sentence);
     final token = offset == null ? null : _tokenForOffset(sentence, offset);
     final progress = _scrollController.position.maxScrollExtent == 0
-        ? 0.0 : _scrollController.position.pixels / _scrollController.position.maxScrollExtent;
-    _controller.updateReadingPosition(sentenceId: sentence.id, localOffset: token?.startOffset ?? 0, progress: progress);
+        ? 0.0
+        : _scrollController.position.pixels /
+              _scrollController.position.maxScrollExtent;
+    _controller.updateReadingPosition(
+      sentenceId: sentence.id,
+      localOffset: token?.startOffset ?? 0,
+      progress: progress,
+    );
   }
 
-  StoredReaderToken? _tokenForOffset(StoredReaderSentence sentence, int offset) {
+  StoredReaderToken? _tokenForOffset(
+    StoredReaderSentence sentence,
+    int offset,
+  ) {
     if (sentence.tokens.isEmpty) return null;
     return sentence.tokens.lastWhere(
       (token) => token.startOffset <= offset,
@@ -135,7 +151,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
     var nearest = sentence.tokens.first;
     var distance = double.infinity;
     for (final token in sentence.tokens) {
-      final box = _tokenKeys[token.id]?.currentContext?.findRenderObject() as RenderBox?;
+      final box =
+          _tokenKeys[token.id]?.currentContext?.findRenderObject()
+              as RenderBox?;
       if (box == null) continue;
       final candidateDistance = (box.localToGlobal(Offset.zero).dy - 96).abs();
       if (candidateDistance < distance) {
@@ -148,24 +166,60 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) _controller.forceSave();
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _controller.forceSave();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(readingSettingsProvider).valueOrNull ?? ReadingSettings();
+    final persisted = ref.watch(readingSettingsProvider);
+    if (persisted.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    final settings = persisted.settings;
+    if (settings == null) {
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('设置加载失败'),
+              FilledButton(
+                onPressed: ref.read(persistedSettingsControllerProvider).retry,
+                child: const Text('重试'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     _controller.updateSettings(settings);
     final state = _controller.state;
-    if (!_opened || state.isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    if (state.error != null) return Scaffold(body: Center(child: Text('打开文档失败：${state.error}')));
+    if (!_opened || state.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (state.error != null) {
+      return Scaffold(body: Center(child: Text('打开文档失败：${state.error}')));
+    }
     return PopScope(
       onPopInvokedWithResult: (_, _) => _controller.forceSave(),
       child: ReaderScreen(
         title: state.document?.title ?? '阅读器',
-        sentences: state.sentences.map((sentence) => ReaderSentence(
-          id: sentence.id,
-          tokens: sentence.tokens.map((token) => ReaderToken(id: token.id, surface: token.surface)).toList(growable: false),
-        )).toList(growable: false),
+        sentences: state.sentences
+            .map(
+              (sentence) => ReaderSentence(
+                id: sentence.id,
+                tokens: sentence.tokens
+                    .map(
+                      (token) =>
+                          ReaderToken(id: token.id, surface: token.surface),
+                    )
+                    .toList(growable: false),
+              ),
+            )
+            .toList(growable: false),
         selectedTokenId: state.selectedTokenId,
         translationState: _controller.translation.state,
         fontSize: settings.fontSize,
@@ -173,7 +227,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
         sentenceKeyFor: (id) => _sentenceKeys.putIfAbsent(id, GlobalKey.new),
         tokenKeyFor: (id) => _tokenKeys.putIfAbsent(id, GlobalKey.new),
         scrollController: _scrollController,
-        onTokenTap: (sentence, token) => _controller.selectToken(sentenceId: sentence.id, tokenId: token.id),
+        onTokenTap: (sentence, token) =>
+            _controller.selectToken(sentenceId: sentence.id, tokenId: token.id),
         onCloseTranslation: _controller.closeTranslation,
         onSavePhrase: _controller.savePhrase,
       ),
@@ -183,7 +238,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage> with WidgetsBindingObse
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _scrollController..removeListener(_recordPosition)..dispose();
+    _scrollController
+      ..removeListener(_recordPosition)
+      ..dispose();
     _controller.removeListener(_changed);
     _controller.forceSave();
     if (_ownsController) _controller.dispose();

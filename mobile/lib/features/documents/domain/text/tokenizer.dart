@@ -1,4 +1,5 @@
 import '../models/parsed_block.dart';
+import '../../../../core/text/word_normalizer.dart';
 
 final _wordPattern = RegExp(
   r"[A-Za-z]+(?:['’][A-Za-z]+)*(?:-[A-Za-z]+(?:['’][A-Za-z]+)*)*",
@@ -12,7 +13,7 @@ List<TokenSpan> tokenize(String sentence) {
         final surface = match.group(0)!;
         return TokenSpan(
           surface: surface,
-          normalized: surface.replaceAll('’', "'").toLowerCase(),
+          normalized: normalizeEnglishWord(surface),
           start: match.start,
           end: match.end,
         );

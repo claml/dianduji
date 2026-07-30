@@ -146,6 +146,60 @@ void main() {
         ),
         throwsA(isA<ArgumentError>()),
       );
+      await repository.addManualVocabulary(
+        const ManualVocabularyDraft(word: 'don’t', definition: '不要'),
+      );
+      await expectLater(
+        repository.addManualVocabulary(
+          const ManualVocabularyDraft(word: "don't", definition: '不要'),
+        ),
+        throwsA(isA<StateError>()),
+      );
+    },
+  );
+
+  test(
+    'DAO applies typed filter search and stable sort in its SQL query',
+    () async {
+      await repository.addManualVocabulary(
+        const ManualVocabularyDraft(
+          word: 'zebra',
+          definition: '斑马',
+          proficiency: VocabularyProficiency.known,
+        ),
+      );
+      await repository.addManualVocabulary(
+        const ManualVocabularyDraft(
+          word: 'apple',
+          definition: '苹果',
+          proficiency: VocabularyProficiency.known,
+        ),
+      );
+      await repository.addManualVocabulary(
+        const ManualVocabularyDraft(
+          word: 'unknown',
+          definition: '未知',
+          proficiency: VocabularyProficiency.unknown,
+        ),
+      );
+
+      final rows = await database.learningDao
+          .watchVocabularyEntries(
+            proficiency: VocabularyProficiency.known.index,
+            search: '果',
+            sort: LearningVocabularySort.alphabetical,
+          )
+          .first;
+      expect(rows.map((row) => row.entry.lemma), ['apple']);
+
+      final stable = await database.learningDao
+          .watchVocabularyEntries(sort: LearningVocabularySort.lookupCount)
+          .first;
+      expect(stable.map((row) => row.entry.lemma), [
+        'apple',
+        'unknown',
+        'zebra',
+      ]);
     },
   );
 

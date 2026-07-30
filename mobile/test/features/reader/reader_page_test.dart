@@ -9,6 +9,7 @@ import 'package:dian_du_ji/features/reader/domain/reading_locator.dart';
 import 'package:dian_du_ji/features/reader/presentation/reader_controller.dart';
 import 'package:dian_du_ji/features/reader/presentation/reader_page.dart';
 import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
+import 'package:dian_du_ji/features/settings/presentation/persisted_settings_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -157,7 +158,7 @@ void main() {
 }
 
 Widget _page(ReaderController controller, {bool withBackRoute = false, Key? appKey, Future<void> Function(BuildContext)? restoreItem}) => ProviderScope(
-  overrides: [readingSettingsProvider.overrideWith((ref) => Stream.value(ReadingSettings()))],
+  overrides: [readingSettingsProvider.overrideWithValue(PersistedSettingsState(settings: ReadingSettings(), isLoading: false))],
   child: MaterialApp(key: appKey, home: withBackRoute ? _PushReader(controller) : ReaderPage(documentId: 'doc-1', controller: controller, restoreItem: restoreItem)),
 );
 
@@ -248,3 +249,4 @@ class _EmptyTokenDocuments implements DocumentRepository {
   @override Future<void> saveProgress(ReadingLocator locator, double progress) async => saved.add((locator, progress));
   @override Stream<List<DocumentSummary>> watchDocuments() => const Stream.empty();
 }
+

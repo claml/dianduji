@@ -6,11 +6,81 @@ import 'package:dian_du_ji/features/settings/data/cache_cleanup_service.dart';
 import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
 import 'package:dian_du_ji/features/settings/data/settings_repository.dart';
 import 'package:dian_du_ji/features/settings/presentation/persisted_settings_page.dart';
+import 'package:dian_du_ji/features/settings/presentation/persisted_settings_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test(
+    'does not expose writable defaults while settings are loading',
+    () async {
+      final repository = _ControllableSettingsRepository()..delayLoad();
+      final controller = PersistedSettingsController(repository);
+
+      expect(controller.state.isLoading, isTrue);
+      expect(controller.state.settings, isNull);
+      expect(() => controller.updateFontSize(20), throwsA(isA<StateError>()));
+      expect(repository.saved, isEmpty);
+
+      repository.completeLoad(ReadingSettings(fontSize: 18));
+      await controller.ready;
+      expect(controller.state.settings?.fontSize, 18);
+    },
+  );
+
+  test(
+    'rapid edits compose optimistically and saves stay serialized',
+    () async {
+      final repository = _ControllableSettingsRepository();
+      final controller = PersistedSettingsController(repository);
+      await controller.ready;
+
+      final saves = [
+        controller.updateTheme(ReaderTheme.eyeCare),
+        controller.updateFontSize(20),
+        controller.updateLineHeight(1.8),
+        controller.updateAutoSaveVocabulary(false),
+      ];
+      expect(
+        controller.state.settings,
+        ReadingSettings(
+          theme: ReaderTheme.eyeCare,
+          fontSize: 20,
+          lineHeight: 1.8,
+          autoSaveVocabulary: false,
+        ),
+      );
+      await Future.wait(saves);
+
+      expect(repository.maxConcurrentSaves, 1);
+      expect(repository.saved.last, controller.state.settings);
+    },
+  );
+
+  testWidgets('loading and load failure never show editable defaults', (
+    tester,
+  ) async {
+    final repository = _ControllableSettingsRepository()..delayLoad();
+    await tester.pumpWidget(
+      _settingsApp(_RecordingCacheCleanupService(), repository: repository),
+    );
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('自动收录生词'), findsNothing);
+
+    repository.failLoad(StateError('disk unavailable'));
+    await tester.pumpAndSettle();
+    expect(find.text('设置加载失败'), findsOneWidget);
+    expect(find.text('重试'), findsOneWidget);
+    expect(find.byType(SwitchListTile), findsNothing);
+
+    repository.allowLoad(ReadingSettings());
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+    expect(find.text('自动收录生词'), findsOneWidget);
+  });
+
   testWidgets('persists theme, font, line height and auto-save changes', (
     tester,
   ) async {
@@ -44,6 +114,7 @@ void main() {
   testWidgets('cancelled cache cleanup performs no deletion', (tester) async {
     final cleanup = _RecordingCacheCleanupService();
     await tester.pumpWidget(_settingsApp(cleanup));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('清理可重建缓存'));
     await tester.pumpAndSettle();
@@ -58,6 +129,7 @@ void main() {
   ) async {
     final cleanup = _RecordingCacheCleanupService();
     await tester.pumpWidget(_settingsApp(cleanup));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('清理可重建缓存'));
     await tester.pumpAndSettle();
@@ -68,6 +140,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(cleanup.calls, 1);
+  });
+
+  testWidgets('cache cleanup failure is visible and remains recoverable', (
+    tester,
+  ) async {
+    final cleanup = _RecordingCacheCleanupService()..error = StateError('io');
+    await tester.pumpWidget(_settingsApp(cleanup));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('清理可重建缓存'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('确认'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('缓存清理失败，请重试'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   test('production cleanup only deletes bounded rebuildable caches', () async {
@@ -112,7 +199,7 @@ void main() {
 
 Widget _settingsApp(
   CacheCleanupService cleanup, {
-  _SettingsRepository? repository,
+  SettingsRepository? repository,
 }) => ProviderScope(
   overrides: [
     settingsRepositoryProvider.overrideWithValue(
@@ -125,9 +212,47 @@ Widget _settingsApp(
 
 class _RecordingCacheCleanupService implements CacheCleanupService {
   var calls = 0;
+  Object? error;
 
   @override
-  Future<void> clearRebuildableCaches() async => calls++;
+  Future<void> clearRebuildableCaches() async {
+    calls++;
+    if (error != null) throw error!;
+  }
+}
+
+class _ControllableSettingsRepository implements SettingsRepository {
+  Completer<ReadingSettings>? _load;
+  ReadingSettings value = ReadingSettings();
+  final saved = <ReadingSettings>[];
+  var concurrentSaves = 0;
+  var maxConcurrentSaves = 0;
+
+  void delayLoad() => _load = Completer<ReadingSettings>();
+  void completeLoad(ReadingSettings settings) => _load!.complete(settings);
+  void failLoad(Object error) => _load!.completeError(error);
+  void allowLoad(ReadingSettings settings) {
+    value = settings;
+    _load = null;
+  }
+
+  @override
+  Future<ReadingSettings> load() => _load?.future ?? Future.value(value);
+
+  @override
+  Future<void> save(ReadingSettings settings) async {
+    concurrentSaves++;
+    maxConcurrentSaves = maxConcurrentSaves < concurrentSaves
+        ? concurrentSaves
+        : maxConcurrentSaves;
+    await Future<void>.delayed(Duration.zero);
+    value = settings;
+    saved.add(settings);
+    concurrentSaves--;
+  }
+
+  @override
+  Stream<ReadingSettings> watch() => Stream.value(value);
 }
 
 class _SettingsRepository implements SettingsRepository {

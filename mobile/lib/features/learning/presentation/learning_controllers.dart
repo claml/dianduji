@@ -16,7 +16,10 @@ class VocabularyController extends ChangeNotifier {
   final CsvExportService _csvExportService;
   VocabularyQuery _query = const VocabularyQuery();
   List<VocabularyListItem> entries = const [];
+  bool isLoading = true;
+  Object? error;
   StreamSubscription<List<VocabularyListItem>>? _subscription;
+  var _listenGeneration = 0;
 
   VocabularyQuery get query => _query;
 
@@ -39,6 +42,8 @@ class VocabularyController extends ChangeNotifier {
       _repository.updateProficiency(lemma, value);
 
   Future<void> delete(String lemma) => _repository.deleteVocabulary(lemma);
+
+  void retry() => _listen();
 
   Future<CsvExportResult> exportCsv() => _csvExportService.exportVocabulary(
     entries.map(
@@ -63,15 +68,38 @@ class VocabularyController extends ChangeNotifier {
   }
 
   void _listen() {
+    final generation = ++_listenGeneration;
     unawaited(_subscription?.cancel());
-    _subscription = _repository.watchVocabulary(_query).listen((value) {
-      entries = value;
-      notifyListeners();
-    });
+    isLoading = true;
+    error = null;
+    notifyListeners();
+    _subscription = _repository
+        .watchVocabulary(_query)
+        .listen(
+          (value) {
+            if (generation != _listenGeneration) return;
+            entries = value;
+            isLoading = false;
+            error = null;
+            notifyListeners();
+          },
+          onError: (Object value) {
+            if (generation != _listenGeneration) return;
+            isLoading = false;
+            error = value;
+            notifyListeners();
+          },
+          onDone: () {
+            if (generation != _listenGeneration || !isLoading) return;
+            isLoading = false;
+            notifyListeners();
+          },
+        );
   }
 
   @override
   void dispose() {
+    _listenGeneration++;
     unawaited(_subscription?.cancel());
     super.dispose();
   }
@@ -85,7 +113,10 @@ class PhraseBookController extends ChangeNotifier {
   final LearningRepository _repository;
   SavedPhraseQuery _query = const SavedPhraseQuery();
   List<SavedPhraseListItem> entries = const [];
+  bool isLoading = true;
+  Object? error;
   StreamSubscription<List<SavedPhraseListItem>>? _subscription;
+  var _listenGeneration = 0;
 
   SavedPhraseQuery get query => _query;
 
@@ -97,6 +128,8 @@ class PhraseBookController extends ChangeNotifier {
 
   Future<void> delete(String key) => _repository.deleteSavedPhrase(key);
 
+  void retry() => _listen();
+
   void _changeQuery(SavedPhraseQuery value) {
     _query = value;
     notifyListeners();
@@ -104,15 +137,38 @@ class PhraseBookController extends ChangeNotifier {
   }
 
   void _listen() {
+    final generation = ++_listenGeneration;
     unawaited(_subscription?.cancel());
-    _subscription = _repository.watchSavedPhrases(_query).listen((value) {
-      entries = value;
-      notifyListeners();
-    });
+    isLoading = true;
+    error = null;
+    notifyListeners();
+    _subscription = _repository
+        .watchSavedPhrases(_query)
+        .listen(
+          (value) {
+            if (generation != _listenGeneration) return;
+            entries = value;
+            isLoading = false;
+            error = null;
+            notifyListeners();
+          },
+          onError: (Object value) {
+            if (generation != _listenGeneration) return;
+            isLoading = false;
+            error = value;
+            notifyListeners();
+          },
+          onDone: () {
+            if (generation != _listenGeneration || !isLoading) return;
+            isLoading = false;
+            notifyListeners();
+          },
+        );
   }
 
   @override
   void dispose() {
+    _listenGeneration++;
     unawaited(_subscription?.cancel());
     super.dispose();
   }

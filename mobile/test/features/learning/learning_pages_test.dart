@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dian_du_ji/app/providers.dart';
@@ -16,13 +17,10 @@ void main() {
     'vocabulary controller exposes query, mutations and CSV export',
     () async {
       final repository = _LearningRepository();
-      final writer = _Writer();
+      final destination = _Destination('words.csv');
       final controller = VocabularyController(
         repository,
-        CsvExportService(
-          destinationPicker: const _Picker('words.csv'),
-          writer: writer,
-        ),
+        CsvExportService(destination: destination),
       );
       addTearDown(controller.dispose);
       await Future<void>.delayed(Duration.zero);
@@ -46,7 +44,7 @@ void main() {
         VocabularyProficiency.vague,
       ));
       expect(repository.deletedVocabulary, ['language']);
-      expect(writer.writes.single.$1, 'words.csv');
+      expect(destination.bytes, isNotEmpty);
     },
   );
 
@@ -54,15 +52,19 @@ void main() {
     'vocabulary controls select filters, sort and validate manual add',
     (tester) async {
       final repository = _LearningRepository();
-      final writer = _Writer();
+      final destination = _Destination('words.csv');
       await tester.pumpWidget(
-        _learningApp(repository, const VocabularyPage(), writer: writer),
+        _learningApp(
+          repository,
+          const VocabularyPage(),
+          destination: destination,
+        ),
       );
       await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('导出 CSV'));
       await tester.pumpAndSettle();
-      expect(writer.writes, hasLength(1));
+      expect(destination.calls, 1);
 
       await tester.tap(find.text('认识'));
       await tester.pumpAndSettle();
@@ -85,6 +87,50 @@ void main() {
     },
   );
 
+  testWidgets('vocabulary load error is visible and retryable', (tester) async {
+    final repository = _LearningRepository()..failVocabulary = true;
+    await tester.pumpWidget(_learningApp(repository, const VocabularyPage()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('加载生词失败'), findsOneWidget);
+    expect(find.text('重试'), findsOneWidget);
+    expect(find.text('还没有生词'), findsNothing);
+
+    repository.failVocabulary = false;
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+    expect(find.text('language'), findsOneWidget);
+  });
+
+  testWidgets('vocabulary shows loading before its first database result', (
+    tester,
+  ) async {
+    final repository = _LearningRepository()..holdVocabulary = true;
+    await tester.pumpWidget(_learningApp(repository, const VocabularyPage()));
+
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.text('还没有生词'), findsNothing);
+
+    repository.releaseVocabulary();
+    await tester.pumpAndSettle();
+    expect(find.text('language'), findsOneWidget);
+  });
+
+  testWidgets('phrase load error is visible and retryable', (tester) async {
+    final repository = _LearningRepository()..failPhrases = true;
+    await tester.pumpWidget(_learningApp(repository, const PhraseBookPage()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('加载短语失败'), findsOneWidget);
+    expect(find.text('重试'), findsOneWidget);
+    expect(find.text('还没有收藏短语'), findsNothing);
+
+    repository.failPhrases = false;
+    await tester.tap(find.text('重试'));
+    await tester.pumpAndSettle();
+    expect(find.text('look up'), findsOneWidget);
+  });
+
   testWidgets(
     'phone vocabulary detail updates proficiency and confirms delete',
     (tester) async {
@@ -94,7 +140,7 @@ void main() {
       await tester.pumpWidget(_learningApp(repository, const VocabularyPage()));
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('language'));
+      await tester.tap(find.widgetWithText(ListTile, 'language'));
       await tester.pumpAndSettle();
       expect(find.text('Languages connect people.'), findsOneWidget);
       expect(find.text('A Lesson'), findsOneWidget);
@@ -158,22 +204,89 @@ void main() {
       expect(repository.deletedPhrases, ['look-up']);
     },
   );
+
+  testWidgets(
+    'tablet detail follows repository updates and selection removal',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repository = _LearningRepository();
+      addTearDown(repository.dispose);
+      await tester.pumpWidget(_learningApp(repository, const VocabularyPage()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('language'));
+      await tester.pumpAndSettle();
+      repository.replaceVocabulary([
+        _vocabularyItem(
+          proficiency: VocabularyProficiency.known,
+          context: 'Updated context from repository.',
+        ),
+      ]);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Updated context from repository.'), findsOneWidget);
+      expect(
+        tester
+            .widget<DropdownButton<VocabularyProficiency>>(
+              find.byType(DropdownButton<VocabularyProficiency>),
+            )
+            .value,
+        VocabularyProficiency.known,
+      );
+
+      repository.replaceVocabulary(const []);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('vocabulary-detail-pane')),
+        findsNothing,
+      );
+      expect(find.text('选择一个生词查看详情'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    '640dp window keeps multi-pane when navigation reduces body width',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(640, 600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repository = _LearningRepository();
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            learningRepositoryProvider.overrideWithValue(repository),
+            csvExportServiceProvider.overrideWithValue(
+              CsvExportService(destination: _Destination('words.csv')),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Row(
+              children: [
+                SizedBox(width: 80),
+                Expanded(child: VocabularyPage()),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('选择一个生词查看详情'), findsOneWidget);
+    },
+  );
 }
 
 Widget _learningApp(
   _LearningRepository repository,
   Widget page, {
-  _Writer? writer,
+  _Destination? destination,
 }) {
-  final exportWriter = writer ?? _Writer();
+  final exportDestination = destination ?? _Destination('words.csv');
   return ProviderScope(
     overrides: [
       learningRepositoryProvider.overrideWithValue(repository),
       csvExportServiceProvider.overrideWithValue(
-        CsvExportService(
-          destinationPicker: const _Picker('words.csv'),
-          writer: exportWriter,
-        ),
+        CsvExportService(destination: exportDestination),
       ),
     ],
     child: MaterialApp(home: page),
@@ -181,28 +294,20 @@ Widget _learningApp(
 }
 
 class _LearningRepository implements LearningRepository {
+  final _vocabularyChanges =
+      StreamController<List<VocabularyListItem>>.broadcast();
   final added = <ManualVocabularyDraft>[];
   final proficiency = <(String, VocabularyProficiency)>[];
   final deletedVocabulary = <String>[];
   final deletedPhrases = <String>[];
   VocabularyQuery lastVocabularyQuery = const VocabularyQuery();
   SavedPhraseQuery lastPhraseQuery = const SavedPhraseQuery();
+  bool failVocabulary = false;
+  bool holdVocabulary = false;
+  bool failPhrases = false;
+  Completer<void>? _vocabularyRelease;
 
-  final vocabulary = [
-    VocabularyListItem(
-      lemma: 'language',
-      displayWord: 'language',
-      phonetic: 'ˈlæŋɡwɪdʒ',
-      partOfSpeech: 'n.',
-      definition: '语言',
-      proficiency: VocabularyProficiency.unknown,
-      lookupCount: 2,
-      context: 'Languages connect people.',
-      sourceAvailability: SourceAvailability.available,
-      sourceTitle: 'A Lesson',
-      lastLookupAt: DateTime(2026),
-    ),
-  ];
+  final vocabulary = [_vocabularyItem()];
   final phrases = [
     SavedPhraseListItem(
       phraseKey: 'look-up',
@@ -221,7 +326,12 @@ class _LearningRepository implements LearningRepository {
     VocabularyQuery query,
   ) async* {
     lastVocabularyQuery = query;
-    yield vocabulary
+    if (failVocabulary) throw StateError('database unavailable');
+    if (holdVocabulary) {
+      _vocabularyRelease = Completer<void>();
+      await _vocabularyRelease!.future;
+    }
+    List<VocabularyListItem> filter(List<VocabularyListItem> source) => source
         .where(
           (entry) =>
               (query.filter == VocabularyFilter.all ||
@@ -231,13 +341,30 @@ class _LearningRepository implements LearningRepository {
                   entry.definition.contains(query.search)),
         )
         .toList();
+    yield filter(vocabulary);
+    yield* _vocabularyChanges.stream.map(filter);
   }
+
+  void replaceVocabulary(List<VocabularyListItem> value) {
+    vocabulary
+      ..clear()
+      ..addAll(value);
+    _vocabularyChanges.add(List.unmodifiable(vocabulary));
+  }
+
+  void releaseVocabulary() {
+    holdVocabulary = false;
+    _vocabularyRelease?.complete();
+  }
+
+  void dispose() => _vocabularyChanges.close();
 
   @override
   Stream<List<SavedPhraseListItem>> watchSavedPhrases(
     SavedPhraseQuery query,
   ) async* {
     lastPhraseQuery = query;
+    if (failPhrases) throw StateError('database unavailable');
     yield phrases
         .where(
           (entry) =>
@@ -278,19 +405,37 @@ class _LearningRepository implements LearningRepository {
   Future<void> savePhrase(SavedPhraseDraft phrase) async {}
 }
 
-class _Picker implements CsvDestinationPicker {
-  const _Picker(this.path);
+VocabularyListItem _vocabularyItem({
+  VocabularyProficiency proficiency = VocabularyProficiency.unknown,
+  String context = 'Languages connect people.',
+}) => VocabularyListItem(
+  lemma: 'language',
+  displayWord: 'language',
+  phonetic: 'ˈlæŋɡwɪdʒ',
+  partOfSpeech: 'n.',
+  definition: '语言',
+  proficiency: proficiency,
+  lookupCount: 2,
+  context: context,
+  sourceAvailability: SourceAvailability.available,
+  sourceTitle: 'A Lesson',
+  lastLookupAt: DateTime(2026),
+);
+
+class _Destination implements CsvDestinationPicker {
+  _Destination(this.path);
 
   final String? path;
+  var calls = 0;
+  Uint8List bytes = Uint8List(0);
 
   @override
-  Future<String?> saveCsv({required String suggestedName}) async => path;
-}
-
-class _Writer implements CsvFileWriter {
-  final writes = <(String, Uint8List)>[];
-
-  @override
-  Future<void> write(String path, Uint8List bytes) async =>
-      writes.add((path, bytes));
+  Future<String?> saveCsv({
+    required String suggestedName,
+    required Uint8List bytes,
+  }) async {
+    calls++;
+    this.bytes = bytes;
+    return path;
+  }
 }

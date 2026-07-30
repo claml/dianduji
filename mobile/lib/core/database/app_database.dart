@@ -204,6 +204,8 @@ class SavedPhraseWithSource {
   final bool sourceExists;
 }
 
+enum LearningVocabularySort { recent, alphabetical, lookupCount }
+
 @DriftDatabase(
   tables: [
     Documents,
@@ -483,13 +485,41 @@ class LearningDao extends DatabaseAccessor<AppDatabase>
     return row.read(count) ?? 0;
   }
 
-  Stream<List<VocabularyEntryWithSource>> watchVocabularyEntries() {
+  Stream<List<VocabularyEntryWithSource>> watchVocabularyEntries({
+    int? proficiency,
+    String search = '',
+    LearningVocabularySort sort = LearningVocabularySort.recent,
+  }) {
     final query = select(vocabularyEntries).join([
       leftOuterJoin(
         documents,
         documents.id.equalsExp(vocabularyEntries.sourceDocumentId),
       ),
     ]);
+    if (proficiency != null) {
+      query.where(vocabularyEntries.proficiency.equals(proficiency));
+    }
+    final term = search.trim();
+    if (term.isNotEmpty) {
+      query.where(
+        vocabularyEntries.lemma.contains(term) |
+            vocabularyEntries.displayWord.contains(term) |
+            vocabularyEntries.definition.contains(term),
+      );
+    }
+    query.orderBy(switch (sort) {
+      LearningVocabularySort.recent => [
+        OrderingTerm.desc(vocabularyEntries.lastLookupAt),
+        OrderingTerm.asc(vocabularyEntries.lemma),
+      ],
+      LearningVocabularySort.alphabetical => [
+        OrderingTerm.asc(vocabularyEntries.lemma),
+      ],
+      LearningVocabularySort.lookupCount => [
+        OrderingTerm.desc(vocabularyEntries.lookupCount),
+        OrderingTerm.asc(vocabularyEntries.lemma),
+      ],
+    });
     return query.watch().map(
       (rows) => rows.map((row) {
         final entry = row.readTable(vocabularyEntries);
@@ -503,12 +533,27 @@ class LearningDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
-  Stream<List<SavedPhraseWithSource>> watchSavedPhraseEntries() {
+  Stream<List<SavedPhraseWithSource>> watchSavedPhraseEntries({
+    String? type,
+    String search = '',
+  }) {
     final query = select(savedPhrases).join([
       leftOuterJoin(
         documents,
         documents.id.equalsExp(savedPhrases.sourceDocumentId),
       ),
+    ]);
+    if (type != null) query.where(savedPhrases.type.equals(type));
+    final term = search.trim();
+    if (term.isNotEmpty) {
+      query.where(
+        savedPhrases.surface.contains(term) |
+            savedPhrases.meaning.contains(term),
+      );
+    }
+    query.orderBy([
+      OrderingTerm.desc(savedPhrases.createdAt),
+      OrderingTerm.asc(savedPhrases.phraseKey),
     ]);
     return query.watch().map(
       (rows) => rows.map((row) {

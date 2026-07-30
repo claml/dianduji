@@ -15,11 +15,15 @@ class VocabularyPage extends ConsumerStatefulWidget {
 }
 
 class _VocabularyPageState extends ConsumerState<VocabularyPage> {
-  VocabularyListItem? _selected;
+  String? _selectedLemma;
 
   @override
   Widget build(BuildContext context) {
     final controller = ref.watch(vocabularyControllerProvider);
+    final isWide = MediaQuery.sizeOf(context).width >= 600;
+    final selected = controller.entries
+        .where((entry) => entry.lemma == _selectedLemma)
+        .firstOrNull;
     return Scaffold(
       appBar: AppBar(
         title: const Text('生词本'),
@@ -76,32 +80,42 @@ class _VocabularyPageState extends ConsumerState<VocabularyPage> {
             ),
           ),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
+            child: Builder(
+              builder: (context) {
+                if (controller.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (controller.error != null) {
+                  return _LearningLoadError(
+                    message: '加载生词失败',
+                    onRetry: controller.retry,
+                  );
+                }
                 final list = _VocabularyList(
                   entries: controller.entries,
                   onSelected: (entry) {
-                    if (constraints.maxWidth >= 600) {
-                      setState(() => _selected = entry);
+                    if (isWide) {
+                      setState(() => _selectedLemma = entry.lemma);
                     } else {
-                      _showVocabularySheet(context, controller, entry);
+                      _showVocabularySheet(context, entry.lemma);
                     }
                   },
                 );
-                if (constraints.maxWidth < 600) return list;
+                if (!isWide) return list;
                 return Row(
                   children: [
                     Expanded(child: list),
                     const VerticalDivider(width: 1),
                     SizedBox(
                       width: 340,
-                      child: _selected == null
+                      child: selected == null
                           ? const Center(child: Text('选择一个生词查看详情'))
                           : VocabularyDetail(
                               key: const ValueKey('vocabulary-detail-pane'),
-                              entry: _selected!,
+                              entry: selected,
                               controller: controller,
-                              onDeleted: () => setState(() => _selected = null),
+                              onDeleted: () =>
+                                  setState(() => _selectedLemma = null),
                             ),
                     ),
                   ],
@@ -200,24 +214,41 @@ class _VocabularyPageState extends ConsumerState<VocabularyPage> {
     definition.dispose();
   }
 
-  Future<void> _showVocabularySheet(
-    BuildContext context,
-    VocabularyController controller,
-    VocabularyListItem entry,
-  ) => showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    builder: (sheetContext) => SafeArea(
-      child: FractionallySizedBox(
-        heightFactor: 0.5,
-        child: VocabularyDetail(
-          entry: entry,
-          controller: controller,
-          onDeleted: () => Navigator.pop(sheetContext),
+  Future<void> _showVocabularySheet(BuildContext context, String lemma) =>
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) => SafeArea(
+          child: FractionallySizedBox(
+            heightFactor: 0.5,
+            child: _VocabularyDetailSheet(
+              lemma: lemma,
+              onDeleted: () => Navigator.pop(sheetContext),
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
+}
+
+class _VocabularyDetailSheet extends ConsumerWidget {
+  const _VocabularyDetailSheet({required this.lemma, required this.onDeleted});
+
+  final String lemma;
+  final VoidCallback onDeleted;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.watch(vocabularyControllerProvider);
+    final entry = controller.entries
+        .where((candidate) => candidate.lemma == lemma)
+        .firstOrNull;
+    if (entry == null) return const Center(child: Text('该生词已不在当前列表'));
+    return VocabularyDetail(
+      entry: entry,
+      controller: controller,
+      onDeleted: onDeleted,
+    );
+  }
 }
 
 class _VocabularyList extends StatelessWidget {
@@ -330,11 +361,15 @@ class PhraseBookPage extends ConsumerStatefulWidget {
 }
 
 class _PhraseBookPageState extends ConsumerState<PhraseBookPage> {
-  SavedPhraseListItem? _selected;
+  String? _selectedPhraseKey;
 
   @override
   Widget build(BuildContext context) {
     final controller = ref.watch(phraseBookControllerProvider);
+    final isWide = MediaQuery.sizeOf(context).width >= 600;
+    final selected = controller.entries
+        .where((entry) => entry.phraseKey == _selectedPhraseKey)
+        .firstOrNull;
     return Scaffold(
       appBar: AppBar(title: const Text('短语本')),
       body: Column(
@@ -369,32 +404,42 @@ class _PhraseBookPageState extends ConsumerState<PhraseBookPage> {
             ),
           ),
           Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
+            child: Builder(
+              builder: (context) {
+                if (controller.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (controller.error != null) {
+                  return _LearningLoadError(
+                    message: '加载短语失败',
+                    onRetry: controller.retry,
+                  );
+                }
                 final list = _PhraseList(
                   entries: controller.entries,
                   onSelected: (entry) {
-                    if (constraints.maxWidth >= 600) {
-                      setState(() => _selected = entry);
+                    if (isWide) {
+                      setState(() => _selectedPhraseKey = entry.phraseKey);
                     } else {
-                      _showPhraseSheet(context, controller, entry);
+                      _showPhraseSheet(context, entry.phraseKey);
                     }
                   },
                 );
-                if (constraints.maxWidth < 600) return list;
+                if (!isWide) return list;
                 return Row(
                   children: [
                     Expanded(child: list),
                     const VerticalDivider(width: 1),
                     SizedBox(
                       width: 340,
-                      child: _selected == null
+                      child: selected == null
                           ? const Center(child: Text('选择一个短语查看详情'))
                           : PhraseDetail(
                               key: const ValueKey('phrase-detail-pane'),
-                              entry: _selected!,
+                              entry: selected,
                               controller: controller,
-                              onDeleted: () => setState(() => _selected = null),
+                              onDeleted: () =>
+                                  setState(() => _selectedPhraseKey = null),
                             ),
                     ),
                   ],
@@ -407,24 +452,41 @@ class _PhraseBookPageState extends ConsumerState<PhraseBookPage> {
     );
   }
 
-  Future<void> _showPhraseSheet(
-    BuildContext context,
-    PhraseBookController controller,
-    SavedPhraseListItem entry,
-  ) => showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    builder: (sheetContext) => SafeArea(
-      child: FractionallySizedBox(
-        heightFactor: 0.5,
-        child: PhraseDetail(
-          entry: entry,
-          controller: controller,
-          onDeleted: () => Navigator.pop(sheetContext),
+  Future<void> _showPhraseSheet(BuildContext context, String phraseKey) =>
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) => SafeArea(
+          child: FractionallySizedBox(
+            heightFactor: 0.5,
+            child: _PhraseDetailSheet(
+              phraseKey: phraseKey,
+              onDeleted: () => Navigator.pop(sheetContext),
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
+}
+
+class _PhraseDetailSheet extends ConsumerWidget {
+  const _PhraseDetailSheet({required this.phraseKey, required this.onDeleted});
+
+  final String phraseKey;
+  final VoidCallback onDeleted;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controller = ref.watch(phraseBookControllerProvider);
+    final entry = controller.entries
+        .where((candidate) => candidate.phraseKey == phraseKey)
+        .firstOrNull;
+    if (entry == null) return const Center(child: Text('该短语已不在当前列表'));
+    return PhraseDetail(
+      entry: entry,
+      controller: controller,
+      onDeleted: onDeleted,
+    );
+  }
 }
 
 class _PhraseList extends StatelessWidget {
@@ -454,6 +516,28 @@ class _PhraseList extends StatelessWidget {
       },
     );
   }
+}
+
+class _LearningLoadError extends StatelessWidget {
+  const _LearningLoadError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(message),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 48,
+          child: FilledButton(onPressed: onRetry, child: const Text('重试')),
+        ),
+      ],
+    ),
+  );
 }
 
 class PhraseDetail extends StatelessWidget {

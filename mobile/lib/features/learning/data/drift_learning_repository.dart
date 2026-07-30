@@ -1,6 +1,7 @@
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/text/word_normalizer.dart';
 import '../../dictionary/data/dictionary_repository.dart';
 import '../../phrases/domain/phrase_type.dart';
 import 'learning_repository.dart';
@@ -21,7 +22,7 @@ class DriftLearningRepository implements LearningRepository {
     return _dao.recordLookup(
       LookupRecord(
         surface: surface,
-        lemma: entry.word,
+        lemma: normalizeEnglishWord(entry.word),
         phonetic: entry.phonetic,
         partOfSpeech: entry.partOfSpeech,
         definition: entry.definitionChinese,
@@ -51,98 +52,84 @@ class DriftLearningRepository implements LearningRepository {
 
   @override
   Stream<List<VocabularyListItem>> watchVocabulary(VocabularyQuery query) {
-    return _dao.watchVocabularyEntries().map((rows) {
-      final items = rows.map((row) {
-        final entry = row.entry;
-        return VocabularyListItem(
-          lemma: entry.lemma,
-          displayWord: entry.displayWord,
-          phonetic: entry.phonetic,
-          partOfSpeech: entry.partOfSpeech,
-          definition: entry.definition,
-          proficiency: VocabularyProficiency.values[entry.proficiency],
-          lookupCount: entry.lookupCount,
-          context: entry.contextSentence,
-          sourceAvailability: row.sourceExists
-              ? SourceAvailability.available
-              : SourceAvailability.deleted,
-          sourceTitle: entry.sourceDocumentTitle,
-          lastLookupAt: entry.lastLookupAt,
-        );
-      }).toList();
-      final search = query.search.trim().toLowerCase();
-      final filtered = items.where((item) {
-        final matchesFilter = switch (query.filter) {
-          VocabularyFilter.all => true,
-          VocabularyFilter.known =>
-            item.proficiency == VocabularyProficiency.known,
-          VocabularyFilter.vague =>
-            item.proficiency == VocabularyProficiency.vague,
-          VocabularyFilter.unknown =>
-            item.proficiency == VocabularyProficiency.unknown,
-        };
-        return matchesFilter &&
-            (search.isEmpty ||
-                item.lemma.toLowerCase().contains(search) ||
-                item.displayWord.toLowerCase().contains(search) ||
-                item.definition.toLowerCase().contains(search));
-      }).toList();
-      switch (query.sort) {
-        case VocabularySort.alphabetical:
-          filtered.sort((a, b) => a.lemma.compareTo(b.lemma));
-        case VocabularySort.lookupCount:
-          filtered.sort((a, b) => b.lookupCount.compareTo(a.lookupCount));
-        case VocabularySort.recent:
-          filtered.sort((a, b) {
-            final byTime = b.lastLookupAt.compareTo(a.lastLookupAt);
-            return byTime == 0 ? a.lemma.compareTo(b.lemma) : byTime;
-          });
-      }
-      return filtered;
-    });
+    final proficiency = switch (query.filter) {
+      VocabularyFilter.all => null,
+      VocabularyFilter.known => VocabularyProficiency.known.index,
+      VocabularyFilter.vague => VocabularyProficiency.vague.index,
+      VocabularyFilter.unknown => VocabularyProficiency.unknown.index,
+    };
+    final sort = switch (query.sort) {
+      VocabularySort.recent => LearningVocabularySort.recent,
+      VocabularySort.alphabetical => LearningVocabularySort.alphabetical,
+      VocabularySort.lookupCount => LearningVocabularySort.lookupCount,
+    };
+    return _dao
+        .watchVocabularyEntries(
+          proficiency: proficiency,
+          search: query.search,
+          sort: sort,
+        )
+        .map((rows) {
+          final items = rows.map((row) {
+            final entry = row.entry;
+            return VocabularyListItem(
+              lemma: entry.lemma,
+              displayWord: entry.displayWord,
+              phonetic: entry.phonetic,
+              partOfSpeech: entry.partOfSpeech,
+              definition: entry.definition,
+              proficiency: VocabularyProficiency.values[entry.proficiency],
+              lookupCount: entry.lookupCount,
+              context: entry.contextSentence,
+              sourceAvailability: row.sourceExists
+                  ? SourceAvailability.available
+                  : SourceAvailability.deleted,
+              sourceTitle: entry.sourceDocumentTitle,
+              lastLookupAt: entry.lastLookupAt,
+            );
+          }).toList();
+          return items;
+        });
   }
 
   @override
   Stream<List<SavedPhraseListItem>> watchSavedPhrases(SavedPhraseQuery query) {
-    return _dao.watchSavedPhraseEntries().map((rows) {
-      final search = query.search.trim().toLowerCase();
-      final values = rows.map((row) {
-        final entry = row.entry;
-        return SavedPhraseListItem(
-          phraseKey: entry.phraseKey,
-          surface: entry.surface,
-          meaning: entry.meaning,
-          type: PhraseTypeCodec.fromStorage(entry.type),
-          context: entry.contextSentence,
-          createdAt: entry.createdAt,
-          sourceAvailability: row.sourceExists
-              ? SourceAvailability.available
-              : SourceAvailability.deleted,
-          sourceTitle: entry.sourceDocumentTitle,
-        );
-      }).toList();
-      return values
-          .where(
-            (item) =>
-                (query.type == null || item.type == query.type) &&
-                (search.isEmpty ||
-                    item.surface.toLowerCase().contains(search) ||
-                    item.meaning.toLowerCase().contains(search)),
-          )
-          .toList();
-    });
+    return _dao
+        .watchSavedPhraseEntries(
+          type: query.type?.storageValue,
+          search: query.search,
+        )
+        .map((rows) {
+          final values = rows.map((row) {
+            final entry = row.entry;
+            return SavedPhraseListItem(
+              phraseKey: entry.phraseKey,
+              surface: entry.surface,
+              meaning: entry.meaning,
+              type: PhraseTypeCodec.fromStorage(entry.type),
+              context: entry.contextSentence,
+              createdAt: entry.createdAt,
+              sourceAvailability: row.sourceExists
+                  ? SourceAvailability.available
+                  : SourceAvailability.deleted,
+              sourceTitle: entry.sourceDocumentTitle,
+            );
+          }).toList();
+          return values;
+        });
   }
 
   @override
   Future<void> addManualVocabulary(ManualVocabularyDraft draft) async {
-    final word = draft.word.trim();
+    final displayWord = draft.word.trim();
+    final lemma = normalizeEnglishWord(displayWord);
     final definition = draft.definition.trim();
-    if (word.isEmpty || definition.isEmpty) {
+    if (lemma.isEmpty || definition.isEmpty) {
       throw ArgumentError('Word and definition must not be blank.');
     }
     await _dao.addManualVocabulary(
-      lemma: word.toLowerCase(),
-      displayWord: word,
+      lemma: lemma,
+      displayWord: displayWord,
       phonetic: draft.phonetic.trim(),
       partOfSpeech: draft.partOfSpeech.trim(),
       definition: definition,

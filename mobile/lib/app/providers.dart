@@ -19,9 +19,9 @@ import '../features/learning/data/csv_export_service.dart';
 import '../features/learning/data/learning_repository.dart';
 import '../features/learning/presentation/learning_controllers.dart';
 import '../features/phrases/domain/phrase_recognizer.dart';
-import '../features/settings/data/reading_settings.dart';
 import '../features/settings/data/cache_cleanup_service.dart';
 import '../features/settings/data/settings_repository.dart';
+import '../features/settings/presentation/persisted_settings_controller.dart';
 import 'app_runtime.dart';
 
 final appRuntimeProvider = Provider<AppRuntime>((ref) {
@@ -53,10 +53,7 @@ final learningRepositoryProvider = Provider<LearningRepository>((ref) {
 });
 
 final csvExportServiceProvider = Provider<CsvExportService>((ref) {
-  return const CsvExportService(
-    destinationPicker: FilePickerCsvDestinationPicker(),
-    writer: LocalCsvFileWriter(),
-  );
+  return const CsvExportService(destination: FilePickerCsvDestinationPicker());
 });
 
 final vocabularyControllerProvider =
@@ -80,8 +77,13 @@ final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
   return repository;
 });
 
-final readingSettingsProvider = StreamProvider<ReadingSettings>((ref) {
-  return ref.watch(settingsRepositoryProvider).watch();
+final persistedSettingsControllerProvider =
+    ChangeNotifierProvider<PersistedSettingsController>((ref) {
+      return PersistedSettingsController(ref.watch(settingsRepositoryProvider));
+    });
+
+final readingSettingsProvider = Provider<PersistedSettingsState>((ref) {
+  return ref.watch(persistedSettingsControllerProvider).state;
 });
 
 final cacheCleanupServiceProvider = Provider<CacheCleanupService>((ref) {
