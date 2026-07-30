@@ -249,4 +249,3 @@ class _EmptyTokenDocuments implements DocumentRepository {
   @override Future<void> saveProgress(ReadingLocator locator, double progress) async => saved.add((locator, progress));
   @override Stream<List<DocumentSummary>> watchDocuments() => const Stream.empty();
 }
-
