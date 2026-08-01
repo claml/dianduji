@@ -47,7 +47,7 @@ class _DocumentLibraryPageState extends ConsumerState<DocumentLibraryPage> {
               onSelect: controller.select,
               onRetry: (id) => unawaited(controller.retry(id)),
               onCancel: (id) => unawaited(controller.cancel(id)),
-              onDelete: _confirmDelete,
+              onDelete: (id) => _confirmDelete(controller, id),
               onSearchChanged: controller.setSearchQuery,
               onSortChanged: controller.setSort,
             ),
@@ -93,7 +93,10 @@ class _DocumentLibraryPageState extends ConsumerState<DocumentLibraryPage> {
     }
   }
 
-  Future<void> _confirmDelete(String documentId) async {
+  Future<void> _confirmDelete(
+    DocumentImportController controller,
+    String documentId,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -113,10 +116,6 @@ class _DocumentLibraryPageState extends ConsumerState<DocumentLibraryPage> {
         ],
       ),
     );
-    if (confirmed ?? false) {
-      final controller =
-          _injectedController ?? ref.read(documentImportControllerProvider)!;
-      await controller.delete(documentId);
-    }
+    if (confirmed ?? false) await controller.delete(documentId);
   }
 }
