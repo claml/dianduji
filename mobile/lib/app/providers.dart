@@ -19,6 +19,7 @@ import '../features/learning/data/csv_export_service.dart';
 import '../features/learning/data/learning_repository.dart';
 import '../features/learning/presentation/learning_controllers.dart';
 import '../features/phrases/domain/phrase_recognizer.dart';
+import '../features/reader/data/reader_card_preferences.dart';
 import '../features/settings/data/cache_cleanup_service.dart';
 import '../features/settings/data/settings_repository.dart';
 import '../features/settings/presentation/persisted_settings_controller.dart';
@@ -85,6 +86,13 @@ final persistedSettingsControllerProvider =
 final readingSettingsProvider = Provider<PersistedSettingsState>((ref) {
   return ref.watch(persistedSettingsControllerProvider).state;
 });
+
+final readerCardPreferencesRepositoryProvider =
+    Provider<ReaderCardPreferencesRepository>((ref) {
+      return ReaderCardPreferencesRepository(
+        ref.watch(appDatabaseProvider).settingsDao,
+      );
+    });
 
 final cacheCleanupServiceProvider = Provider<CacheCleanupService>((ref) {
   return DirectoryCacheCleanupService(
