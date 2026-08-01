@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../dictionary/presentation/translation_detail.dart';
 import '../../dictionary/presentation/translation_view_model.dart';
+import '../../documents/domain/document_models.dart';
 import '../../phrases/domain/phrase_recognizer.dart';
+import 'widgets/reflow_document_view.dart';
 import 'widgets/token_text.dart';
 
 export 'widgets/token_text.dart' show ReaderToken;
@@ -18,9 +20,11 @@ class ReaderScreen extends StatefulWidget {
   const ReaderScreen({
     required this.title,
     required this.sentences,
+    this.blocks = const [],
     this.selectedTokenId,
     this.translationState,
     this.onTokenTap,
+    this.onStoredTokenTap,
     this.onCloseTranslation,
     this.fontSize = 16,
     this.lineHeight = 1.6,
@@ -33,9 +37,12 @@ class ReaderScreen extends StatefulWidget {
 
   final String title;
   final List<ReaderSentence> sentences;
+  final List<StoredReaderBlock> blocks;
   final String? selectedTokenId;
   final TranslationState? translationState;
   final void Function(ReaderSentence sentence, ReaderToken token)? onTokenTap;
+  final void Function(StoredReaderSentence sentence, StoredReaderToken token)?
+  onStoredTokenTap;
   final VoidCallback? onCloseTranslation;
   final double fontSize;
   final double lineHeight;
@@ -143,6 +150,18 @@ class _ReaderScreenState extends State<ReaderScreen> {
   }
 
   Widget _article() {
+    if (widget.blocks.isNotEmpty && widget.onStoredTokenTap != null) {
+      return ReflowDocumentView(
+        blocks: widget.blocks,
+        selectedTokenId: _activeTokenId,
+        fontSize: widget.fontSize,
+        lineHeight: widget.lineHeight,
+        scrollController: widget.scrollController,
+        sentenceKeyFor: widget.sentenceKeyFor,
+        tokenKeyFor: widget.tokenKeyFor,
+        onTokenTap: widget.onStoredTokenTap!,
+      );
+    }
     final colorScheme = Theme.of(context).colorScheme;
     return ListView.separated(
       controller: widget.scrollController,

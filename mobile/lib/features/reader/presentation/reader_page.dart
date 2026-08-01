@@ -207,6 +207,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       onPopInvokedWithResult: (_, _) => _controller.forceSave(),
       child: ReaderScreen(
         title: state.document?.title ?? '阅读器',
+        blocks: state.document?.blocks ?? const [],
         sentences: state.sentences
             .map(
               (sentence) => ReaderSentence(
@@ -229,6 +230,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         scrollController: _scrollController,
         onTokenTap: (sentence, token) =>
             _controller.selectToken(sentenceId: sentence.id, tokenId: token.id),
+        onStoredTokenTap: (sentence, token) => _controller.selectToken(
+          sentenceId: sentence.id,
+          tokenId: token.id,
+        ),
         onCloseTranslation: _controller.closeTranslation,
         onSavePhrase: _controller.savePhrase,
       ),
