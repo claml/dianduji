@@ -72,6 +72,45 @@ void main() {
     },
   );
 
+  test('loads reader blocks without losing document structure', () async {
+    await importStore.createQueued(_record());
+    await importStore.markParsing('doc-1');
+    await importStore.replaceStructure('doc-1', const [
+      ParsedBlock(
+        text: 'Foundation Models',
+        style: ParsedBlockStyle.heading,
+      ),
+      ParsedBlock(
+        text: 'First finding. Second finding.',
+        style: ParsedBlockStyle.listItem,
+      ),
+    ]);
+    await importStore.markCompleted('doc-1');
+
+    final reader = await repository.loadReaderDocument('doc-1');
+
+    expect(reader.format, 'txt');
+    expect(reader.localPath, 'sandbox/source.txt');
+    expect(reader.blocks, hasLength(2));
+    expect(reader.blocks.first.ordinal, 0);
+    expect(reader.blocks.first.style, ParsedBlockStyle.heading);
+    expect(reader.blocks.first.text, 'Foundation Models');
+    expect(
+      reader.blocks.first.sentences.map((sentence) => sentence.text),
+      ['Foundation Models'],
+    );
+    expect(reader.blocks.last.ordinal, 1);
+    expect(reader.blocks.last.style, ParsedBlockStyle.listItem);
+    expect(
+      reader.blocks.last.sentences.map((sentence) => sentence.text),
+      ['First finding.', 'Second finding.'],
+    );
+    expect(
+      reader.sentences.map((sentence) => sentence.text),
+      ['Foundation Models', 'First finding.', 'Second finding.'],
+    );
+  });
+
   test(
     'finds duplicate content, retries with the same id, and cleans failures',
     () async {

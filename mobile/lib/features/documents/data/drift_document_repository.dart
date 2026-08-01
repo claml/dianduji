@@ -2,6 +2,7 @@ import '../../../core/database/app_database.dart';
 import '../../reader/domain/reading_locator.dart';
 import '../../reader/presentation/reader_view_model.dart';
 import '../domain/document_models.dart';
+import '../domain/models/parsed_block.dart';
 
 abstract interface class DocumentRepository {
   Stream<List<DocumentSummary>> watchDocuments();
@@ -48,6 +49,7 @@ class DriftDocumentRepository
     if (document == null) {
       throw StateError('Document not found: $documentId');
     }
+    final paragraphs = await database.documentsDao.loadParagraphs(documentId);
     final sentences = await database.documentsDao.loadSentences(documentId);
     final tokens = await database.documentsDao.loadTokens(documentId);
     final tokensBySentence = <String, List<Token>>{};
@@ -57,33 +59,56 @@ class DriftDocumentRepository
     final lastLocator = document.lastReadLocator == null
         ? null
         : ReadingLocator.decode(document.lastReadLocator!);
+    final storedSentences = sentences
+        .map(
+          (sentence) => StoredReaderSentence(
+            id: sentence.id,
+            paragraphId: sentence.paragraphId,
+            ordinal: sentence.ordinal,
+            text: sentence.body,
+            startOffset: sentence.startOffset,
+            endOffset: sentence.endOffset,
+            tokens: (tokensBySentence[sentence.id] ?? const [])
+                .map(
+                  (token) => StoredReaderToken(
+                    id: token.id,
+                    ordinal: token.ordinal,
+                    surface: token.surface,
+                    normalized: token.normalized,
+                    lemma: token.lemma,
+                    startOffset: token.startOffset,
+                    endOffset: token.endOffset,
+                  ),
+                )
+                .toList(growable: false),
+          ),
+        )
+        .toList(growable: false);
+    final sentencesByParagraph = <String, List<StoredReaderSentence>>{};
+    for (final sentence in storedSentences) {
+      sentencesByParagraph
+          .putIfAbsent(sentence.paragraphId, () => [])
+          .add(sentence);
+    }
     return StoredReaderDocument(
       id: document.id,
       title: document.title,
+      format: document.format,
+      localPath: document.localPath,
       readProgress: document.readProgress,
       lastLocator: lastLocator,
-      sentences: sentences
+      sentences: storedSentences,
+      blocks: paragraphs
           .map(
-            (sentence) => StoredReaderSentence(
-              id: sentence.id,
-              paragraphId: sentence.paragraphId,
-              ordinal: sentence.ordinal,
-              text: sentence.body,
-              startOffset: sentence.startOffset,
-              endOffset: sentence.endOffset,
-              tokens: (tokensBySentence[sentence.id] ?? const [])
-                  .map(
-                    (token) => StoredReaderToken(
-                      id: token.id,
-                      ordinal: token.ordinal,
-                      surface: token.surface,
-                      normalized: token.normalized,
-                      lemma: token.lemma,
-                      startOffset: token.startOffset,
-                      endOffset: token.endOffset,
-                    ),
-                  )
-                  .toList(growable: false),
+            (paragraph) => StoredReaderBlock(
+              id: paragraph.id,
+              ordinal: paragraph.ordinal,
+              text: paragraph.body,
+              style: ParsedBlockStyle.values.firstWhere(
+                (style) => style.name == paragraph.style,
+                orElse: () => ParsedBlockStyle.body,
+              ),
+              sentences: sentencesByParagraph[paragraph.id] ?? const [],
             ),
           )
           .toList(growable: false),

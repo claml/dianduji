@@ -1,4 +1,5 @@
 import '../../reader/domain/reading_locator.dart';
+import 'models/parsed_block.dart';
 
 class DocumentSummary {
   const DocumentSummary({
@@ -38,14 +39,36 @@ class StoredReaderDocument {
     required this.title,
     required this.sentences,
     required this.readProgress,
+    this.format = '',
+    this.localPath = '',
+    this.blocks = const [],
     this.lastLocator,
   });
 
   final String id;
   final String title;
+  final String format;
+  final String localPath;
+  final List<StoredReaderBlock> blocks;
   final List<StoredReaderSentence> sentences;
   final double readProgress;
   final ReadingLocator? lastLocator;
+}
+
+class StoredReaderBlock {
+  const StoredReaderBlock({
+    required this.id,
+    required this.ordinal,
+    required this.text,
+    required this.style,
+    required this.sentences,
+  });
+
+  final String id;
+  final int ordinal;
+  final String text;
+  final ParsedBlockStyle style;
+  final List<StoredReaderSentence> sentences;
 }
 
 class StoredReaderSentence {

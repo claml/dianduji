@@ -351,6 +351,13 @@ class DocumentsDao extends DatabaseAccessor<AppDatabase>
         .get();
   }
 
+  Future<List<Paragraph>> loadParagraphs(String documentId) {
+    return (select(paragraphs)
+          ..where((row) => row.documentId.equals(documentId))
+          ..orderBy([(row) => OrderingTerm.asc(row.ordinal)]))
+        .get();
+  }
+
   Future<List<Token>> loadTokens(String documentId) {
     return (select(tokens)
           ..where((row) => row.documentId.equals(documentId))
