@@ -86,10 +86,7 @@ void main() {
 
     expect(find.bySemanticsLabel('文档标题'), findsOneWidget);
     expect(find.text('•'), findsOneWidget);
-    expect(
-      find.text('Foundation Models', findRichText: true),
-      findsOneWidget,
-    );
+    expect(find.text('Foundation Models', findRichText: true), findsOneWidget);
     expect(
       find.text('Models learn patterns.', findRichText: true),
       findsOneWidget,

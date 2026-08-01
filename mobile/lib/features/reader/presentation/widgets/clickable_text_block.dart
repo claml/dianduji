@@ -190,14 +190,12 @@ Rect _minimumTapRect(Rect visual, Size canvas) {
   const target = 48.0;
   final width = math.max(target, visual.width);
   final height = math.max(target, visual.height);
-  final left = (visual.center.dx - width / 2).clamp(
-    0.0,
-    math.max(0.0, canvas.width - width),
-  ).toDouble();
-  final top = (visual.center.dy - height / 2).clamp(
-    0.0,
-    math.max(0.0, canvas.height - height),
-  ).toDouble();
+  final left = (visual.center.dx - width / 2)
+      .clamp(0.0, math.max(0.0, canvas.width - width))
+      .toDouble();
+  final top = (visual.center.dy - height / 2)
+      .clamp(0.0, math.max(0.0, canvas.height - height))
+      .toDouble();
   return Rect.fromLTWH(
     left,
     top,

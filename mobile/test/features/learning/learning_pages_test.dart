@@ -284,7 +284,8 @@ void main() {
   testWidgets(
     'phrase delete completing after disposal has no exception or stale callback',
     (tester) async {
-      final repository = _LearningRepository()..phraseDelete = Completer<void>();
+      final repository = _LearningRepository()
+        ..phraseDelete = Completer<void>();
       final controller = PhraseBookController(repository);
       addTearDown(controller.dispose);
       var deletedCallbacks = 0;

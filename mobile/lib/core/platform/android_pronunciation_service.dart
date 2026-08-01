@@ -12,7 +12,9 @@ class AndroidPronunciationService implements PronunciationService {
   Future<PronunciationResult> speak(String text) async {
     if (text.trim().isEmpty) return PronunciationResult.unavailable;
     try {
-      final result = await _channel.invokeMethod<String>('speak', {'text': text});
+      final result = await _channel.invokeMethod<String>('speak', {
+        'text': text,
+      });
       return result == 'spoken'
           ? PronunciationResult.spoken
           : PronunciationResult.unavailable;

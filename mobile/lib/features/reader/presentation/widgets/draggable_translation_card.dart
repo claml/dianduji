@@ -21,8 +21,7 @@ class DraggableTranslationCard extends StatefulWidget {
       _DraggableTranslationCardState();
 }
 
-class _DraggableTranslationCardState
-    extends State<DraggableTranslationCard> {
+class _DraggableTranslationCardState extends State<DraggableTranslationCard> {
   late double _relativeX = widget.preferences.relativeX;
   late double _relativeY = widget.preferences.relativeY;
 
@@ -74,18 +73,18 @@ class _DraggableTranslationCardState
                       onPanUpdate: (details) {
                         setState(() {
                           if (availableX > 0) {
-                            _relativeX = ((_relativeX * availableX +
-                                        details.delta.dx) /
-                                    availableX)
-                                .clamp(0, 1)
-                                .toDouble();
+                            _relativeX =
+                                ((_relativeX * availableX + details.delta.dx) /
+                                        availableX)
+                                    .clamp(0, 1)
+                                    .toDouble();
                           }
                           if (availableY > 0) {
-                            _relativeY = ((_relativeY * availableY +
-                                        details.delta.dy) /
-                                    availableY)
-                                .clamp(0, 1)
-                                .toDouble();
+                            _relativeY =
+                                ((_relativeY * availableY + details.delta.dy) /
+                                        availableY)
+                                    .clamp(0, 1)
+                                    .toDouble();
                           }
                         });
                       },

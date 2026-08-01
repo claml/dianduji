@@ -163,7 +163,10 @@ class _ReaderScreenState extends State<ReaderScreen> {
                       setState(() => _selectedTokenId = token.id);
                     }
                   },
-                  style: TextStyle(fontSize: widget.fontSize, height: widget.lineHeight),
+                  style: TextStyle(
+                    fontSize: widget.fontSize,
+                    height: widget.lineHeight,
+                  ),
                   widgetKey: widget.tokenKeyFor?.call(token.id),
                 ),
             ],

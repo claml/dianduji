@@ -40,7 +40,7 @@ class AdaptiveTranslationSurface extends StatelessWidget {
           bottom: visible ? height * 0.4 : 0,
           child: _documentViewport(),
         ),
-        if (!visible && idleOverlay != null) idleOverlay!,
+        if (!visible) ?idleOverlay,
         if (visible)
           Positioned(
             key: const Key('translation-bottom-sheet'),
@@ -64,7 +64,7 @@ class AdaptiveTranslationSurface extends StatelessWidget {
       return Stack(
         children: [
           Positioned.fill(child: _documentViewport()),
-          if (idleOverlay != null) idleOverlay!,
+          ?idleOverlay,
         ],
       );
     }

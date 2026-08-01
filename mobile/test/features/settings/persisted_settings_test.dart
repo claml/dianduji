@@ -136,54 +136,58 @@ void main() {
     },
   );
 
-  test('pending failed save reports its error safely after controller disposal', () async {
-    final repository = _QueuedSaveSettingsRepository()
-      ..enqueueFailure(StateError('disk full'));
-    final controller = PersistedSettingsController(repository);
-    await controller.ready;
+  test(
+    'pending failed save reports its error safely after controller disposal',
+    () async {
+      final repository = _QueuedSaveSettingsRepository()
+        ..enqueueFailure(StateError('disk full'));
+      final controller = PersistedSettingsController(repository);
+      await controller.ready;
 
-    final save = controller.updateTheme(ReaderTheme.eyeCare);
-    final expectedFailure = expectLater(save, throwsA(isA<StateError>()));
-    await repository.waitForAttempt(1);
-    controller.dispose();
-    repository.completeNext();
+      final save = controller.updateTheme(ReaderTheme.eyeCare);
+      final expectedFailure = expectLater(save, throwsA(isA<StateError>()));
+      await repository.waitForAttempt(1);
+      controller.dispose();
+      repository.completeNext();
 
-    await expectedFailure;
-    await Future<void>.delayed(Duration.zero);
-  });
+      await expectedFailure;
+      await Future<void>.delayed(Duration.zero);
+    },
+  );
 
-  testWidgets('save failure is accessible, retryable, and does not look saved', (
-    tester,
-  ) async {
-    final repository = _QueuedSaveSettingsRepository()
-      ..enqueueFailure(StateError('disk full'))
-      ..enqueueSuccess();
-    await tester.pumpWidget(
-      _settingsApp(_RecordingCacheCleanupService(), repository: repository),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'save failure is accessible, retryable, and does not look saved',
+    (tester) async {
+      final repository = _QueuedSaveSettingsRepository()
+        ..enqueueFailure(StateError('disk full'))
+        ..enqueueSuccess();
+      await tester.pumpWidget(
+        _settingsApp(_RecordingCacheCleanupService(), repository: repository),
+      );
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.byType(SwitchListTile));
-    await repository.waitForAttempt(1);
-    repository.completeNext();
-    await tester.pumpAndSettle();
+      await tester.tap(find.byType(SwitchListTile));
+      await repository.waitForAttempt(1);
+      repository.completeNext();
+      await tester.pumpAndSettle();
 
-    expect(find.bySemanticsLabel('设置保存失败，请重试'), findsOneWidget);
-    expect(find.text('保存失败，请重试'), findsOneWidget);
-    expect(repository.value.autoSaveVocabulary, isTrue);
-    expect(
-      tester.getSize(find.widgetWithText(FilledButton, '重试保存')).height,
-      greaterThanOrEqualTo(48),
-    );
+      expect(find.bySemanticsLabel('设置保存失败，请重试'), findsOneWidget);
+      expect(find.text('保存失败，请重试'), findsOneWidget);
+      expect(repository.value.autoSaveVocabulary, isTrue);
+      expect(
+        tester.getSize(find.widgetWithText(FilledButton, '重试保存')).height,
+        greaterThanOrEqualTo(48),
+      );
 
-    await tester.tap(find.text('重试保存'));
-    await repository.waitForAttempt(2);
-    repository.completeNext();
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('重试保存'));
+      await repository.waitForAttempt(2);
+      repository.completeNext();
+      await tester.pumpAndSettle();
 
-    expect(find.text('保存失败，请重试'), findsNothing);
-    expect(repository.value.autoSaveVocabulary, isFalse);
-  });
+      expect(find.text('保存失败，请重试'), findsNothing);
+      expect(repository.value.autoSaveVocabulary, isFalse);
+    },
+  );
 
   testWidgets('loading and load failure never show editable defaults', (
     tester,

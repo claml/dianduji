@@ -33,10 +33,12 @@ class _TranslationDetailState extends State<TranslationDetail> {
       widget.pronunciation ?? AndroidPronunciationService();
   var _stopped = false;
 
-  TranslationState get _state => widget.state ?? TranslationState(
-    status: TranslationStatus.loading,
-    surface: widget.word ?? '',
-  );
+  TranslationState get _state =>
+      widget.state ??
+      TranslationState(
+        status: TranslationStatus.loading,
+        surface: widget.word ?? '',
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -48,25 +50,39 @@ class _TranslationDetailState extends State<TranslationDetail> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(children: [
-              Expanded(child: Text(state.surface, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700))),
-              Semantics(
-                label: '播放英语发音',
-                button: true,
-                child: IconButton(
-                  tooltip: '发音',
-                  onPressed: state.surface.isEmpty ? null : _speak,
-                  icon: const Icon(Icons.volume_up_outlined),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    state.surface,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-              ),
-              IconButton(tooltip: '关闭释义', onPressed: _close, icon: const Icon(Icons.close_rounded)),
-            ]),
+                Semantics(
+                  label: '播放英语发音',
+                  button: true,
+                  child: IconButton(
+                    tooltip: '发音',
+                    onPressed: state.surface.isEmpty ? null : _speak,
+                    icon: const Icon(Icons.volume_up_outlined),
+                  ),
+                ),
+                IconButton(
+                  tooltip: '关闭释义',
+                  onPressed: _close,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             Expanded(child: _body(state)),
-            if (_feedback != null) Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Text(_feedback!, key: const Key('translation-feedback')),
-            ),
+            if (_feedback != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(_feedback!, key: const Key('translation-feedback')),
+              ),
           ],
         ),
       ),
@@ -77,7 +93,11 @@ class _TranslationDetailState extends State<TranslationDetail> {
     TranslationStatus.idle => const SizedBox.shrink(),
     TranslationStatus.loading => const Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [Text('本地词典查询中…'), SizedBox(height: 20), LinearProgressIndicator()],
+      children: [
+        Text('本地词典查询中…'),
+        SizedBox(height: 20),
+        LinearProgressIndicator(),
+      ],
     ),
     TranslationStatus.notFound => const Text('本地词典未收录'),
     TranslationStatus.failed => Text('查询失败：${state.errorMessage ?? '请稍后重试'}'),
@@ -90,8 +110,16 @@ class _TranslationDetailState extends State<TranslationDetail> {
       padding: EdgeInsets.zero,
       children: [
         if (entry.phonetic.isNotEmpty) Text(entry.phonetic),
-        if (entry.partOfSpeech.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(entry.partOfSpeech)),
-        if (entry.definitionChinese.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 8), child: Text(entry.definitionChinese)),
+        if (entry.partOfSpeech.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(entry.partOfSpeech),
+          ),
+        if (entry.definitionChinese.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(entry.definitionChinese),
+          ),
         if (state.phrases.isNotEmpty) ...[
           const Padding(padding: EdgeInsets.only(top: 18), child: Text('相关短语')),
           for (final phrase in state.phrases)
@@ -99,11 +127,13 @@ class _TranslationDetailState extends State<TranslationDetail> {
               contentPadding: EdgeInsets.zero,
               title: Text(phrase.surface),
               subtitle: Text(phrase.meaning),
-              trailing: widget.onSavePhrase == null ? null : IconButton(
-                tooltip: '保存短语',
-                onPressed: () => _savePhrase(phrase),
-                icon: const Icon(Icons.bookmark_add_outlined),
-              ),
+              trailing: widget.onSavePhrase == null
+                  ? null
+                  : IconButton(
+                      tooltip: '保存短语',
+                      onPressed: () => _savePhrase(phrase),
+                      icon: const Icon(Icons.bookmark_add_outlined),
+                    ),
             ),
         ],
       ],

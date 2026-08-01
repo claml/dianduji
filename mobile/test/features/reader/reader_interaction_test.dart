@@ -128,7 +128,17 @@ void main() {
   });
 
   testWidgets('short tokens retain a 48 by 48 dp tap target', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: TokenText(token: ReaderToken(id: 'short-token', surface: 'I'), selected: false, onTap: _noop))));
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: TokenText(
+            token: ReaderToken(id: 'short-token', surface: 'I'),
+            selected: false,
+            onTap: _noop,
+          ),
+        ),
+      ),
+    );
 
     final size = tester.getSize(find.byKey(const Key('short-token')));
     expect(size.width, greaterThanOrEqualTo(48));

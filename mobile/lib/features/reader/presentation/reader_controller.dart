@@ -99,12 +99,14 @@ class ReaderController extends ChangeNotifier {
       final sentences = [...document.sentences]
         ..sort((left, right) => left.ordinal.compareTo(right.ordinal));
       final locator = document.lastLocator;
-      _setState(ReaderState(
-        document: document,
-        sentences: sentences,
-        restoredSentenceId: locator?.sentenceId,
-        restoredLocalOffset: locator?.localOffset ?? 0,
-      ));
+      _setState(
+        ReaderState(
+          document: document,
+          sentences: sentences,
+          restoredSentenceId: locator?.sentenceId,
+          restoredLocalOffset: locator?.localOffset ?? 0,
+        ),
+      );
     } on Object catch (error) {
       if (!_disposed) _setState(ReaderState(error: error));
     }
@@ -117,27 +119,31 @@ class ReaderController extends ChangeNotifier {
     if (_disposed) return;
     final sentence = _state.requireSentence(sentenceId);
     final selected = _state.requireToken(sentenceId, tokenId);
-    _setState(_state.copyWith(
-      selectedSentenceId: sentenceId,
-      selectedTokenId: tokenId,
-      selection: ReaderSelection(
-        surface: selected.surface,
-        normalized: selected.normalized,
-        contextText: sentence.text,
-        startOffset: selected.startOffset,
-        endOffset: selected.endOffset,
-        sentenceId: sentenceId,
-        tokenId: tokenId,
+    _setState(
+      _state.copyWith(
+        selectedSentenceId: sentenceId,
+        selectedTokenId: tokenId,
+        selection: ReaderSelection(
+          surface: selected.surface,
+          normalized: selected.normalized,
+          contextText: sentence.text,
+          startOffset: selected.startOffset,
+          endOffset: selected.endOffset,
+          sentenceId: sentenceId,
+          tokenId: tokenId,
+        ),
       ),
-    ));
+    );
     await translation.lookup(
       tokens: sentence.tokens
-          .map((token) => TokenSpan(
-            surface: token.surface,
-            normalized: token.normalized,
-            start: token.startOffset,
-            end: token.endOffset,
-          ))
+          .map(
+            (token) => TokenSpan(
+              surface: token.surface,
+              normalized: token.normalized,
+              start: token.startOffset,
+              end: token.endOffset,
+            ),
+          )
           .toList(growable: false),
       selectedTokenOrdinal: selected.ordinal,
       context: LearningContext(
@@ -181,30 +187,34 @@ class ReaderController extends ChangeNotifier {
 
   void closeTranslation() {
     translation.clear();
-    _setState(ReaderState(
-      document: _state.document,
-      sentences: _state.sentences,
-      restoredSentenceId: _state.restoredSentenceId,
-      restoredLocalOffset: _state.restoredLocalOffset,
-    ));
+    _setState(
+      ReaderState(
+        document: _state.document,
+        sentences: _state.sentences,
+        restoredSentenceId: _state.restoredSentenceId,
+        restoredLocalOffset: _state.restoredLocalOffset,
+      ),
+    );
   }
 
   Future<void> savePhrase(PhraseMatch phrase) {
     final sentenceId = _state.selectedSentenceId;
     if (sentenceId == null) throw StateError('No selected sentence.');
     final sentence = _state.requireSentence(sentenceId);
-    return translation.learning.savePhrase(SavedPhraseDraft(
-      key: phrase.key,
-      surface: phrase.surface,
-      type: phrase.type,
-      meaning: phrase.meaning,
-      contextSentence: sentence.text,
-      context: LearningContext(
-        documentId: _state.document?.id,
-        documentTitle: _state.document?.title ?? '',
-        sentence: sentence.text,
+    return translation.learning.savePhrase(
+      SavedPhraseDraft(
+        key: phrase.key,
+        surface: phrase.surface,
+        type: phrase.type,
+        meaning: phrase.meaning,
+        contextSentence: sentence.text,
+        context: LearningContext(
+          documentId: _state.document?.id,
+          documentTitle: _state.document?.title ?? '',
+          sentence: sentence.text,
+        ),
       ),
-    ));
+    );
   }
 
   void updateReadingPosition({
@@ -225,7 +235,8 @@ class ReaderController extends ChangeNotifier {
     );
   }
 
-  Future<void> forceSave() => _disposed ? Future.value() : _progress.forceSave();
+  Future<void> forceSave() =>
+      _disposed ? Future.value() : _progress.forceSave();
 
   void _onTranslationChanged() {
     if (!_disposed) notifyListeners();

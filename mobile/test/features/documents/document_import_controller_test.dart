@@ -207,40 +207,44 @@ void main() {
     expect(repository.deletedIds, ['doc-1']);
   });
 
-  test('completed documents use reading progress while parsing uses parse progress', () async {
-    final controller = DocumentImportController(
-      picker: _FakePicker(),
-      importer: importer,
-      repository: repository,
-    );
-    addTearDown(controller.dispose);
+  test(
+    'completed documents use reading progress while parsing uses parse progress',
+    () async {
+      final controller = DocumentImportController(
+        picker: _FakePicker(),
+        importer: importer,
+        repository: repository,
+      );
+      addTearDown(controller.dispose);
 
-    repository.emit([
-      _summary(
-        id: 'completed-1',
-        localPath: '/sandbox/completed-1',
-        sourceName: 'completed.txt',
-        status: 'completed',
-        progress: 1,
-        readProgress: 0,
-      ),
-      _summary(
-        id: 'parsing-1',
-        localPath: '/sandbox/parsing-1',
-        sourceName: 'parsing.txt',
-        status: 'parsing',
-        progress: .5,
-        readProgress: 0,
-      ),
-    ]);
-    await Future<void>.delayed(Duration.zero);
+      repository.emit([
+        _summary(
+          id: 'completed-1',
+          localPath: '/sandbox/completed-1',
+          sourceName: 'completed.txt',
+          status: 'completed',
+          progress: 1,
+          readProgress: 0,
+        ),
+        _summary(
+          id: 'parsing-1',
+          localPath: '/sandbox/parsing-1',
+          sourceName: 'parsing.txt',
+          status: 'parsing',
+          progress: .5,
+          readProgress: 0,
+        ),
+      ]);
+      await Future<void>.delayed(Duration.zero);
 
-    final documents = {
-      for (final document in controller.state.documents) document.id: document,
-    };
-    expect(documents['completed-1']!.progress, 0);
-    expect(documents['parsing-1']!.progress, .5);
-  });
+      final documents = {
+        for (final document in controller.state.documents)
+          document.id: document,
+      };
+      expect(documents['completed-1']!.progress, 0);
+      expect(documents['parsing-1']!.progress, .5);
+    },
+  );
 
   test(
     'unsupported and revoked files show actionable Chinese errors',

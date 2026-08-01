@@ -57,9 +57,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         );
     _controller.addListener(_changed);
     _scrollController.addListener(_recordPosition);
-    _cardPreferencesStore = ref.read(
-      readerCardPreferencesRepositoryProvider,
-    );
+    _cardPreferencesStore = ref.read(readerCardPreferencesRepositoryProvider);
     unawaited(_loadCardPreferences());
     _open();
   }
@@ -253,10 +251,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         scrollController: _scrollController,
         onTokenTap: (sentence, token) =>
             _controller.selectToken(sentenceId: sentence.id, tokenId: token.id),
-        onStoredTokenTap: (sentence, token) => _controller.selectToken(
-          sentenceId: sentence.id,
-          tokenId: token.id,
-        ),
+        onStoredTokenTap: (sentence, token) =>
+            _controller.selectToken(sentenceId: sentence.id, tokenId: token.id),
         onCloseTranslation: _controller.closeTranslation,
         onSavePhrase: _controller.savePhrase,
         cardPreferences: _cardPreferences,
