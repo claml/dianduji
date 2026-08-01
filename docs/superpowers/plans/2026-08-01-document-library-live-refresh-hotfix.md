@@ -81,7 +81,6 @@ late final DocumentImportController? _injectedController =
 Widget build(BuildContext context) {
   final controller =
       _injectedController ?? ref.watch(documentImportControllerProvider);
-  // Existing AnimatedBuilder and callbacks remain unchanged.
 }
 ```
 
