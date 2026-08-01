@@ -2,7 +2,7 @@ import 'package:pdfrx/pdfrx.dart';
 
 import 'pdf_word_hit_target.dart';
 
-final _englishWord = RegExp(r"[A-Za-z]+(?:['’\-][A-Za-z]+)*");
+final _englishWord = RegExp("[A-Za-z]+(?:['\u2019-][A-Za-z]+)*");
 final _pageNumber = RegExp(
   r'^(?:page\s*)?\d+(?:\s*(?:of|/)\s*\d+)?$',
   caseSensitive: false,
@@ -31,7 +31,7 @@ List<PdfWordHitTarget> buildPdfWordTargets(PdfPageText pageText) {
       PdfWordHitTarget(
         pageNumber: pageText.pageNumber,
         surface: surface,
-        normalized: surface.toLowerCase().replaceAll('’', "'"),
+        normalized: surface.toLowerCase().replaceAll('\u2019', "'"),
         start: match.start,
         end: match.end,
         bounds: List.unmodifiable(bounds),
@@ -40,6 +40,26 @@ List<PdfWordHitTarget> buildPdfWordTargets(PdfPageText pageText) {
     );
   }
   return List.unmodifiable(targets);
+}
+
+PdfWordHitTarget? findPdfWordTargetAt(
+  List<PdfWordHitTarget> targets,
+  PdfPoint point, {
+  double margin = 12,
+}) {
+  PdfWordHitTarget? nearest;
+  var nearestDistance = double.infinity;
+  for (final target in targets) {
+    for (final rect in target.bounds) {
+      if (!rect.containsPoint(point, margin: margin)) continue;
+      final distance = rect.distanceSquaredTo(point);
+      if (distance < nearestDistance) {
+        nearest = target;
+        nearestDistance = distance;
+      }
+    }
+  }
+  return nearest;
 }
 
 String _lineAt(String text, int offset) {
@@ -65,15 +85,15 @@ bool _looksLikeAuthorList(String line) {
   return names.every((name) {
     final words = name.split(RegExp(r'\s+'));
     if (words.length < 2 || words.length > 4) return false;
-    return words.every(
-      (word) => RegExp(r'^[A-Z][A-Za-z.\-]*$').hasMatch(word),
-    );
+    return words.every((word) => RegExp(r'^[A-Z][A-Za-z.\-]*$').hasMatch(word));
   });
 }
 
 List<PdfRect> _groupBounds(List<PdfRect> characterRects) {
   final groups = <PdfRect>[];
-  for (final rect in characterRects.where((candidate) => candidate.isNotEmpty)) {
+  for (final rect in characterRects.where(
+    (candidate) => candidate.isNotEmpty,
+  )) {
     if (groups.isEmpty || !_sameLine(groups.last, rect)) {
       groups.add(rect);
     } else {
@@ -84,7 +104,8 @@ List<PdfRect> _groupBounds(List<PdfRect> characterRects) {
 }
 
 bool _sameLine(PdfRect left, PdfRect right) {
-  final overlap = (left.top < right.top ? left.top : right.top) -
+  final overlap =
+      (left.top < right.top ? left.top : right.top) -
       (left.bottom > right.bottom ? left.bottom : right.bottom);
   final shorterHeight = left.height < right.height ? left.height : right.height;
   return overlap > shorterHeight * 0.35 && right.left >= left.left;

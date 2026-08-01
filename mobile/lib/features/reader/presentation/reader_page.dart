@@ -8,19 +8,23 @@ import '../../dictionary/presentation/translation_view_model.dart';
 import '../../documents/domain/document_models.dart';
 import '../../settings/data/reading_settings.dart';
 import '../data/reader_card_preferences.dart';
+import '../domain/reader_selection.dart';
 import 'reader_controller.dart';
 import 'reader_screen.dart';
+import 'widgets/pdf_document_view.dart';
 
 class ReaderPage extends ConsumerStatefulWidget {
   const ReaderPage({
     required this.documentId,
     this.controller,
     this.restoreItem,
+    this.pdfRenderer,
     super.key,
   });
   final String documentId;
   final ReaderController? controller;
   final Future<void> Function(BuildContext target)? restoreItem;
+  final PdfDocumentRenderer? pdfRenderer;
   @override
   ConsumerState<ReaderPage> createState() => _ReaderPageState();
 }
@@ -38,6 +42,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   var _opened = false;
   var _positionScheduled = false;
   var _restoringPosition = false;
+  var _pdfPageCount = 1;
 
   @override
   void initState() {
@@ -167,6 +172,18 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         Scrollable.ensureVisible(item, alignment: 0.15);
   }
 
+  void _selectPdfWord(ReaderSelection selection) {
+    final pageNumber = selection.pageNumber;
+    if (pageNumber != null) {
+      _controller.updatePdfReadingPosition(
+        pageNumber: pageNumber,
+        pageCount: _pdfPageCount,
+        localOffset: selection.startOffset,
+      );
+    }
+    unawaited(_controller.selectExternalWord(selection));
+  }
+
   int? _nearestTokenOffset(StoredReaderSentence sentence) {
     if (sentence.tokens.isEmpty) return null;
     var nearest = sentence.tokens.first;
@@ -224,11 +241,36 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     if (state.error != null) {
       return Scaffold(body: Center(child: Text('打开文档失败：${state.error}')));
     }
+    final storedDocument = state.document;
+    final pdfDocument =
+        storedDocument?.format.toLowerCase() == 'pdf' &&
+            storedDocument!.localPath.isNotEmpty
+        ? PdfDocumentView(
+            localPath: storedDocument.localPath,
+            selection: state.selection,
+            initialPageNumber: state.restoredPageNumber,
+            onWordTap: _selectPdfWord,
+            onPageChanged: (pageNumber, pageCount) {
+              _pdfPageCount = pageCount;
+              _controller.updatePdfReadingPosition(
+                pageNumber: pageNumber,
+                pageCount: pageCount,
+                localOffset:
+                    _controller.state.selection?.pageNumber == pageNumber
+                    ? _controller.state.selection!.startOffset
+                    : 0,
+              );
+            },
+            renderer: widget.pdfRenderer,
+          )
+        : null;
     return PopScope(
       onPopInvokedWithResult: (_, _) => _controller.forceSave(),
       child: ReaderScreen(
         title: state.document?.title ?? '阅读器',
         blocks: state.document?.blocks ?? const [],
+        document: pdfDocument,
+        selection: state.selection,
         sentences: state.sentences
             .map(
               (sentence) => ReaderSentence(

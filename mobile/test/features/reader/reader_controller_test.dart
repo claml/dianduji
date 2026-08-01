@@ -99,6 +99,37 @@ void main() {
     );
   });
 
+  test('restores and saves PDF page progress', () async {
+    documents.document = StoredReaderDocument(
+      id: 'doc-1',
+      title: 'Paper',
+      format: 'pdf',
+      localPath: 'paper.pdf',
+      readProgress: 0.4,
+      sentences: const [],
+      lastLocator: const ReadingLocator(
+        documentId: 'doc-1',
+        paragraphId: '',
+        sentenceId: '',
+        localOffset: 0,
+        pageNumber: 4,
+      ),
+    );
+    await controller.open('doc-1');
+
+    expect(controller.state.restoredPageNumber, 4);
+    controller.updatePdfReadingPosition(
+      pageNumber: 6,
+      pageCount: 10,
+      localOffset: 11,
+    );
+    await controller.forceSave();
+
+    expect(documents.saved.single.$1.pageNumber, 6);
+    expect(documents.saved.single.$1.localOffset, 11);
+    expect(documents.saved.single.$2, 0.6);
+  });
+
   test(
     'records a sentence locator, force-saves it, and never saves after dispose',
     () async {

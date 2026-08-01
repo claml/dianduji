@@ -19,6 +19,7 @@ class ReaderState {
     this.selection,
     this.restoredSentenceId,
     this.restoredLocalOffset = 0,
+    this.restoredPageNumber = 1,
     this.isLoading = false,
     this.error,
   });
@@ -30,6 +31,7 @@ class ReaderState {
   final ReaderSelection? selection;
   final String? restoredSentenceId;
   final int restoredLocalOffset;
+  final int restoredPageNumber;
   final bool isLoading;
   final Object? error;
 
@@ -52,6 +54,7 @@ class ReaderState {
     ReaderSelection? selection,
     String? restoredSentenceId,
     int? restoredLocalOffset,
+    int? restoredPageNumber,
     bool? isLoading,
     Object? error,
   }) => ReaderState(
@@ -62,6 +65,7 @@ class ReaderState {
     selection: selection ?? this.selection,
     restoredSentenceId: restoredSentenceId ?? this.restoredSentenceId,
     restoredLocalOffset: restoredLocalOffset ?? this.restoredLocalOffset,
+    restoredPageNumber: restoredPageNumber ?? this.restoredPageNumber,
     isLoading: isLoading ?? this.isLoading,
     error: error,
   );
@@ -105,6 +109,7 @@ class ReaderController extends ChangeNotifier {
           sentences: sentences,
           restoredSentenceId: locator?.sentenceId,
           restoredLocalOffset: locator?.localOffset ?? 0,
+          restoredPageNumber: locator?.pageNumber ?? 1,
         ),
       );
     } on Object catch (error) {
@@ -164,6 +169,7 @@ class ReaderController extends ChangeNotifier {
         selection: selection,
         restoredSentenceId: _state.restoredSentenceId,
         restoredLocalOffset: _state.restoredLocalOffset,
+        restoredPageNumber: _state.restoredPageNumber,
       ),
     );
     await translation.lookup(
@@ -193,6 +199,7 @@ class ReaderController extends ChangeNotifier {
         sentences: _state.sentences,
         restoredSentenceId: _state.restoredSentenceId,
         restoredLocalOffset: _state.restoredLocalOffset,
+        restoredPageNumber: _state.restoredPageNumber,
       ),
     );
   }
@@ -232,6 +239,25 @@ class ReaderController extends ChangeNotifier {
         localOffset: localOffset.clamp(0, sentence.text.length).toInt(),
       ),
       progress,
+    );
+  }
+
+  void updatePdfReadingPosition({
+    required int pageNumber,
+    required int pageCount,
+    int localOffset = 0,
+  }) {
+    if (_disposed || _state.document == null || pageNumber < 1) return;
+    final safePageCount = pageCount < pageNumber ? pageNumber : pageCount;
+    _progress.update(
+      ReadingLocator(
+        documentId: _state.document!.id,
+        paragraphId: '',
+        sentenceId: '',
+        localOffset: localOffset < 0 ? 0 : localOffset,
+        pageNumber: pageNumber,
+      ),
+      (pageNumber / safePageCount).clamp(0.0, 1.0),
     );
   }
 

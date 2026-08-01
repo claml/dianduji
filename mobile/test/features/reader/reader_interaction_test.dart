@@ -1,5 +1,6 @@
 import 'package:dian_du_ji/features/reader/presentation/reader_screen.dart';
 import 'package:dian_du_ji/features/reader/data/reader_card_preferences.dart';
+import 'package:dian_du_ji/features/reader/domain/reader_selection.dart';
 import 'package:dian_du_ji/features/reader/presentation/widgets/token_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -143,6 +144,34 @@ void main() {
     final size = tester.getSize(find.byKey(const Key('short-token')));
     expect(size.width, greaterThanOrEqualTo(48));
     expect(size.height, greaterThanOrEqualTo(48));
+  });
+
+  testWidgets('shows translation for a word selected from a PDF overlay', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ReaderScreen(
+          title: 'Paper',
+          sentences: [],
+          document: ColoredBox(key: Key('pdf-document'), color: Colors.white),
+          selection: ReaderSelection(
+            surface: 'Foundation',
+            normalized: 'foundation',
+            contextText: 'Foundation Models',
+            startOffset: 0,
+            endOffset: 10,
+            pageNumber: 1,
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('pdf-document')), findsOneWidget);
+    expect(find.byKey(const Key('translation-bottom-sheet')), findsOneWidget);
+    expect(find.text('Foundation'), findsOneWidget);
   });
 }
 

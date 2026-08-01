@@ -4,16 +4,17 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('builds English word targets with punctuation and wrapped bounds', () {
-    final page = _pageText(
-      "Foundation-based models don't\nreflow documents.",
-    );
+    final page = _pageText("Foundation-based models don't\nreflow documents.");
 
     final targets = buildPdfWordTargets(page);
 
-    expect(
-      targets.map((target) => target.surface),
-      ['Foundation-based', 'models', "don't", 'reflow', 'documents'],
-    );
+    expect(targets.map((target) => target.surface), [
+      'Foundation-based',
+      'models',
+      "don't",
+      'reflow',
+      'documents',
+    ]);
     expect(targets.first.normalized, 'foundation-based');
     expect(targets.first.contextText, "Foundation-based models don't");
     expect(targets.first.bounds, hasLength(1));
@@ -31,10 +32,12 @@ void main() {
 
     final targets = buildPdfWordTargets(page);
 
-    expect(
-      targets.map((target) => target.surface),
-      ['Research', 'on', 'Foundation', 'Models'],
-    );
+    expect(targets.map((target) => target.surface), [
+      'Research',
+      'on',
+      'Foundation',
+      'Models',
+    ]);
   });
 
   test('returns no targets when character geometry is incomplete', () {
@@ -46,6 +49,20 @@ void main() {
     );
 
     expect(buildPdfWordTargets(page), isEmpty);
+  });
+
+  test('finds the nearest word at a PDF page coordinate', () {
+    final targets = buildPdfWordTargets(_pageText('Foundation Models'));
+
+    expect(
+      findPdfWordTargetAt(targets, const PdfPoint(30, 94))?.surface,
+      'Foundation',
+    );
+    expect(
+      findPdfWordTargetAt(targets, const PdfPoint(112, 94))?.surface,
+      'Models',
+    );
+    expect(findPdfWordTargetAt(targets, const PdfPoint(280, 30)), isNull);
   });
 }
 

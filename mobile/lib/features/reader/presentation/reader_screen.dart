@@ -5,6 +5,7 @@ import '../../dictionary/presentation/translation_view_model.dart';
 import '../../documents/domain/document_models.dart';
 import '../../phrases/domain/phrase_recognizer.dart';
 import '../data/reader_card_preferences.dart';
+import '../domain/reader_selection.dart';
 import 'widgets/adaptive_translation_surface.dart';
 import 'widgets/reflow_document_view.dart';
 import 'widgets/token_text.dart';
@@ -23,6 +24,8 @@ class ReaderScreen extends StatefulWidget {
     required this.title,
     required this.sentences,
     this.blocks = const [],
+    this.document,
+    this.selection,
     this.selectedTokenId,
     this.translationState,
     this.onTokenTap,
@@ -42,6 +45,8 @@ class ReaderScreen extends StatefulWidget {
   final String title;
   final List<ReaderSentence> sentences;
   final List<StoredReaderBlock> blocks;
+  final Widget? document;
+  final ReaderSelection? selection;
   final String? selectedTokenId;
   final TranslationState? translationState;
   final void Function(ReaderSentence sentence, ReaderToken token)? onTokenTap;
@@ -75,6 +80,9 @@ class _ReaderScreenState extends State<ReaderScreen> {
     return null;
   }
 
+  String? get _selectedSurface =>
+      widget.selection?.surface ?? _selectedToken?.surface;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -90,13 +98,13 @@ class _ReaderScreenState extends State<ReaderScreen> {
         ],
       ),
       body: AdaptiveTranslationSurface(
-        visible: _selectedToken != null,
-        document: _article(),
-        translation: _selectedToken == null
+        visible: _selectedSurface != null,
+        document: widget.document ?? _article(),
+        translation: _selectedSurface == null
             ? const SizedBox.shrink()
             : TranslationDetail(
                 state: widget.translationState,
-                word: _selectedToken!.surface,
+                word: _selectedSurface,
                 onClose: _close,
                 onSavePhrase: widget.onSavePhrase,
               ),

@@ -6,9 +6,11 @@ import 'package:dian_du_ji/features/documents/data/drift_document_repository.dar
 import 'package:dian_du_ji/features/documents/domain/document_models.dart';
 import 'package:dian_du_ji/features/phrases/domain/phrase_recognizer.dart';
 import 'package:dian_du_ji/features/reader/domain/reading_locator.dart';
+import 'package:dian_du_ji/features/reader/domain/reader_selection.dart';
 import 'package:dian_du_ji/features/reader/data/reader_card_preferences.dart';
 import 'package:dian_du_ji/features/reader/presentation/reader_controller.dart';
 import 'package:dian_du_ji/features/reader/presentation/reader_page.dart';
+import 'package:dian_du_ji/features/reader/presentation/widgets/pdf_document_view.dart';
 import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
 import 'package:dian_du_ji/features/settings/presentation/persisted_settings_controller.dart';
 import 'package:flutter/material.dart';
@@ -61,6 +63,63 @@ void main() {
     await tester.tap(find.byKey(const Key('t1')));
     await tester.pump();
     expect(find.byKey(const Key('translation-side-pane')), findsOneWidget);
+  });
+
+  testWidgets('uses the original PDF view and forwards overlay word taps', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final documents = _PdfDocuments(
+      lastLocator: const ReadingLocator(
+        documentId: 'doc-1',
+        paragraphId: '',
+        sentenceId: '',
+        localOffset: 0,
+        pageNumber: 4,
+      ),
+    );
+    final controller = _readerController(documents);
+    PdfDocumentView? configuredView;
+    await tester.pumpWidget(
+      _page(
+        controller,
+        pdfRenderer: (context, view) {
+          configuredView = view;
+          return const ColoredBox(
+            key: Key('stub-pdf-page'),
+            color: Colors.white,
+          );
+        },
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const Key('stub-pdf-page')), findsOneWidget);
+    expect(configuredView?.localPath, 'documents/paper.pdf');
+    expect(configuredView?.initialPageNumber, 4);
+    configuredView!.onWordTap(
+      const ReaderSelection(
+        surface: 'Foundation',
+        normalized: 'foundation',
+        contextText: 'Foundation Models',
+        startOffset: 12,
+        endOffset: 22,
+        pageNumber: 1,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const Key('translation-bottom-sheet')), findsOneWidget);
+    expect(find.text('Foundation'), findsOneWidget);
+    await controller.forceSave();
+    expect(documents.saved.single.$1.pageNumber, 1);
+    expect(documents.saved.single.$1.localOffset, 12);
+    documents.saved.clear();
+    configuredView!.onPageChanged!(6, 10);
+    await controller.forceSave();
+    expect(documents.saved.single.$1.pageNumber, 6);
+    expect(documents.saved.single.$2, 0.6);
   });
 
   testWidgets('loads and saves the tablet card layout preference', (
@@ -257,6 +316,7 @@ Widget _page(
   Key? appKey,
   Future<void> Function(BuildContext)? restoreItem,
   ReaderCardPreferencesStore? cardPreferences,
+  PdfDocumentRenderer? pdfRenderer,
 }) => ProviderScope(
   overrides: [
     readingSettingsProvider.overrideWithValue(
@@ -274,6 +334,7 @@ Widget _page(
             documentId: 'doc-1',
             controller: controller,
             restoreItem: restoreItem,
+            pdfRenderer: pdfRenderer,
           ),
   ),
 );
@@ -353,7 +414,7 @@ class _Documents implements DocumentRepository {
   Future<void> deleteDocument(String id) async {}
   @override
   Future<StoredReaderDocument> loadReaderDocument(String id) async =>
-      const StoredReaderDocument(
+      StoredReaderDocument(
         id: 'doc-1',
         title: 'Lesson',
         readProgress: 0,
@@ -384,6 +445,38 @@ class _Documents implements DocumentRepository {
   @override
   Future<void> saveProgress(ReadingLocator locator, double progress) async =>
       saved.add((locator, progress));
+  @override
+  Stream<List<DocumentSummary>> watchDocuments() => const Stream.empty();
+}
+
+class _PdfDocuments implements DocumentRepository {
+  _PdfDocuments({this.lastLocator});
+
+  final ReadingLocator? lastLocator;
+  final saved = <(ReadingLocator, double)>[];
+
+  @override
+  Future<void> deleteDocument(String id) async {}
+
+  @override
+  Future<StoredReaderDocument> loadReaderDocument(String id) async =>
+      StoredReaderDocument(
+        id: 'doc-1',
+        title: 'Paper',
+        format: 'pdf',
+        localPath: 'documents/paper.pdf',
+        readProgress: 0,
+        sentences: [],
+        lastLocator: lastLocator,
+      );
+
+  @override
+  Future<void> recoverInterruptedImports() async {}
+
+  @override
+  Future<void> saveProgress(ReadingLocator locator, double progress) async =>
+      saved.add((locator, progress));
+
   @override
   Stream<List<DocumentSummary>> watchDocuments() => const Stream.empty();
 }

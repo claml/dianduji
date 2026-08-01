@@ -16,6 +16,26 @@ void main() {
     expect(locator.encode(), isNot(contains('scroll')));
   });
 
+  test('PDF page locator round trips and old locators stay compatible', () {
+    const locator = ReadingLocator(
+      documentId: 'pdf-1',
+      paragraphId: '',
+      sentenceId: '',
+      localOffset: 0,
+      pageNumber: 7,
+    );
+
+    expect(ReadingLocator.decode(locator.encode()), locator);
+    expect(ReadingLocator.decode(locator.encode()).pageNumber, 7);
+    expect(
+      ReadingLocator.decode(
+        '{"documentId":"old","paragraphId":"p","sentenceId":"s",'
+        '"localOffset":2}',
+      ).pageNumber,
+      isNull,
+    );
+  });
+
   test('coalesces scrolling updates and persists the latest locator', () {
     fakeAsync((async) {
       final store = _RecordingProgressStore();
