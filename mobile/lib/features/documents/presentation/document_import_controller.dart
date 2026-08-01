@@ -193,12 +193,13 @@ class DocumentImportController extends ChangeNotifier {
   }
 
   LibraryDocument _libraryDocument(DocumentSummary document) {
+    final completed = document.status == 'completed';
     return LibraryDocument(
       id: document.id,
       title: document.title,
       sourceName: document.sourceName,
       formatLabel: document.format.toUpperCase(),
-      progress: document.progress,
+      progress: completed ? document.readProgress : document.progress,
       status: switch (document.status) {
         'queued' => LibraryDocumentStatus.queued,
         'parsing' => LibraryDocumentStatus.parsing,

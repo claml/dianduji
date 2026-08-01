@@ -26,15 +26,13 @@ class DocumentLibraryPage extends ConsumerStatefulWidget {
 }
 
 class _DocumentLibraryPageState extends ConsumerState<DocumentLibraryPage> {
-  late DocumentImportController? _controller = widget.controller;
+  late final DocumentImportController? _injectedController =
+      widget.controller ?? widget.controllerLoader?.call();
 
   @override
   Widget build(BuildContext context) {
     final DocumentImportController controller =
-        _controller ??
-        widget.controllerLoader?.call() ??
-        ref.watch(documentImportControllerProvider);
-    _controller ??= controller;
+        _injectedController ?? ref.watch(documentImportControllerProvider);
     return AnimatedBuilder(
       animation: controller,
       builder: (context, _) {
@@ -115,6 +113,10 @@ class _DocumentLibraryPageState extends ConsumerState<DocumentLibraryPage> {
         ],
       ),
     );
-    if (confirmed ?? false) await _controller!.delete(documentId);
+    if (confirmed ?? false) {
+      final controller =
+          _injectedController ?? ref.read(documentImportControllerProvider)!;
+      await controller.delete(documentId);
+    }
   }
 }

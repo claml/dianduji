@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dian_du_ji/core/platform/pdf_text_extractor.dart';
+import 'package:dian_du_ji/app/providers.dart';
 import 'package:dian_du_ji/features/documents/data/drift_document_repository.dart';
 import 'package:dian_du_ji/features/documents/data/file_picker_document_picker.dart';
 import 'package:dian_du_ji/features/documents/data/services/file_intake_service.dart';
@@ -9,6 +10,7 @@ import 'package:dian_du_ji/features/documents/domain/import_document_use_case.da
 import 'package:dian_du_ji/features/documents/presentation/document_import_controller.dart';
 import 'package:dian_du_ji/features/documents/presentation/document_library_page.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -125,6 +127,46 @@ void main() {
 
       expect(loaderCalls, 1);
       expect(find.text('Imported lesson'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'production provider keeps listening after its first document rebuild',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final repository = _PageRepository();
+      final controller = DocumentImportController(
+        picker: _PagePicker(),
+        importer: _PageImporter(),
+        repository: repository,
+      );
+      String? openedId;
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            documentImportControllerProvider.overrideWith((ref) => controller),
+          ],
+          child: MaterialApp(
+            home: DocumentLibraryPage(onOpen: (id) => openedId = id),
+          ),
+        ),
+      );
+      repository.emit([_pageSummary('pdf-1', 'Existing PDF')]);
+      await tester.pump();
+      await tester.pump();
+
+      repository.emit([
+        _pageSummary('pdf-1', 'Existing PDF'),
+        _pageSummary('docx-1', 'Imported Word'),
+      ]);
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Imported Word'), findsOneWidget);
+      await tester.tap(find.text('Imported Word'));
+      expect(openedId, 'docx-1');
     },
   );
 
