@@ -6,6 +6,7 @@ import 'package:dian_du_ji/features/documents/data/drift_document_repository.dar
 import 'package:dian_du_ji/features/documents/domain/document_models.dart';
 import 'package:dian_du_ji/features/phrases/domain/phrase_recognizer.dart';
 import 'package:dian_du_ji/features/reader/domain/reading_locator.dart';
+import 'package:dian_du_ji/features/reader/data/reader_card_preferences.dart';
 import 'package:dian_du_ji/features/reader/presentation/reader_controller.dart';
 import 'package:dian_du_ji/features/reader/presentation/reader_page.dart';
 import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
@@ -54,6 +55,31 @@ void main() {
     await tester.tap(find.byKey(const Key('t1')));
     await tester.pump();
     expect(find.byKey(const Key('translation-side-pane')), findsOneWidget);
+  });
+
+  testWidgets('loads and saves the tablet card layout preference', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(900, 700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final preferences = _PreferencesStore(
+      ReaderCardPreferences(
+        mode: ReaderCardMode.floating,
+        relativeX: 0.6,
+        relativeY: 0.2,
+      ),
+    );
+    final controller = _controller(_Documents());
+    await tester.pumpWidget(_page(controller, cardPreferences: preferences));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('t1')));
+    await tester.pump();
+    expect(find.byKey(const Key('translation-floating-card')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('reader-dock-card')));
+    await tester.pump();
+    expect(preferences.saved.last.mode, ReaderCardMode.sidePane);
   });
 
   testWidgets('force-saves pending progress when navigating back', (tester) async {
@@ -157,8 +183,13 @@ void main() {
   });
 }
 
-Widget _page(ReaderController controller, {bool withBackRoute = false, Key? appKey, Future<void> Function(BuildContext)? restoreItem}) => ProviderScope(
-  overrides: [readingSettingsProvider.overrideWithValue(PersistedSettingsState(settings: ReadingSettings(), isLoading: false))],
+Widget _page(ReaderController controller, {bool withBackRoute = false, Key? appKey, Future<void> Function(BuildContext)? restoreItem, ReaderCardPreferencesStore? cardPreferences}) => ProviderScope(
+  overrides: [
+    readingSettingsProvider.overrideWithValue(PersistedSettingsState(settings: ReadingSettings(), isLoading: false)),
+    readerCardPreferencesRepositoryProvider.overrideWithValue(
+      cardPreferences ?? _PreferencesStore(ReaderCardPreferences.defaults),
+    ),
+  ],
   child: MaterialApp(key: appKey, home: withBackRoute ? _PushReader(controller) : ReaderPage(documentId: 'doc-1', controller: controller, restoreItem: restoreItem)),
 );
 
@@ -207,6 +238,17 @@ class _Documents implements DocumentRepository {
 
 class _Dictionary implements DictionaryLookup { const _Dictionary(); @override Future<DictionaryEntry?> lookup(String surface) async => null; }
 class _Learning implements LearningRepository { const _Learning(); @override Future<void> recordLookup({required String surface, required DictionaryEntry entry, required LearningContext context}) async {} @override Future<void> savePhrase(SavedPhraseDraft phrase) async {} @override Stream<List<VocabularyListItem>> watchVocabulary(VocabularyQuery query) => const Stream.empty(); @override Stream<List<SavedPhraseListItem>> watchSavedPhrases(SavedPhraseQuery query) => const Stream.empty(); @override Future<void> addManualVocabulary(ManualVocabularyDraft draft) async {} @override Future<void> updateProficiency(String lemma, VocabularyProficiency value) async {} @override Future<void> deleteVocabulary(String lemma) async {} @override Future<void> deleteSavedPhrase(String phraseKey) async {} }
+
+class _PreferencesStore implements ReaderCardPreferencesStore {
+  _PreferencesStore(this.value);
+  ReaderCardPreferences value;
+  final saved = <ReaderCardPreferences>[];
+  @override Future<ReaderCardPreferences> load() async => value;
+  @override Future<void> save(ReaderCardPreferences preferences) async {
+    value = preferences;
+    saved.add(preferences);
+  }
+}
 
 class _ScrollableDocuments implements DocumentRepository {
   _ScrollableDocuments()

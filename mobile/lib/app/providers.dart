@@ -88,7 +88,7 @@ final readingSettingsProvider = Provider<PersistedSettingsState>((ref) {
 });
 
 final readerCardPreferencesRepositoryProvider =
-    Provider<ReaderCardPreferencesRepository>((ref) {
+    Provider<ReaderCardPreferencesStore>((ref) {
       return ReaderCardPreferencesRepository(
         ref.watch(appDatabaseProvider).settingsDao,
       );

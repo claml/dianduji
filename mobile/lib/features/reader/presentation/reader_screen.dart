@@ -4,6 +4,8 @@ import '../../dictionary/presentation/translation_detail.dart';
 import '../../dictionary/presentation/translation_view_model.dart';
 import '../../documents/domain/document_models.dart';
 import '../../phrases/domain/phrase_recognizer.dart';
+import '../data/reader_card_preferences.dart';
+import 'widgets/adaptive_translation_surface.dart';
 import 'widgets/reflow_document_view.dart';
 import 'widgets/token_text.dart';
 
@@ -32,6 +34,8 @@ class ReaderScreen extends StatefulWidget {
     this.scrollController,
     this.tokenKeyFor,
     this.onSavePhrase,
+    this.cardPreferences = ReaderCardPreferences.defaults,
+    this.onCardPreferencesChanged,
     super.key,
   });
 
@@ -50,6 +54,8 @@ class ReaderScreen extends StatefulWidget {
   final ScrollController? scrollController;
   final Key? Function(String tokenId)? tokenKeyFor;
   final Future<void> Function(PhraseMatch phrase)? onSavePhrase;
+  final ReaderCardPreferences cardPreferences;
+  final ValueChanged<ReaderCardPreferences>? onCardPreferencesChanged;
 
   @override
   State<ReaderScreen> createState() => _ReaderScreenState();
@@ -83,69 +89,28 @@ class _ReaderScreenState extends State<ReaderScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (constraints.maxWidth >= 600) {
-            return _tabletLayout();
-          }
-          return _phoneLayout(constraints.maxHeight);
-        },
-      ),
-    );
-  }
-
-  Widget _tabletLayout() {
-    final selected = _selectedToken;
-    return Row(
-      children: [
-        Expanded(child: _article()),
-        if (selected != null) ...[
-          const VerticalDivider(width: 1),
-          SizedBox(
-            key: const Key('translation-side-pane'),
-            width: 360,
-            child: TranslationDetail(state: widget.translationState, word: selected.surface, onClose: _close, onSavePhrase: widget.onSavePhrase),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _phoneLayout(double height) {
-    final selected = _selectedToken;
-    return Stack(
-      children: [
-        Positioned.fill(
-          bottom: selected == null ? 24 : height * 0.4,
-          child: _article(),
-        ),
-        if (selected == null)
-          const Positioned(
-            key: Key('reader-progress'),
-            left: 20,
-            right: 20,
-            bottom: 12,
-            child: LinearProgressIndicator(value: 0.2, minHeight: 4),
-          )
-        else
-          Positioned(
-            key: const Key('translation-bottom-sheet'),
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: height * 0.4,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                  ),
-                ),
+      body: AdaptiveTranslationSurface(
+        visible: _selectedToken != null,
+        document: _article(),
+        translation: _selectedToken == null
+            ? const SizedBox.shrink()
+            : TranslationDetail(
+                state: widget.translationState,
+                word: _selectedToken!.surface,
+                onClose: _close,
+                onSavePhrase: widget.onSavePhrase,
               ),
-              child: TranslationDetail(state: widget.translationState, word: selected.surface, onClose: _close, onSavePhrase: widget.onSavePhrase),
-            ),
-          ),
-      ],
+        preferences: widget.cardPreferences,
+        onPreferencesChanged:
+            widget.onCardPreferencesChanged ?? _ignorePreferences,
+        idleOverlay: const Positioned(
+          key: Key('reader-progress'),
+          left: 20,
+          right: 20,
+          bottom: 12,
+          child: LinearProgressIndicator(value: 0.2, minHeight: 4),
+        ),
+      ),
     );
   }
 
@@ -213,3 +178,5 @@ class _ReaderScreenState extends State<ReaderScreen> {
     if (widget.selectedTokenId == null) setState(() => _selectedTokenId = null);
   }
 }
+
+void _ignorePreferences(ReaderCardPreferences _) {}

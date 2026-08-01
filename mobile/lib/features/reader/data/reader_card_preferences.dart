@@ -89,12 +89,18 @@ class ReaderCardPreferences {
   int get hashCode => Object.hash(mode, relativeX, relativeY);
 }
 
-class ReaderCardPreferencesRepository {
+abstract interface class ReaderCardPreferencesStore {
+  Future<ReaderCardPreferences> load();
+  Future<void> save(ReaderCardPreferences preferences);
+}
+
+class ReaderCardPreferencesRepository implements ReaderCardPreferencesStore {
   const ReaderCardPreferencesRepository(this._dao);
 
   static const _key = 'reader-card-preferences-v1';
   final SettingsDao _dao;
 
+  @override
   Future<ReaderCardPreferences> load() async {
     final encoded = await _dao.getValue(_key);
     if (encoded == null) return ReaderCardPreferences.defaults;
@@ -109,6 +115,7 @@ class ReaderCardPreferencesRepository {
     }
   }
 
+  @override
   Future<void> save(ReaderCardPreferences preferences) {
     return _dao.setValue(_key, jsonEncode(preferences.toJson()));
   }

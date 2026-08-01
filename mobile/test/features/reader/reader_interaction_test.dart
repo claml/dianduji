@@ -1,4 +1,5 @@
 import 'package:dian_du_ji/features/reader/presentation/reader_screen.dart';
+import 'package:dian_du_ji/features/reader/data/reader_card_preferences.dart';
 import 'package:dian_du_ji/features/reader/presentation/widgets/token_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -97,6 +98,33 @@ void main() {
 
     expect(find.byKey(const Key('translation-side-pane')), findsOneWidget);
     expect(find.byKey(const Key('translation-bottom-sheet')), findsNothing);
+  });
+
+  testWidgets('tablet reader honors a persisted floating card mode', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1024, 768));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ReaderScreen(
+          title: 'Lesson',
+          sentences: const [sentence],
+          cardPreferences: ReaderCardPreferences(
+            mode: ReaderCardMode.floating,
+            relativeX: 0.7,
+            relativeY: 0.2,
+          ),
+          onCardPreferencesChanged: (_) {},
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('token-1')));
+    await tester.pump();
+
+    expect(find.byKey(const Key('translation-floating-card')), findsOneWidget);
+    expect(find.byKey(const Key('translation-side-pane')), findsNothing);
   });
 
   testWidgets('short tokens retain a 48 by 48 dp tap target', (tester) async {

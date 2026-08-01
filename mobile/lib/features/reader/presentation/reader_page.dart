@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import '../../../app/providers.dart';
 import '../../dictionary/presentation/translation_view_model.dart';
 import '../../documents/domain/document_models.dart';
 import '../../settings/data/reading_settings.dart';
+import '../data/reader_card_preferences.dart';
 import 'reader_controller.dart';
 import 'reader_screen.dart';
 
@@ -29,6 +32,9 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   final _scrollController = ScrollController();
   final _sentenceKeys = <String, GlobalKey>{};
   final _tokenKeys = <String, GlobalKey>{};
+  late final ReaderCardPreferencesStore _cardPreferencesStore;
+  var _cardPreferences = ReaderCardPreferences.defaults;
+  var _cardPreferencesRevision = 0;
   var _opened = false;
   var _positionScheduled = false;
   var _restoringPosition = false;
@@ -51,7 +57,24 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         );
     _controller.addListener(_changed);
     _scrollController.addListener(_recordPosition);
+    _cardPreferencesStore = ref.read(
+      readerCardPreferencesRepositoryProvider,
+    );
+    unawaited(_loadCardPreferences());
     _open();
+  }
+
+  Future<void> _loadCardPreferences() async {
+    final revision = _cardPreferencesRevision;
+    final loaded = await _cardPreferencesStore.load();
+    if (!mounted || revision != _cardPreferencesRevision) return;
+    setState(() => _cardPreferences = loaded);
+  }
+
+  void _updateCardPreferences(ReaderCardPreferences value) {
+    _cardPreferencesRevision++;
+    setState(() => _cardPreferences = value);
+    unawaited(_cardPreferencesStore.save(value));
   }
 
   Future<void> _open() async {
@@ -236,6 +259,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         ),
         onCloseTranslation: _controller.closeTranslation,
         onSavePhrase: _controller.savePhrase,
+        cardPreferences: _cardPreferences,
+        onCardPreferencesChanged: _updateCardPreferences,
       ),
     );
   }
