@@ -8,6 +8,7 @@ import 'package:dian_du_ji/features/documents/domain/document_models.dart';
 import 'package:dian_du_ji/features/phrases/domain/phrase_recognizer.dart';
 import 'package:dian_du_ji/features/phrases/domain/phrase_type.dart';
 import 'package:dian_du_ji/features/reader/domain/reading_locator.dart';
+import 'package:dian_du_ji/features/reader/domain/reader_selection.dart';
 import 'package:dian_du_ji/features/reader/presentation/reader_controller.dart';
 import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -54,6 +55,42 @@ void main() {
     expect(dictionary.calls, 1);
     dictionary.pending!.complete(null);
     await future;
+  });
+
+  test('selects a visible PDF word without inventing stored ids', () async {
+    documents.document = _document();
+    await controller.open('doc-1');
+
+    await controller.selectExternalWord(
+      const ReaderSelection(
+        surface: 'Models',
+        normalized: 'models',
+        contextText: 'Foundation Models improve language understanding.',
+        pageNumber: 1,
+        startOffset: 11,
+        endOffset: 17,
+      ),
+    );
+
+    expect(controller.state.selection?.surface, 'Models');
+    expect(controller.state.selectedSentenceId, isNull);
+    expect(controller.state.selectedTokenId, isNull);
+    expect(controller.translation.state.surface, 'Models');
+    expect(dictionary.surfaces, ['Models']);
+    expect(
+      () => controller.savePhrase(
+        const PhraseMatch(
+          key: 'foundation-models',
+          surface: 'Foundation Models',
+          type: PhraseType.collocation,
+          meaning: '基础模型',
+          confidence: 1,
+          startTokenOrdinal: 0,
+          endTokenOrdinal: 1,
+        ),
+      ),
+      throwsStateError,
+    );
   });
 
   test('records a sentence locator, force-saves it, and never saves after dispose', () async {
@@ -120,10 +157,12 @@ ReadingLocator _locator(String sentenceId, int offset) => ReadingLocator(documen
 
 class _Dictionary implements DictionaryLookup {
   var calls = 0;
+  final surfaces = <String>[];
   Completer<DictionaryEntry?>? pending;
   @override
   Future<DictionaryEntry?> lookup(String surface) {
     calls++;
+    surfaces.add(surface);
     return pending?.future ?? Future.value(null);
   }
 }

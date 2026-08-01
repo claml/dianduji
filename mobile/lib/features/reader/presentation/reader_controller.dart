@@ -7,6 +7,7 @@ import '../../documents/domain/models/parsed_block.dart';
 import '../../settings/data/reading_settings.dart';
 import '../../phrases/domain/phrase_recognizer.dart';
 import '../domain/reading_locator.dart';
+import '../domain/reader_selection.dart';
 import 'reader_view_model.dart';
 
 class ReaderState {
@@ -15,6 +16,7 @@ class ReaderState {
     this.sentences = const [],
     this.selectedSentenceId,
     this.selectedTokenId,
+    this.selection,
     this.restoredSentenceId,
     this.restoredLocalOffset = 0,
     this.isLoading = false,
@@ -25,6 +27,7 @@ class ReaderState {
   final List<StoredReaderSentence> sentences;
   final String? selectedSentenceId;
   final String? selectedTokenId;
+  final ReaderSelection? selection;
   final String? restoredSentenceId;
   final int restoredLocalOffset;
   final bool isLoading;
@@ -46,6 +49,7 @@ class ReaderState {
     List<StoredReaderSentence>? sentences,
     String? selectedSentenceId,
     String? selectedTokenId,
+    ReaderSelection? selection,
     String? restoredSentenceId,
     int? restoredLocalOffset,
     bool? isLoading,
@@ -55,6 +59,7 @@ class ReaderState {
     sentences: sentences ?? this.sentences,
     selectedSentenceId: selectedSentenceId ?? this.selectedSentenceId,
     selectedTokenId: selectedTokenId ?? this.selectedTokenId,
+    selection: selection ?? this.selection,
     restoredSentenceId: restoredSentenceId ?? this.restoredSentenceId,
     restoredLocalOffset: restoredLocalOffset ?? this.restoredLocalOffset,
     isLoading: isLoading ?? this.isLoading,
@@ -115,6 +120,15 @@ class ReaderController extends ChangeNotifier {
     _setState(_state.copyWith(
       selectedSentenceId: sentenceId,
       selectedTokenId: tokenId,
+      selection: ReaderSelection(
+        surface: selected.surface,
+        normalized: selected.normalized,
+        contextText: sentence.text,
+        startOffset: selected.startOffset,
+        endOffset: selected.endOffset,
+        sentenceId: sentenceId,
+        tokenId: tokenId,
+      ),
     ));
     await translation.lookup(
       tokens: sentence.tokens
@@ -130,6 +144,36 @@ class ReaderController extends ChangeNotifier {
         documentId: _state.document?.id,
         documentTitle: _state.document?.title ?? '',
         sentence: sentence.text,
+      ),
+      autoSaveVocabulary: settings.autoSaveVocabulary,
+    );
+  }
+
+  Future<void> selectExternalWord(ReaderSelection selection) async {
+    if (_disposed) return;
+    _setState(
+      ReaderState(
+        document: _state.document,
+        sentences: _state.sentences,
+        selection: selection,
+        restoredSentenceId: _state.restoredSentenceId,
+        restoredLocalOffset: _state.restoredLocalOffset,
+      ),
+    );
+    await translation.lookup(
+      tokens: [
+        TokenSpan(
+          surface: selection.surface,
+          normalized: selection.normalized,
+          start: selection.startOffset,
+          end: selection.endOffset,
+        ),
+      ],
+      selectedTokenOrdinal: 0,
+      context: LearningContext(
+        documentId: _state.document?.id,
+        documentTitle: _state.document?.title ?? '',
+        sentence: selection.contextText,
       ),
       autoSaveVocabulary: settings.autoSaveVocabulary,
     );
