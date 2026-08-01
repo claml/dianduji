@@ -58,6 +58,133 @@ void main() {
     },
   );
 
+  test(
+    'a failed save is reported until a later generation saves the latest settings',
+    () async {
+      final repository = _QueuedSaveSettingsRepository()
+        ..enqueueFailure(StateError('disk full'))
+        ..enqueueSuccess()
+        ..enqueueSuccess()
+        ..enqueueSuccess();
+      final controller = PersistedSettingsController(repository);
+      await controller.ready;
+
+      final failed = controller.updateTheme(ReaderTheme.eyeCare);
+      final font = controller.updateFontSize(20);
+      final lineHeight = controller.updateLineHeight(1.8);
+      final autoSave = controller.updateAutoSaveVocabulary(false);
+
+      await repository.waitForAttempt(1);
+      repository.completeNext();
+      await expectLater(failed, throwsA(isA<StateError>()));
+
+      expect(controller.state.saveError, isA<StateError>());
+      expect(repository.value, ReadingSettings());
+      expect(
+        controller.state.settings,
+        ReadingSettings(
+          theme: ReaderTheme.eyeCare,
+          fontSize: 20,
+          lineHeight: 1.8,
+          autoSaveVocabulary: false,
+        ),
+      );
+
+      await repository.waitForAttempt(2);
+      repository.completeNext();
+      await repository.waitForAttempt(3);
+      repository.completeNext();
+      await repository.waitForAttempt(4);
+      repository.completeNext();
+      await Future.wait([font, lineHeight, autoSave]);
+
+      expect(controller.state.saveError, isNull);
+      expect(
+        repository.value,
+        ReadingSettings(
+          theme: ReaderTheme.eyeCare,
+          fontSize: 20,
+          lineHeight: 1.8,
+          autoSaveVocabulary: false,
+        ),
+      );
+    },
+  );
+
+  test(
+    'pending successful retry completes safely after controller disposal',
+    () async {
+      final repository = _QueuedSaveSettingsRepository()
+        ..enqueueFailure(StateError('disk full'))
+        ..enqueueSuccess();
+      final controller = PersistedSettingsController(repository);
+      await controller.ready;
+
+      final failed = controller.updateTheme(ReaderTheme.eyeCare);
+      final expectedFailure = expectLater(failed, throwsA(isA<StateError>()));
+      await repository.waitForAttempt(1);
+      repository.completeNext();
+      await expectedFailure;
+
+      final retry = controller.retrySave();
+      await repository.waitForAttempt(2);
+      controller.dispose();
+      repository.completeNext();
+
+      await retry;
+      await Future<void>.delayed(Duration.zero);
+    },
+  );
+
+  test('pending failed save reports its error safely after controller disposal', () async {
+    final repository = _QueuedSaveSettingsRepository()
+      ..enqueueFailure(StateError('disk full'));
+    final controller = PersistedSettingsController(repository);
+    await controller.ready;
+
+    final save = controller.updateTheme(ReaderTheme.eyeCare);
+    final expectedFailure = expectLater(save, throwsA(isA<StateError>()));
+    await repository.waitForAttempt(1);
+    controller.dispose();
+    repository.completeNext();
+
+    await expectedFailure;
+    await Future<void>.delayed(Duration.zero);
+  });
+
+  testWidgets('save failure is accessible, retryable, and does not look saved', (
+    tester,
+  ) async {
+    final repository = _QueuedSaveSettingsRepository()
+      ..enqueueFailure(StateError('disk full'))
+      ..enqueueSuccess();
+    await tester.pumpWidget(
+      _settingsApp(_RecordingCacheCleanupService(), repository: repository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(SwitchListTile));
+    await repository.waitForAttempt(1);
+    repository.completeNext();
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel('设置保存失败，请重试'), findsOneWidget);
+    expect(find.text('保存失败，请重试'), findsOneWidget);
+    expect(repository.value.autoSaveVocabulary, isTrue);
+    expect(
+      tester.getSize(find.widgetWithText(FilledButton, '重试保存')).height,
+      greaterThanOrEqualTo(48),
+    );
+
+    await tester.tap(find.text('重试保存'));
+    await repository.waitForAttempt(2);
+    repository.completeNext();
+    await tester.pumpAndSettle();
+
+    expect(find.text('保存失败，请重试'), findsNothing);
+    expect(repository.value.autoSaveVocabulary, isFalse);
+  });
+
   testWidgets('loading and load failure never show editable defaults', (
     tester,
   ) async {
@@ -275,4 +402,44 @@ class _SettingsRepository implements SettingsRepository {
   }
 
   void dispose() => _changes.close();
+}
+
+class _QueuedSaveSettingsRepository implements SettingsRepository {
+  final _attempts = <Completer<void>>[];
+  final _outcomes = <Object?>[];
+  final _attemptCount = StreamController<int>.broadcast();
+  var value = ReadingSettings();
+
+  void enqueueFailure(Object error) => _outcomes.add(error);
+  void enqueueSuccess() => _outcomes.add(null);
+
+  Future<void> waitForAttempt(int count) async {
+    if (_attempts.length >= count) return;
+    await _attemptCount.stream.firstWhere((value) => value >= count);
+  }
+
+  void completeNext() {
+    final attempt = _attempts.firstWhere((attempt) => !attempt.isCompleted);
+    final outcome = _outcomes.removeAt(0);
+    if (outcome == null) {
+      attempt.complete();
+    } else {
+      attempt.completeError(outcome);
+    }
+  }
+
+  @override
+  Future<ReadingSettings> load() async => value;
+
+  @override
+  Future<void> save(ReadingSettings settings) async {
+    final attempt = Completer<void>();
+    _attempts.add(attempt);
+    _attemptCount.add(_attempts.length);
+    await attempt.future;
+    value = settings;
+  }
+
+  @override
+  Stream<ReadingSettings> watch() => Stream.value(value);
 }

@@ -43,6 +43,24 @@ class PersistedSettingsPage extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (state.saveError != null) ...[
+            Semantics(
+              container: true,
+              liveRegion: true,
+              label: '设置保存失败，请重试',
+              excludeSemantics: true,
+              child: const Text('保存失败，请重试'),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 48,
+              child: FilledButton(
+                onPressed: () => controller.retrySave().ignore(),
+                child: const Text('重试保存'),
+              ),
+            ),
+            const Divider(height: 32),
+          ],
           Text('阅读外观', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
           SegmentedButton<ReaderTheme>(

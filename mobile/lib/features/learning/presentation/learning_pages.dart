@@ -349,6 +349,7 @@ class VocabularyDetail extends StatelessWidget {
     final confirmed = await _confirmDelete(context, title: '删除这个生词？');
     if (!confirmed) return;
     await controller.delete(entry.lemma);
+    if (!context.mounted) return;
     onDeleted();
   }
 }
@@ -590,6 +591,7 @@ class PhraseDetail extends StatelessWidget {
     final confirmed = await _confirmDelete(context, title: '删除这个短语？');
     if (!confirmed) return;
     await controller.delete(entry.phraseKey);
+    if (!context.mounted) return;
     onDeleted();
   }
 }

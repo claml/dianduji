@@ -27,6 +27,9 @@ class PersistedSettingsController extends ChangeNotifier {
   var _state = const PersistedSettingsState();
   Future<void> _ready = Future.value();
   Future<void> _saveTail = Future.value();
+  var _saveGeneration = 0;
+  int? _saveErrorGeneration;
+  var _isDisposed = false;
 
   PersistedSettingsState get state => _state;
   Future<void> get ready => _ready;
@@ -60,19 +63,48 @@ class PersistedSettingsController extends ChangeNotifier {
   Future<void> updateAutoSaveVocabulary(bool value) =>
       _update((current) => _copy(current, autoSaveVocabulary: value));
 
+  Future<void> retrySave() {
+    final current = _state.settings;
+    if (current == null) {
+      throw StateError('Settings are not available.');
+    }
+    return _enqueueSave(current);
+  }
+
   Future<void> _update(ReadingSettings Function(ReadingSettings) transform) {
     final current = _state.settings;
     if (current == null) {
       throw StateError('Settings are not available.');
     }
     final next = transform(current);
-    _state = PersistedSettingsState(settings: next, isLoading: false);
+    _state = PersistedSettingsState(
+      settings: next,
+      isLoading: false,
+      saveError: _state.saveError,
+    );
     notifyListeners();
 
-    final operation = _saveTail.then((_) => _repository.save(next));
+    return _enqueueSave(next);
+  }
+
+  Future<void> _enqueueSave(ReadingSettings settings) {
+    final generation = ++_saveGeneration;
+    final operation = _saveTail.then((_) => _repository.save(settings));
     _saveTail = operation.then<void>(
-      (_) {},
+      (_) {
+        if (_isDisposed) return;
+        final errorGeneration = _saveErrorGeneration;
+        if (errorGeneration == null || generation < errorGeneration) return;
+        _saveErrorGeneration = null;
+        _state = PersistedSettingsState(
+          settings: _state.settings,
+          isLoading: false,
+        );
+        notifyListeners();
+      },
       onError: (Object error, StackTrace _) {
+        if (_isDisposed) return;
+        _saveErrorGeneration = generation;
         _state = PersistedSettingsState(
           settings: _state.settings,
           isLoading: false,
@@ -81,7 +113,13 @@ class PersistedSettingsController extends ChangeNotifier {
         notifyListeners();
       },
     );
-    return _saveTail;
+    return operation;
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
   }
 }
 

@@ -246,6 +246,74 @@ void main() {
   );
 
   testWidgets(
+    'vocabulary delete completing after disposal has no exception or stale callback',
+    (tester) async {
+      final repository = _LearningRepository()
+        ..vocabularyDelete = Completer<void>();
+      final controller = VocabularyController(
+        repository,
+        CsvExportService(destination: _Destination('words.csv')),
+      );
+      addTearDown(controller.dispose);
+      var deletedCallbacks = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: VocabularyDetail(
+              entry: _vocabularyItem(),
+              controller: controller,
+              onDeleted: () => deletedCallbacks++,
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('删除生词'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('确认删除'));
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox());
+      repository.vocabularyDelete!.complete();
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(deletedCallbacks, 0);
+    },
+  );
+
+  testWidgets(
+    'phrase delete completing after disposal has no exception or stale callback',
+    (tester) async {
+      final repository = _LearningRepository()..phraseDelete = Completer<void>();
+      final controller = PhraseBookController(repository);
+      addTearDown(controller.dispose);
+      var deletedCallbacks = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PhraseDetail(
+              entry: repository.phrases.single,
+              controller: controller,
+              onDeleted: () => deletedCallbacks++,
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('删除短语'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('确认删除'));
+      await tester.pump();
+      await tester.pumpWidget(const SizedBox());
+      repository.phraseDelete!.complete();
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(deletedCallbacks, 0);
+    },
+  );
+
+  testWidgets(
     '640dp window keeps multi-pane when navigation reduces body width',
     (tester) async {
       await tester.binding.setSurfaceSize(const Size(640, 600));
@@ -306,6 +374,8 @@ class _LearningRepository implements LearningRepository {
   bool holdVocabulary = false;
   bool failPhrases = false;
   Completer<void>? _vocabularyRelease;
+  Completer<void>? vocabularyDelete;
+  Completer<void>? phraseDelete;
 
   final vocabulary = [_vocabularyItem()];
   final phrases = [
@@ -381,12 +451,16 @@ class _LearningRepository implements LearningRepository {
       added.add(draft);
 
   @override
-  Future<void> deleteSavedPhrase(String phraseKey) async =>
-      deletedPhrases.add(phraseKey);
+  Future<void> deleteSavedPhrase(String phraseKey) async {
+    await phraseDelete?.future;
+    deletedPhrases.add(phraseKey);
+  }
 
   @override
-  Future<void> deleteVocabulary(String lemma) async =>
-      deletedVocabulary.add(lemma);
+  Future<void> deleteVocabulary(String lemma) async {
+    await vocabularyDelete?.future;
+    deletedVocabulary.add(lemma);
+  }
 
   @override
   Future<void> updateProficiency(
