@@ -99,7 +99,7 @@ Future<void> _leaveReader() async {
 }
 ```
 
-Pass it to `ReaderScreen`, whose toolbar task will bind it to the explicit button. Keep `PopScope` so Android system back still saves progress.
+Pass it to `ReaderScreen` and, in this task, bind it to an explicit `AppBar.leading` `IconButton` keyed `reader-back-button`. Task 2 will move that same keyed button into the overlay toolbar. Keep `PopScope` so Android system back still saves progress.
 
 - [ ] **Step 4: Run focused tests**
 
