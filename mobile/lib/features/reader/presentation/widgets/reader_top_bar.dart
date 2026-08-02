@@ -30,7 +30,9 @@ class ReaderTopBar extends StatelessWidget {
           child: AnimatedSlide(
             key: const Key('reader-top-bar'),
             offset: visible ? Offset.zero : const Offset(0, -1),
-            duration: const Duration(milliseconds: 180),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
             child: SafeArea(
               bottom: false,
               child: Material(

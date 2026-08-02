@@ -2,6 +2,7 @@ import 'package:dian_du_ji/features/reader/presentation/reader_screen.dart';
 import 'package:dian_du_ji/features/reader/presentation/reader_chrome_controller.dart';
 import 'package:dian_du_ji/features/reader/data/reader_card_preferences.dart';
 import 'package:dian_du_ji/features/reader/domain/reader_selection.dart';
+import 'package:dian_du_ji/features/reader/presentation/widgets/reader_top_bar.dart';
 import 'package:dian_du_ji/features/reader/presentation/widgets/token_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -217,6 +218,34 @@ void main() {
       expect(chrome.visible, isTrue);
     },
   );
+
+  testWidgets('disables the top-bar slide animation when reduce motion is on', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: const Scaffold(
+            body: ReaderTopBar(
+              title: 'Lesson',
+              visible: true,
+              onBack: _noop,
+              onReveal: _noop,
+              onSettings: _noop,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .widget<AnimatedSlide>(find.byKey(const Key('reader-top-bar')))
+          .duration,
+      Duration.zero,
+    );
+  });
 }
 
 void _noop() {}
