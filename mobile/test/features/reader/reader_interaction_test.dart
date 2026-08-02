@@ -1,4 +1,5 @@
 import 'package:dian_du_ji/features/reader/presentation/reader_screen.dart';
+import 'package:dian_du_ji/features/reader/presentation/reader_chrome_controller.dart';
 import 'package:dian_du_ji/features/reader/data/reader_card_preferences.dart';
 import 'package:dian_du_ji/features/reader/domain/reader_selection.dart';
 import 'package:dian_du_ji/features/reader/presentation/widgets/token_text.dart';
@@ -173,6 +174,57 @@ void main() {
     expect(find.byKey(const Key('translation-bottom-sheet')), findsOneWidget);
     expect(find.text('Foundation'), findsOneWidget);
   });
+
+  testWidgets(
+    'auto-hides the overlay toolbar without changing the document viewport',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final chrome = ReaderChromeController();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ReaderScreen(
+            title: 'Lesson',
+            sentences: _scrollableSentences(),
+            chromeController: chrome,
+          ),
+        ),
+      );
+
+      final document = find.byKey(const Key('reader-document-viewport'));
+      final before = tester.getRect(document);
+      await tester.dragFrom(const Offset(195, 200), const Offset(0, -30));
+      await tester.pump(const Duration(milliseconds: 180));
+
+      expect(chrome.visible, isFalse);
+      expect(
+        tester
+            .widget<AnimatedSlide>(find.byKey(const Key('reader-top-bar')))
+            .offset,
+        const Offset(0, -1),
+      );
+      expect(tester.getRect(document), before);
+
+      await tester.dragFrom(const Offset(195, 200), const Offset(0, 30));
+      await tester.pump(const Duration(milliseconds: 180));
+      expect(chrome.visible, isTrue);
+
+      chrome.handleContentScroll(30);
+      await tester.pump(const Duration(milliseconds: 180));
+      await tester.tap(find.byKey(const Key('reader-top-reveal-zone')));
+      await tester.pump(const Duration(milliseconds: 180));
+
+      expect(chrome.visible, isTrue);
+    },
+  );
 }
 
 void _noop() {}
+
+List<ReaderSentence> _scrollableSentences() => List.generate(
+  32,
+  (index) => ReaderSentence(
+    id: 'scroll-sentence-$index',
+    tokens: [ReaderToken(id: 'scroll-token-$index', surface: 'Sentence')],
+  ),
+);

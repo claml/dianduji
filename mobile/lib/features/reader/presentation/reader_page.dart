@@ -11,6 +11,7 @@ import '../../settings/data/reading_settings.dart';
 import '../data/reader_card_preferences.dart';
 import '../domain/reader_selection.dart';
 import 'reader_controller.dart';
+import 'reader_chrome_controller.dart';
 import 'reader_screen.dart';
 import 'widgets/pdf_document_view.dart';
 
@@ -35,6 +36,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   late final ReaderController _controller;
   late final bool _ownsController;
   final _scrollController = ScrollController();
+  final _chromeController = ReaderChromeController();
   final _sentenceKeys = <String, GlobalKey>{};
   final _tokenKeys = <String, GlobalKey>{};
   late final ReaderCardPreferencesStore _cardPreferencesStore;
@@ -310,6 +312,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         onCloseTranslation: _controller.closeTranslation,
         onSavePhrase: _controller.savePhrase,
         onNavigateBack: _leaveReader,
+        chromeController: _chromeController,
         cardPreferences: _cardPreferences,
         onCardPreferencesChanged: _updateCardPreferences,
       ),
@@ -322,6 +325,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     _scrollController
       ..removeListener(_recordPosition)
       ..dispose();
+    _chromeController.dispose();
     _controller.removeListener(_changed);
     _controller.forceSave();
     if (_ownsController) _controller.dispose();

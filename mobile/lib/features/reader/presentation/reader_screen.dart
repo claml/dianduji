@@ -6,7 +6,9 @@ import '../../documents/domain/document_models.dart';
 import '../../phrases/domain/phrase_recognizer.dart';
 import '../data/reader_card_preferences.dart';
 import '../domain/reader_selection.dart';
+import 'reader_chrome_controller.dart';
 import 'widgets/adaptive_translation_surface.dart';
+import 'widgets/reader_top_bar.dart';
 import 'widgets/reflow_document_view.dart';
 import 'widgets/token_text.dart';
 
@@ -38,6 +40,7 @@ class ReaderScreen extends StatefulWidget {
     this.tokenKeyFor,
     this.onSavePhrase,
     this.onNavigateBack,
+    this.chromeController,
     this.cardPreferences = ReaderCardPreferences.defaults,
     this.onCardPreferencesChanged,
     super.key,
@@ -61,6 +64,7 @@ class ReaderScreen extends StatefulWidget {
   final Key? Function(String tokenId)? tokenKeyFor;
   final Future<void> Function(PhraseMatch phrase)? onSavePhrase;
   final Future<void> Function()? onNavigateBack;
+  final ReaderChromeController? chromeController;
   final ReaderCardPreferences cardPreferences;
   final ValueChanged<ReaderCardPreferences>? onCardPreferencesChanged;
 
@@ -70,6 +74,21 @@ class ReaderScreen extends StatefulWidget {
 
 class _ReaderScreenState extends State<ReaderScreen> {
   String? _selectedTokenId;
+  late final ReaderChromeController _chromeController;
+  late final bool _ownsChromeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _ownsChromeController = widget.chromeController == null;
+    _chromeController = widget.chromeController ?? ReaderChromeController();
+  }
+
+  @override
+  void dispose() {
+    if (_ownsChromeController) _chromeController.dispose();
+    super.dispose();
+  }
 
   String? get _activeTokenId => widget.selectedTokenId ?? _selectedTokenId;
 
@@ -87,44 +106,43 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        leading: IconButton(
-          key: const Key('reader-back-button'),
-          tooltip: '返回',
-          onPressed: widget.onNavigateBack,
-          icon: const Icon(Icons.arrow_back),
-        ),
-        actions: [
-          IconButton(
-            tooltip: '阅读设置',
-            onPressed: () {},
-            icon: const Icon(Icons.text_fields_rounded),
-          ),
-          const SizedBox(width: 8),
-        ],
+    final documentSurface = AdaptiveTranslationSurface(
+      visible: _selectedSurface != null,
+      document: widget.document ?? _article(),
+      translation: _selectedSurface == null
+          ? const SizedBox.shrink()
+          : TranslationDetail(
+              state: widget.translationState,
+              word: _selectedSurface,
+              onClose: _close,
+              onSavePhrase: widget.onSavePhrase,
+            ),
+      preferences: widget.cardPreferences,
+      onPreferencesChanged:
+          widget.onCardPreferencesChanged ?? _ignorePreferences,
+      idleOverlay: const Positioned(
+        key: Key('reader-progress'),
+        left: 20,
+        right: 20,
+        bottom: 12,
+        child: LinearProgressIndicator(value: 0.2, minHeight: 4),
       ),
-      body: AdaptiveTranslationSurface(
-        visible: _selectedSurface != null,
-        document: widget.document ?? _article(),
-        translation: _selectedSurface == null
-            ? const SizedBox.shrink()
-            : TranslationDetail(
-                state: widget.translationState,
-                word: _selectedSurface,
-                onClose: _close,
-                onSavePhrase: widget.onSavePhrase,
-              ),
-        preferences: widget.cardPreferences,
-        onPreferencesChanged:
-            widget.onCardPreferencesChanged ?? _ignorePreferences,
-        idleOverlay: const Positioned(
-          key: Key('reader-progress'),
-          left: 20,
-          right: 20,
-          bottom: 12,
-          child: LinearProgressIndicator(value: 0.2, minHeight: 4),
+    );
+    return Scaffold(
+      body: AnimatedBuilder(
+        animation: _chromeController,
+        child: documentSurface,
+        builder: (context, child) => Stack(
+          children: [
+            Positioned.fill(child: child!),
+            ReaderTopBar(
+              title: widget.title,
+              visible: _chromeController.visible,
+              onBack: widget.onNavigateBack,
+              onReveal: _chromeController.reveal,
+              onSettings: () {},
+            ),
+          ],
         ),
       ),
     );
@@ -132,63 +150,92 @@ class _ReaderScreenState extends State<ReaderScreen> {
 
   Widget _article() {
     if (widget.blocks.isNotEmpty && widget.onStoredTokenTap != null) {
-      return ReflowDocumentView(
-        blocks: widget.blocks,
-        selectedTokenId: _activeTokenId,
-        fontSize: widget.fontSize,
-        lineHeight: widget.lineHeight,
-        scrollController: widget.scrollController,
-        sentenceKeyFor: widget.sentenceKeyFor,
-        tokenKeyFor: widget.tokenKeyFor,
-        onTokenTap: widget.onStoredTokenTap!,
+      return _watchReflowScroll(
+        Padding(
+          padding: EdgeInsets.only(
+            top: MediaQuery.paddingOf(context).top + kToolbarHeight,
+          ),
+          child: ReflowDocumentView(
+            blocks: widget.blocks,
+            selectedTokenId: _activeTokenId,
+            fontSize: widget.fontSize,
+            lineHeight: widget.lineHeight,
+            scrollController: widget.scrollController,
+            sentenceKeyFor: widget.sentenceKeyFor,
+            tokenKeyFor: widget.tokenKeyFor,
+            onTokenTap: widget.onStoredTokenTap!,
+          ),
+        ),
       );
     }
     final colorScheme = Theme.of(context).colorScheme;
-    return ListView.separated(
-      controller: widget.scrollController,
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 56),
-      itemCount: widget.sentences.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final sentence = widget.sentences[index];
-        final selectedSentence = sentence.tokens.any(
-          (token) => token.id == _activeTokenId,
-        );
-        return AnimatedContainer(
-          key: widget.sentenceKeyFor?.call(sentence.id),
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: selectedSentence
-                ? colorScheme.primary.withValues(alpha: 0.05)
-                : null,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              for (final token in sentence.tokens)
-                TokenText(
-                  token: token,
-                  selected: token.id == _activeTokenId,
-                  onTap: () {
-                    widget.onTokenTap?.call(sentence, token);
-                    if (widget.selectedTokenId == null) {
-                      setState(() => _selectedTokenId = token.id);
-                    }
-                  },
-                  style: TextStyle(
-                    fontSize: widget.fontSize,
-                    height: widget.lineHeight,
+    return _watchReflowScroll(
+      ListView.separated(
+        controller: widget.scrollController,
+        padding: EdgeInsets.fromLTRB(
+          24,
+          MediaQuery.paddingOf(context).top + kToolbarHeight + 24,
+          24,
+          56,
+        ),
+        itemCount: widget.sentences.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final sentence = widget.sentences[index];
+          final selectedSentence = sentence.tokens.any(
+            (token) => token.id == _activeTokenId,
+          );
+          return AnimatedContainer(
+            key: widget.sentenceKeyFor?.call(sentence.id),
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 160),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: selectedSentence
+                  ? colorScheme.primary.withValues(alpha: 0.05)
+                  : null,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (final token in sentence.tokens)
+                  TokenText(
+                    token: token,
+                    selected: token.id == _activeTokenId,
+                    onTap: () {
+                      widget.onTokenTap?.call(sentence, token);
+                      if (widget.selectedTokenId == null) {
+                        setState(() => _selectedTokenId = token.id);
+                      }
+                    },
+                    style: TextStyle(
+                      fontSize: widget.fontSize,
+                      height: widget.lineHeight,
+                    ),
+                    widgetKey: widget.tokenKeyFor?.call(token.id),
                   ),
-                  widgetKey: widget.tokenKeyFor?.call(token.id),
-                ),
-            ],
-          ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _watchReflowScroll(Widget child) {
+    return NotificationListener<ScrollUpdateNotification>(
+      onNotification: (notification) {
+        _chromeController.handleContentScroll(
+          notification.scrollDelta ?? 0,
+          atTop:
+              notification.metrics.pixels <=
+              notification.metrics.minScrollExtent,
         );
+        return false;
       },
+      child: child,
     );
   }
 
