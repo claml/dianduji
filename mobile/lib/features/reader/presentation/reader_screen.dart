@@ -37,6 +37,7 @@ class ReaderScreen extends StatefulWidget {
     this.scrollController,
     this.tokenKeyFor,
     this.onSavePhrase,
+    this.onNavigateBack,
     this.cardPreferences = ReaderCardPreferences.defaults,
     this.onCardPreferencesChanged,
     super.key,
@@ -59,6 +60,7 @@ class ReaderScreen extends StatefulWidget {
   final ScrollController? scrollController;
   final Key? Function(String tokenId)? tokenKeyFor;
   final Future<void> Function(PhraseMatch phrase)? onSavePhrase;
+  final Future<void> Function()? onNavigateBack;
   final ReaderCardPreferences cardPreferences;
   final ValueChanged<ReaderCardPreferences>? onCardPreferencesChanged;
 
@@ -88,6 +90,12 @@ class _ReaderScreenState extends State<ReaderScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
+        leading: IconButton(
+          key: const Key('reader-back-button'),
+          tooltip: '返回',
+          onPressed: widget.onNavigateBack,
+          icon: const Icon(Icons.arrow_back),
+        ),
         actions: [
           IconButton(
             tooltip: '阅读设置',

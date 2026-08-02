@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 void main() {
   test('reader page exposes a route-ready document id', () {
@@ -160,11 +161,63 @@ void main() {
       localOffset: 1,
       progress: 0.5,
     );
-    await tester.pageBack();
+    await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
     expect(documents.saved, [(_locator, 0.5)]);
   });
+
+  testWidgets(
+    'explicit back button saves progress and returns to the prior route',
+    (tester) async {
+      final documents = _Documents();
+      final controller = _controller(documents);
+      final router = _readerRouter(controller, initialLocation: '/');
+      addTearDown(router.dispose);
+      await tester.pumpWidget(_routerPage(router));
+      await tester.pumpAndSettle();
+      router.push('/reader/doc-1');
+      await tester.pumpAndSettle();
+
+      controller.updateReadingPosition(
+        sentenceId: 's1',
+        localOffset: 1,
+        progress: 0.5,
+      );
+      expect(find.byKey(const Key('reader-back-button')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('reader-back-button')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('home-route-marker')), findsOneWidget);
+      expect(documents.saved, [(_locator, 0.5)]);
+    },
+  );
+
+  testWidgets(
+    'explicit back button saves progress and returns direct entries to home',
+    (tester) async {
+      final documents = _Documents();
+      final controller = _controller(documents);
+      final router = _readerRouter(
+        controller,
+        initialLocation: '/reader/doc-1',
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(_routerPage(router));
+      await tester.pumpAndSettle();
+
+      controller.updateReadingPosition(
+        sentenceId: 's1',
+        localOffset: 1,
+        progress: 0.5,
+      );
+      await tester.tap(find.byKey(const Key('reader-back-button')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('home-route-marker')), findsOneWidget);
+      expect(documents.saved, [(_locator, 0.5)]);
+    },
+  );
 
   testWidgets(
     'records a stable token offset and restores that token after rebuild',
@@ -337,6 +390,39 @@ Widget _page(
             pdfRenderer: pdfRenderer,
           ),
   ),
+);
+
+Widget _routerPage(GoRouter router) => ProviderScope(
+  overrides: [
+    readingSettingsProvider.overrideWithValue(
+      PersistedSettingsState(settings: ReadingSettings(), isLoading: false),
+    ),
+    readerCardPreferencesRepositoryProvider.overrideWithValue(
+      _PreferencesStore(ReaderCardPreferences.defaults),
+    ),
+  ],
+  child: MaterialApp.router(routerConfig: router),
+);
+
+GoRouter _readerRouter(
+  ReaderController controller, {
+  required String initialLocation,
+}) => GoRouter(
+  initialLocation: initialLocation,
+  routes: [
+    GoRoute(
+      path: '/',
+      builder: (context, state) =>
+          const Scaffold(body: SizedBox(key: Key('home-route-marker'))),
+    ),
+    GoRoute(
+      path: '/reader/:documentId',
+      builder: (context, state) => ReaderPage(
+        documentId: state.pathParameters['documentId']!,
+        controller: controller,
+      ),
+    ),
+  ],
 );
 
 class _PushReader extends StatefulWidget {

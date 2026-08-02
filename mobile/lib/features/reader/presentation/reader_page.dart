@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/providers.dart';
 import '../../dictionary/presentation/translation_view_model.dart';
@@ -210,6 +211,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     }
   }
 
+  Future<void> _leaveReader() async {
+    await _controller.forceSave();
+    if (!mounted) return;
+    final router = GoRouter.of(context);
+    if (router.canPop()) {
+      router.pop();
+    } else {
+      router.go('/');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final persisted = ref.watch(readingSettingsProvider);
@@ -297,6 +309,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
             _controller.selectToken(sentenceId: sentence.id, tokenId: token.id),
         onCloseTranslation: _controller.closeTranslation,
         onSavePhrase: _controller.savePhrase,
+        onNavigateBack: _leaveReader,
         cardPreferences: _cardPreferences,
         onCardPreferencesChanged: _updateCardPreferences,
       ),

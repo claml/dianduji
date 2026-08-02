@@ -76,7 +76,7 @@ class _DianDuJiAppState extends ConsumerState<DianDuJiApp> {
     _shell.value = _AppShellState(selectedIndex: index);
   }
 
-  void _openDocument(String documentId) => _router.go('/reader/$documentId');
+  void _openDocument(String documentId) => _router.push('/reader/$documentId');
 }
 
 class _AppShellState {
