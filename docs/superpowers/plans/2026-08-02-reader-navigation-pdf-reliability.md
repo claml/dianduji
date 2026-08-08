@@ -240,9 +240,9 @@ git commit -m "feat: auto-hide reader navigation"
 - Create: `mobile/lib/features/reader/domain/pdf_page_geometry.dart`
 - Create: `mobile/lib/features/reader/domain/pdf_text_hit_tester.dart`
 - Modify: `mobile/lib/features/reader/domain/pdf_word_hit_target.dart`
-- Delete: `mobile/lib/features/reader/domain/pdf_word_geometry_builder.dart`
 - Create: `mobile/test/features/reader/pdf_text_hit_tester_test.dart`
-- Delete: `mobile/test/features/reader/pdf_word_geometry_builder_test.dart`
+- Preserve until Task 4: `mobile/lib/features/reader/domain/pdf_word_geometry_builder.dart`
+- Preserve until Task 4: `mobile/test/features/reader/pdf_word_geometry_builder_test.dart`
 
 **Interfaces:**
 - Produces: `PdfPageGeometry.fromStructured(PdfPageText text)`
@@ -307,7 +307,6 @@ Expected: PASS for normal, two-column, wrapped, and partially malformed pages.
 
 ```powershell
 git add mobile/lib/features/reader/domain/pdf_page_geometry.dart mobile/lib/features/reader/domain/pdf_text_hit_tester.dart mobile/lib/features/reader/domain/pdf_word_hit_target.dart mobile/test/features/reader/pdf_text_hit_tester_test.dart
-git rm mobile/lib/features/reader/domain/pdf_word_geometry_builder.dart mobile/test/features/reader/pdf_word_geometry_builder_test.dart
 git commit -m "feat: hit-test PDF words on demand"
 ```
 
@@ -319,6 +318,8 @@ git commit -m "feat: hit-test PDF words on demand"
 - Create: `mobile/lib/features/reader/presentation/widgets/pdf_page_text_store.dart`
 - Modify: `mobile/lib/features/reader/presentation/widgets/pdf_word_overlay.dart`
 - Modify: `mobile/lib/features/reader/presentation/widgets/pdf_document_view.dart`
+- Delete after migrating callers: `mobile/lib/features/reader/domain/pdf_word_geometry_builder.dart`
+- Delete after migrating callers: `mobile/test/features/reader/pdf_word_geometry_builder_test.dart`
 - Test: `mobile/test/features/reader/pdf_word_overlay_test.dart`
 
 **Interfaces:**
@@ -380,6 +381,7 @@ Expected: PASS with a constant-sized PDF overlay.
 
 ```powershell
 git add mobile/lib/features/reader/presentation/widgets/pdf_page_text_store.dart mobile/lib/features/reader/presentation/widgets/pdf_word_overlay.dart mobile/lib/features/reader/presentation/widgets/pdf_document_view.dart mobile/test/features/reader/pdf_word_overlay_test.dart
+git rm mobile/lib/features/reader/domain/pdf_word_geometry_builder.dart mobile/test/features/reader/pdf_word_geometry_builder_test.dart
 git commit -m "perf: remove per-word PDF overlay widgets"
 ```
 
