@@ -10,6 +10,7 @@ class AdaptiveTranslationSurface extends StatelessWidget {
     required this.translation,
     required this.preferences,
     required this.onPreferencesChanged,
+    this.topExclusion = 0,
     this.idleOverlay,
     super.key,
   });
@@ -19,6 +20,7 @@ class AdaptiveTranslationSurface extends StatelessWidget {
   final Widget translation;
   final ReaderCardPreferences preferences;
   final ValueChanged<ReaderCardPreferences> onPreferencesChanged;
+  final double topExclusion;
   final Widget? idleOverlay;
 
   @override
@@ -28,7 +30,7 @@ class AdaptiveTranslationSurface extends StatelessWidget {
         if (constraints.maxWidth < 600) {
           return _phone(constraints.maxHeight);
         }
-        return _tablet();
+        return _tablet(constraints.maxHeight);
       },
     );
   }
@@ -59,9 +61,12 @@ class AdaptiveTranslationSurface extends StatelessWidget {
     );
   }
 
-  Widget _tablet() {
+  Widget _tablet(double height) {
     final showSidePane = visible && preferences.mode == ReaderCardMode.sidePane;
     final showFloating = visible && preferences.mode == ReaderCardMode.floating;
+    final usableTopExclusion = height.isFinite
+        ? topExclusion.clamp(0, height).toDouble()
+        : topExclusion;
     return Stack(
       children: [
         Positioned.fill(
@@ -74,21 +79,26 @@ class AdaptiveTranslationSurface extends StatelessWidget {
                 SizedBox(
                   key: const Key('translation-side-pane'),
                   width: 360,
-                  child: Column(
-                    children: [
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: IconButton(
-                          key: const Key('reader-float-card'),
-                          tooltip: '悬浮词卡',
-                          onPressed: () => onPreferencesChanged(
-                            preferences.copyWith(mode: ReaderCardMode.floating),
+                  child: Padding(
+                    padding: EdgeInsets.only(top: usableTopExclusion),
+                    child: Column(
+                      children: [
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: IconButton(
+                            key: const Key('reader-float-card'),
+                            tooltip: '悬浮词卡',
+                            onPressed: () => onPreferencesChanged(
+                              preferences.copyWith(
+                                mode: ReaderCardMode.floating,
+                              ),
+                            ),
+                            icon: const Icon(Icons.open_in_new_rounded),
                           ),
-                          icon: const Icon(Icons.open_in_new_rounded),
                         ),
-                      ),
-                      Expanded(child: translation),
-                    ],
+                        Expanded(child: translation),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -97,7 +107,11 @@ class AdaptiveTranslationSurface extends StatelessWidget {
         ),
         if (!visible) ?idleOverlay,
         if (showFloating)
-          Positioned.fill(
+          Positioned(
+            top: usableTopExclusion,
+            left: 0,
+            right: 0,
+            bottom: 0,
             child: DraggableTranslationCard(
               preferences: preferences,
               onPreferencesChanged: onPreferencesChanged,

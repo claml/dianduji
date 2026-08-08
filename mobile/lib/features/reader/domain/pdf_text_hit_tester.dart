@@ -230,16 +230,98 @@ bool _sameLineAcross(
 
 bool _isPlausibleSoftWrap(PdfPageGeometry page, int leftIndex, int rightIndex) {
   PdfRect? left;
+  var leftGeometryIndex = leftIndex;
   for (var index = leftIndex; _isLetterAt(page.fullText, index); index--) {
     left = page.rectAt(index);
-    if (left != null) break;
+    if (left != null) {
+      leftGeometryIndex = index;
+      break;
+    }
   }
   PdfRect? right;
+  var rightGeometryIndex = rightIndex;
   for (var index = rightIndex; _isLetterAt(page.fullText, index); index++) {
     right = page.rectAt(index);
-    if (right != null) break;
+    if (right != null) {
+      rightGeometryIndex = index;
+      break;
+    }
   }
-  return left != null && right != null && !_sameVisualLine(left, right);
+  if (left == null || right == null || _sameVisualLine(left, right)) {
+    return false;
+  }
+
+  final glyphHeight = left.height > right.height ? left.height : right.height;
+  final downwardDistance = left.center.y - right.center.y;
+  if (downwardDistance <= 0 || downwardDistance > glyphHeight * 3) {
+    return false;
+  }
+
+  final leftLine = _visualColumnSegmentAt(page, leftGeometryIndex, left);
+  final rightLine = _visualColumnSegmentAt(page, rightGeometryIndex, right);
+  final horizontalGap = leftLine.left > rightLine.right
+      ? leftLine.left - rightLine.right
+      : rightLine.left > leftLine.right
+      ? rightLine.left - leftLine.right
+      : 0.0;
+  final glyphScale = [
+    left.width,
+    left.height,
+    right.width,
+    right.height,
+  ].reduce((largest, value) => value > largest ? value : largest);
+  return horizontalGap <= glyphScale * 3;
+}
+
+PdfRect _visualColumnSegmentAt(
+  PdfPageGeometry page,
+  int anchorIndex,
+  PdfRect anchor,
+) {
+  var lineStart = anchorIndex;
+  while (lineStart > 0 && !_isLineBreakAt(page.fullText, lineStart - 1)) {
+    lineStart--;
+  }
+  var lineEnd = anchorIndex + 1;
+  while (lineEnd < page.fullText.length &&
+      !_isLineBreakAt(page.fullText, lineEnd)) {
+    lineEnd++;
+  }
+
+  final rects = <PdfRect>[];
+  for (var index = lineStart; index < lineEnd; index++) {
+    final rect = page.rectAt(index);
+    if (rect != null && _sameVisualLine(anchor, rect)) rects.add(rect);
+  }
+  rects.sort((first, second) => first.left.compareTo(second.left));
+
+  var segment = anchor;
+  var changed = true;
+  while (changed) {
+    changed = false;
+    for (final rect in rects) {
+      final glyphScale = [
+        segment.height,
+        rect.width,
+        rect.height,
+      ].reduce((largest, value) => value > largest ? value : largest);
+      final gap = rect.left > segment.right
+          ? rect.left - segment.right
+          : segment.left > rect.right
+          ? segment.left - rect.right
+          : 0.0;
+      if (gap > glyphScale * 2) continue;
+      final merged = segment.merge(rect);
+      if (merged.left != segment.left ||
+          merged.top != segment.top ||
+          merged.right != segment.right ||
+          merged.bottom != segment.bottom) {
+        segment = merged;
+        changed = true;
+      }
+    }
+  }
+  return segment;
 }
 
 List<PdfRect> _boundsForRange(PdfPageGeometry page, int start, int end) {
@@ -391,6 +473,12 @@ bool _isWhitespaceAt(String text, int index) {
   return index >= 0 &&
       index < text.length &&
       RegExp(r'\s').hasMatch(text[index]);
+}
+
+bool _isLineBreakAt(String text, int index) {
+  if (index < 0 || index >= text.length) return false;
+  final codeUnit = text.codeUnitAt(index);
+  return codeUnit == 10 || codeUnit == 13;
 }
 
 bool _isSentenceBoundaryAt(String text, int index) {

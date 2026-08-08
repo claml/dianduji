@@ -239,6 +239,25 @@ void main() {
       expect(left?.bounds, hasLength(1));
     });
 
+    test(
+      'does not join source-adjacent rows that cross from right to left column',
+      () {
+        const text = 'right-\nleft';
+        final rects = List<PdfRect>.filled(text.length, PdfRect.empty);
+        _placeText(rects, 0, 200, 100, 'right-');
+        _placeText(rects, text.indexOf('left'), 10, 80, 'left');
+        final page = _geometryWithRects(text, rects);
+
+        final right = hitTestPdfText(page, const PdfPoint(204, 94));
+        final left = hitTestPdfText(page, const PdfPoint(14, 74));
+
+        expect(right?.surface, 'right');
+        expect(right?.bounds, hasLength(1));
+        expect(left?.surface, 'left');
+        expect(left?.bounds, hasLength(1));
+      },
+    );
+
     test('splits highlight bounds at an implausible same-line column gap', () {
       const text = 'wayfinding';
       final rects = List<PdfRect>.filled(text.length, PdfRect.empty);

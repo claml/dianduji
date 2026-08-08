@@ -2,6 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+double readerToolbarExclusionHeight(BuildContext context) =>
+    MediaQuery.paddingOf(context).top + kToolbarHeight;
+
 class ReaderTopBar extends StatelessWidget {
   const ReaderTopBar({
     required this.title,
@@ -16,7 +19,7 @@ class ReaderTopBar extends StatelessWidget {
   final bool visible;
   final VoidCallback? onBack;
   final VoidCallback onReveal;
-  final VoidCallback onSettings;
+  final VoidCallback? onSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +60,7 @@ class ReaderTopBar extends StatelessWidget {
                         ),
                       ),
                       IconButton(
+                        key: const Key('reader-settings-button'),
                         tooltip: '阅读设置',
                         onPressed: onSettings,
                         icon: const Icon(Icons.text_fields_rounded),

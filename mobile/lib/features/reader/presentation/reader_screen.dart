@@ -40,6 +40,7 @@ class ReaderScreen extends StatefulWidget {
     this.tokenKeyFor,
     this.onSavePhrase,
     this.onNavigateBack,
+    this.onSettings,
     this.chromeController,
     this.cardPreferences = ReaderCardPreferences.defaults,
     this.onCardPreferencesChanged,
@@ -64,6 +65,7 @@ class ReaderScreen extends StatefulWidget {
   final Key? Function(String tokenId)? tokenKeyFor;
   final Future<void> Function(PhraseMatch phrase)? onSavePhrase;
   final Future<void> Function()? onNavigateBack;
+  final VoidCallback? onSettings;
   final ReaderChromeController? chromeController;
   final ReaderCardPreferences cardPreferences;
   final ValueChanged<ReaderCardPreferences>? onCardPreferencesChanged;
@@ -120,6 +122,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
       preferences: widget.cardPreferences,
       onPreferencesChanged:
           widget.onCardPreferencesChanged ?? _ignorePreferences,
+      topExclusion: readerToolbarExclusionHeight(context),
       idleOverlay: const Positioned(
         key: Key('reader-progress'),
         left: 20,
@@ -140,7 +143,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
               visible: _chromeController.visible,
               onBack: widget.onNavigateBack,
               onReveal: _chromeController.reveal,
-              onSettings: () {},
+              onSettings: widget.onSettings,
             ),
           ],
         ),

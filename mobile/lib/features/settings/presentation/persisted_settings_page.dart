@@ -63,6 +63,11 @@ class PersistedSettingsPage extends ConsumerWidget {
           ],
           Text('阅读外观', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 12),
+          const Text(
+            '字号和行距仅适用于 TXT/DOCX 重排阅读，PDF 保留原版式。',
+            key: Key('reading-settings-scope-note'),
+          ),
+          const SizedBox(height: 12),
           SegmentedButton<ReaderTheme>(
             segments: const [
               ButtonSegment(value: ReaderTheme.day, label: Text('日间')),
@@ -76,6 +81,7 @@ class PersistedSettingsPage extends ConsumerWidget {
           const SizedBox(height: 16),
           Text('字号 ${settings.fontSize.round()}'),
           Slider(
+            key: const Key('reading-font-size-slider'),
             value: settings.fontSize,
             min: 12,
             max: 24,
@@ -85,6 +91,7 @@ class PersistedSettingsPage extends ConsumerWidget {
           ),
           Text('行距 ${settings.lineHeight.toStringAsFixed(1)}'),
           Slider(
+            key: const Key('reading-line-height-slider'),
             value: settings.lineHeight,
             min: 1.4,
             max: 2,

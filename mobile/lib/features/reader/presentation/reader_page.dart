@@ -8,6 +8,7 @@ import '../../../app/providers.dart';
 import '../../dictionary/presentation/translation_view_model.dart';
 import '../../documents/domain/document_models.dart';
 import '../../settings/data/reading_settings.dart';
+import '../../settings/presentation/persisted_settings_page.dart';
 import '../data/reader_card_preferences.dart';
 import '../domain/reader_selection.dart';
 import 'reader_controller.dart';
@@ -224,6 +225,14 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     }
   }
 
+  void _openReadingSettings() {
+    unawaited(
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(builder: (_) => const PersistedSettingsPage()),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final persisted = ref.watch(readingSettingsProvider);
@@ -313,6 +322,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         onCloseTranslation: _controller.closeTranslation,
         onSavePhrase: _controller.savePhrase,
         onNavigateBack: _leaveReader,
+        onSettings: _openReadingSettings,
         chromeController: _chromeController,
         cardPreferences: _cardPreferences,
         onCardPreferencesChanged: _updateCardPreferences,

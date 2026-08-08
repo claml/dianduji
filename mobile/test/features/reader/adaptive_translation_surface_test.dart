@@ -41,6 +41,42 @@ void main() {
     expect(find.byKey(const Key('translation-side-pane')), findsOneWidget);
     expect(find.byKey(const Key('translation-floating-card')), findsNothing);
   });
+
+  testWidgets(
+    'contains a draggable floating card when tablet height is below 280',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 240));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(const MaterialApp(home: _Harness()));
+
+      await tester.tap(find.byKey(const Key('reader-float-card')));
+      await tester.pump();
+      _expectContained(tester);
+      expect(
+        tester
+            .getSize(find.byKey(const Key('translation-floating-card')))
+            .height,
+        240,
+      );
+
+      await tester.drag(
+        find.byKey(const Key('translation-floating-drag-handle')),
+        const Offset(2000, 2000),
+      );
+      await tester.pump();
+      _expectContained(tester);
+
+      await tester.binding.setSurfaceSize(const Size(700, 220));
+      await tester.pump();
+      _expectContained(tester);
+      expect(
+        tester
+            .getSize(find.byKey(const Key('translation-floating-card')))
+            .height,
+        220,
+      );
+    },
+  );
 }
 
 void _expectContained(WidgetTester tester) {

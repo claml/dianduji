@@ -12,6 +12,7 @@ import 'package:dian_du_ji/features/reader/presentation/reader_controller.dart';
 import 'package:dian_du_ji/features/reader/presentation/reader_page.dart';
 import 'package:dian_du_ji/features/reader/presentation/widgets/pdf_document_view.dart';
 import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
+import 'package:dian_du_ji/features/settings/data/settings_repository.dart';
 import 'package:dian_du_ji/features/settings/presentation/persisted_settings_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -73,7 +74,13 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(900, 700));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       final controller = _readerController(_PdfDocuments());
-      final preferences = _PreferencesStore(ReaderCardPreferences.defaults);
+      final preferences = _PreferencesStore(
+        ReaderCardPreferences(
+          mode: ReaderCardMode.sidePane,
+          relativeX: 0.7,
+          relativeY: 0,
+        ),
+      );
       PdfDocumentView? configuredView;
       var renderCount = 0;
       await tester.pumpWidget(
@@ -106,10 +113,51 @@ void main() {
       await tester.pump();
       expect(find.byKey(const Key('translation-side-pane')), findsOneWidget);
       expect(renderCount, 1);
+      final documentViewport = find.byKey(
+        const Key('reader-document-viewport'),
+      );
+      final viewportRect = tester.getRect(documentViewport);
+      final toolbarBottom = tester
+          .getRect(find.byKey(const Key('reader-top-bar')))
+          .bottom;
 
-      tester
-          .widget<IconButton>(find.byKey(const Key('reader-float-card')))
-          .onPressed!();
+      await tester.tap(find.byKey(const Key('reader-float-card')));
+      await tester.pump();
+      expect(
+        find.byKey(const Key('translation-floating-card')),
+        findsOneWidget,
+      );
+      expect(preferences.saved.last.mode, ReaderCardMode.floating);
+      expect(
+        tester.getRect(find.byKey(const Key('translation-floating-card'))).top,
+        greaterThanOrEqualTo(toolbarBottom),
+      );
+      expect(renderCount, 1);
+      final floatingViewportRect = tester.getRect(documentViewport);
+
+      await tester.drag(
+        find.byKey(const Key('translation-floating-drag-handle')),
+        const Offset(80, 0),
+      );
+      await tester.pump();
+      expect(preferences.saved.last.mode, ReaderCardMode.floating);
+      expect(preferences.saved.last.relativeY, 0);
+      expect(renderCount, 1);
+      expect(tester.getRect(documentViewport), floatingViewportRect);
+
+      await tester.tap(find.byTooltip('关闭释义'));
+      await tester.pump();
+      expect(find.byKey(const Key('translation-floating-card')), findsNothing);
+      configuredView!.onWordTap(
+        const ReaderSelection(
+          surface: 'Foundation',
+          normalized: 'foundation',
+          contextText: 'Foundation Models',
+          startOffset: 0,
+          endOffset: 10,
+          pageNumber: 1,
+        ),
+      );
       await tester.pump();
       expect(
         find.byKey(const Key('translation-floating-card')),
@@ -117,21 +165,92 @@ void main() {
       );
       expect(renderCount, 1);
 
-      tester
-          .widget<IconButton>(find.byKey(const Key('reader-dock-card')))
-          .onPressed!();
+      await tester.tap(find.byKey(const Key('reader-dock-card')));
       await tester.pump();
       expect(find.byKey(const Key('translation-side-pane')), findsOneWidget);
       expect(renderCount, 1);
+      expect(tester.getRect(documentViewport), viewportRect);
 
       configuredView!.onContentScroll!(30);
       await tester.pump(const Duration(milliseconds: 180));
       expect(find.byKey(const Key('reader-top-reveal-zone')), findsOneWidget);
       expect(renderCount, 1);
+      expect(tester.getRect(documentViewport), viewportRect);
+
+      await tester.tap(find.byKey(const Key('reader-float-card')));
+      await tester.pump();
+      expect(
+        find.byKey(const Key('translation-floating-card')),
+        findsOneWidget,
+      );
+      expect(
+        tester.getRect(find.byKey(const Key('translation-floating-card'))).top,
+        greaterThanOrEqualTo(toolbarBottom),
+      );
+      expect(renderCount, 1);
+      expect(tester.getRect(documentViewport), floatingViewportRect);
+
+      await tester.tap(find.byKey(const Key('reader-dock-card')));
+      await tester.pump();
+      expect(find.byKey(const Key('translation-side-pane')), findsOneWidget);
+      expect(renderCount, 1);
+      expect(tester.getRect(documentViewport), viewportRect);
 
       configuredView!.onContentScroll!(-1);
       await tester.pump(const Duration(milliseconds: 180));
       expect(find.byKey(const Key('reader-top-reveal-zone')), findsNothing);
+      expect(renderCount, 1);
+    },
+  );
+
+  testWidgets(
+    'opens persisted reading settings without rebuilding the PDF renderer',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(900, 700));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final settings = _SettingsRepository();
+      var renderCount = 0;
+      await tester.pumpWidget(
+        _page(
+          _readerController(_PdfDocuments()),
+          settingsRepository: settings,
+          pdfRenderer: (context, view) {
+            renderCount++;
+            return const ColoredBox(color: Colors.white);
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(renderCount, 1);
+      await tester.tap(find.byKey(const Key('reader-settings-button')));
+      await tester.pumpAndSettle();
+      expect(find.text('字号和行距仅适用于 TXT/DOCX 重排阅读，PDF 保留原版式。'), findsOneWidget);
+
+      await tester.tap(find.text('夜间'));
+      await tester.pump();
+      final fontSlider = tester.getRect(
+        find.byKey(const Key('reading-font-size-slider')),
+      );
+      await tester.tapAt(
+        Offset(fontSlider.left + fontSlider.width * 0.75, fontSlider.center.dy),
+      );
+      await tester.pump();
+      final lineHeightSlider = tester.getRect(
+        find.byKey(const Key('reading-line-height-slider')),
+      );
+      await tester.tapAt(
+        Offset(
+          lineHeightSlider.left + lineHeightSlider.width * 0.75,
+          lineHeightSlider.center.dy,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(settings.value.theme, ReaderTheme.night);
+      expect(settings.value.fontSize, greaterThan(16));
+      expect(settings.value.lineHeight, greaterThan(1.6));
+      expect(settings.saved, isNotEmpty);
       expect(renderCount, 1);
     },
   );
@@ -525,11 +644,15 @@ Widget _page(
   Future<void> Function(BuildContext)? restoreItem,
   ReaderCardPreferencesStore? cardPreferences,
   PdfDocumentRenderer? pdfRenderer,
+  SettingsRepository? settingsRepository,
 }) => ProviderScope(
   overrides: [
-    readingSettingsProvider.overrideWithValue(
-      PersistedSettingsState(settings: ReadingSettings(), isLoading: false),
-    ),
+    if (settingsRepository == null)
+      readingSettingsProvider.overrideWithValue(
+        PersistedSettingsState(settings: ReadingSettings(), isLoading: false),
+      )
+    else
+      settingsRepositoryProvider.overrideWithValue(settingsRepository),
     readerCardPreferencesRepositoryProvider.overrideWithValue(
       cardPreferences ?? _PreferencesStore(ReaderCardPreferences.defaults),
     ),
@@ -768,6 +891,23 @@ class _PreferencesStore implements ReaderCardPreferencesStore {
     value = preferences;
     saved.add(preferences);
   }
+}
+
+class _SettingsRepository implements SettingsRepository {
+  var value = ReadingSettings();
+  final saved = <ReadingSettings>[];
+
+  @override
+  Future<ReadingSettings> load() async => value;
+
+  @override
+  Future<void> save(ReadingSettings settings) async {
+    value = settings;
+    saved.add(settings);
+  }
+
+  @override
+  Stream<ReadingSettings> watch() => Stream.value(value);
 }
 
 class _ScrollableDocuments implements DocumentRepository {

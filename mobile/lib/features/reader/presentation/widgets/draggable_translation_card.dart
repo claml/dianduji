@@ -44,8 +44,8 @@ class _DraggableTranslationCardState extends State<DraggableTranslationCard> {
           math.max(320.0, constraints.maxWidth * 0.36),
         );
         final cardHeight = math.min(
-          480.0,
-          math.max(280.0, constraints.maxHeight * 0.62),
+          constraints.maxHeight,
+          math.min(480.0, math.max(280.0, constraints.maxHeight * 0.62)),
         );
         final availableX = math.max(0.0, constraints.maxWidth - cardWidth);
         final availableY = math.max(0.0, constraints.maxHeight - cardHeight);
