@@ -24,6 +24,7 @@ class PdfDocumentView extends StatefulWidget {
     this.initialPageNumber = 1,
     this.controller,
     this.onPageChanged,
+    this.onContentScroll,
     this.renderer,
     this.textStore,
     super.key,
@@ -35,6 +36,7 @@ class PdfDocumentView extends StatefulWidget {
   final PdfViewerController? controller;
   final ValueChanged<ReaderSelection> onWordTap;
   final PdfPageProgressChanged? onPageChanged;
+  final ValueChanged<double>? onContentScroll;
   final PdfDocumentRenderer? renderer;
   final PdfPageTextStore? textStore;
 
@@ -104,6 +106,15 @@ class _PdfDocumentViewState extends State<PdfDocumentView> {
       controller: widget.controller,
       initialPageNumber: widget.initialPageNumber,
       params: PdfViewerParams(
+        onInteractionUpdate: (details) {
+          if (details.pointerCount != 1 || (details.scale - 1).abs() > 0.01) {
+            return;
+          }
+          final delta = -details.focalPointDelta.dy;
+          if (delta.isFinite && delta != 0) {
+            widget.onContentScroll?.call(delta);
+          }
+        },
         onViewerReady: (document, controller) {
           _pageCount = document.pages.length;
         },

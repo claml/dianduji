@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dian_du_ji/features/reader/domain/reader_selection.dart';
 import 'package:dian_du_ji/features/reader/presentation/widgets/pdf_document_view.dart';
+import 'package:dian_du_ji/features/reader/presentation/widgets/pdf_page_text_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -11,65 +12,79 @@ import 'package:pdfrx/pdfrx.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets(
-    'renders an original PDF page and taps its transparent word layer',
-    (tester) async {
-      await pdfrxFlutterInitialize();
-      final directory = await Directory.systemTemp.createTemp('dianduji-pdf-');
-      final file = File('${directory.path}${Platform.pathSeparator}sample.pdf');
-      await file.writeAsBytes(_minimalTextPdf('Foundation Models'));
-      addTearDown(() => directory.delete(recursive: true));
-      final selections = <ReaderSelection>[];
-      final controller = PdfViewerController();
+  testWidgets('maps PDF text taps before and after zoom without word widgets', (
+    tester,
+  ) async {
+    await pdfrxFlutterInitialize();
+    final directory = await Directory.systemTemp.createTemp('dianduji-pdf-');
+    final file = File('${directory.path}${Platform.pathSeparator}sample.pdf');
+    await file.writeAsBytes(_minimalTextPdf('Foundation Models'));
+    addTearDown(() => directory.delete(recursive: true));
+    final selections = <ReaderSelection>[];
+    final controller = PdfViewerController();
+    final store = PdfPageTextStore();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: PdfDocumentView(
-              localPath: file.path,
-              initialPageNumber: 99,
-              controller: controller,
-              onWordTap: selections.add,
-            ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: PdfDocumentView(
+            localPath: file.path,
+            initialPageNumber: 99,
+            controller: controller,
+            textStore: store,
+            onWordTap: selections.add,
           ),
         ),
-      );
-      await _pumpUntilFound(tester, find.byKey(const Key('pdf-word-hit-1-0')));
+      ),
+    );
+    await _pumpUntil(tester, () => store.get(1) != null);
 
-      expect(find.byType(PdfViewer), findsOneWidget);
-      expect(find.byKey(const Key('pdf-page-overlay-1')), findsOneWidget);
-      await tester.pump();
-      final wordCenter = tester.getCenter(
-        find.byKey(const Key('pdf-word-hit-1-0')),
-      );
-      await tester.tapAt(wordCenter);
-      await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(PdfViewer), findsOneWidget);
+    expect(controller.pageNumber, 1);
+    expect(_pdfWordHitWidgets(), findsNothing);
+    final overlay = find.byKey(const Key('pdf-page-overlay-1'));
+    expect(overlay, findsOneWidget);
+    expect(overlay, paintsNothing);
 
-      expect(selections.single.surface, 'Foundation');
-      expect(selections.single.pageNumber, 1);
+    final page = controller.pages.first;
+    final text = await page.loadStructuredText();
+    final pageRect = controller.layout.pageLayouts.first;
+    final documentPoint = text.charRects.first.center.toOffsetInDocument(
+      page: page,
+      pageRect: pageRect,
+    );
+    await tester.tapAt(controller.documentToLocal(documentPoint));
+    await tester.pump(const Duration(milliseconds: 400));
 
-      await controller.zoomUpOnLocalPosition(
-        localPosition: controller.globalToLocal(wordCenter)!,
-        duration: Duration.zero,
-      );
-      await tester.pump(const Duration(milliseconds: 100));
-      final zoomedWordCenter = tester.getCenter(
-        find.byKey(const Key('pdf-word-hit-1-0')),
-      );
-      await tester.tapAt(zoomedWordCenter);
-      await tester.pump(const Duration(milliseconds: 400));
+    expect(selections.single.surface, 'Foundation');
+    expect(selections.single.pageNumber, 1);
+    expect(overlay, paints..rect());
+    expect(_pdfWordHitWidgets(), findsNothing);
 
-      expect(selections, hasLength(2));
-      expect(selections.last.surface, 'Foundation');
-    },
-  );
+    await controller.zoomUpOnLocalPosition(
+      localPosition: controller.documentToLocal(documentPoint),
+      duration: Duration.zero,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tapAt(controller.documentToLocal(documentPoint));
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(selections, hasLength(2));
+    expect(selections.last.surface, 'Foundation');
+    expect(_pdfWordHitWidgets(), findsNothing);
+  });
 }
 
-Future<void> _pumpUntilFound(WidgetTester tester, Finder finder) async {
-  for (var attempt = 0; attempt < 80 && finder.evaluate().isEmpty; attempt++) {
+Finder _pdfWordHitWidgets() => find.byWidgetPredicate((widget) {
+  final key = widget.key;
+  return key is ValueKey<String> && key.value.startsWith('pdf-word-hit-');
+});
+
+Future<void> _pumpUntil(WidgetTester tester, bool Function() condition) async {
+  for (var attempt = 0; attempt < 80 && !condition(); attempt++) {
     await tester.pump(const Duration(milliseconds: 100));
   }
-  expect(finder, findsOneWidget);
+  expect(condition(), isTrue);
 }
 
 List<int> _minimalTextPdf(String text) {

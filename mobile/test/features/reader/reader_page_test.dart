@@ -18,6 +18,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 void main() {
   test('reader page exposes a route-ready document id', () {
@@ -99,6 +100,12 @@ void main() {
     expect(find.byKey(const Key('stub-pdf-page')), findsOneWidget);
     expect(configuredView?.localPath, 'documents/paper.pdf');
     expect(configuredView?.initialPageNumber, 4);
+    configuredView!.onContentScroll!(30);
+    await tester.pump();
+    expect(find.byKey(const Key('reader-top-reveal-zone')), findsOneWidget);
+    configuredView!.onContentScroll!(-1);
+    await tester.pump();
+    expect(find.byKey(const Key('reader-top-reveal-zone')), findsNothing);
     configuredView!.onWordTap(
       const ReaderSelection(
         surface: 'Foundation',
@@ -121,6 +128,53 @@ void main() {
     await controller.forceSave();
     expect(documents.saved.single.$1.pageNumber, 6);
     expect(documents.saved.single.$2, 0.6);
+  });
+
+  testWidgets('reports only normalized one-finger PDF pan deltas', (
+    tester,
+  ) async {
+    final deltas = <double>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PdfDocumentView(
+          localPath: 'missing.pdf',
+          onWordTap: (_) {},
+          onContentScroll: deltas.add,
+        ),
+      ),
+    );
+
+    final params = tester.widget<PdfViewer>(find.byType(PdfViewer)).params;
+    params.onInteractionUpdate!(
+      ScaleUpdateDetails(
+        pointerCount: 1,
+        scale: 1,
+        focalPointDelta: Offset(0, -12),
+      ),
+    );
+    params.onInteractionUpdate!(
+      ScaleUpdateDetails(
+        pointerCount: 1,
+        scale: 1.009,
+        focalPointDelta: Offset(0, 7),
+      ),
+    );
+    params.onInteractionUpdate!(
+      ScaleUpdateDetails(
+        pointerCount: 2,
+        scale: 1,
+        focalPointDelta: Offset(0, -20),
+      ),
+    );
+    params.onInteractionUpdate!(
+      ScaleUpdateDetails(
+        pointerCount: 1,
+        scale: 1.02,
+        focalPointDelta: Offset(0, -20),
+      ),
+    );
+
+    expect(deltas, [12, -7]);
   });
 
   testWidgets('loads and saves the tablet card layout preference', (

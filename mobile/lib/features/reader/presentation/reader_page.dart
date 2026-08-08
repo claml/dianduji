@@ -264,6 +264,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
             selection: state.selection,
             initialPageNumber: state.restoredPageNumber,
             onWordTap: _selectPdfWord,
+            onContentScroll: _chromeController.handleContentScroll,
             onPageChanged: (pageNumber, pageCount) {
               _pdfPageCount = pageCount;
               _controller.updatePdfReadingPosition(
