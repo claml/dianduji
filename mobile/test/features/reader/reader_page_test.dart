@@ -67,6 +67,75 @@ void main() {
     expect(find.byKey(const Key('translation-side-pane')), findsOneWidget);
   });
 
+  testWidgets(
+    'keeps the PDF renderer mounted across tablet card and chrome changes',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(900, 700));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final controller = _readerController(_PdfDocuments());
+      final preferences = _PreferencesStore(ReaderCardPreferences.defaults);
+      PdfDocumentView? configuredView;
+      var renderCount = 0;
+      await tester.pumpWidget(
+        _page(
+          controller,
+          cardPreferences: preferences,
+          pdfRenderer: (context, view) {
+            configuredView = view;
+            renderCount++;
+            return const ColoredBox(
+              key: Key('stable-pdf-renderer'),
+              color: Colors.white,
+            );
+          },
+        ),
+      );
+      await tester.pump();
+
+      expect(renderCount, 1);
+      configuredView!.onWordTap(
+        const ReaderSelection(
+          surface: 'Foundation',
+          normalized: 'foundation',
+          contextText: 'Foundation Models',
+          startOffset: 0,
+          endOffset: 10,
+          pageNumber: 1,
+        ),
+      );
+      await tester.pump();
+      expect(find.byKey(const Key('translation-side-pane')), findsOneWidget);
+      expect(renderCount, 1);
+
+      tester
+          .widget<IconButton>(find.byKey(const Key('reader-float-card')))
+          .onPressed!();
+      await tester.pump();
+      expect(
+        find.byKey(const Key('translation-floating-card')),
+        findsOneWidget,
+      );
+      expect(renderCount, 1);
+
+      tester
+          .widget<IconButton>(find.byKey(const Key('reader-dock-card')))
+          .onPressed!();
+      await tester.pump();
+      expect(find.byKey(const Key('translation-side-pane')), findsOneWidget);
+      expect(renderCount, 1);
+
+      configuredView!.onContentScroll!(30);
+      await tester.pump(const Duration(milliseconds: 180));
+      expect(find.byKey(const Key('reader-top-reveal-zone')), findsOneWidget);
+      expect(renderCount, 1);
+
+      configuredView!.onContentScroll!(-1);
+      await tester.pump(const Duration(milliseconds: 180));
+      expect(find.byKey(const Key('reader-top-reveal-zone')), findsNothing);
+      expect(renderCount, 1);
+    },
+  );
+
   testWidgets('uses the original PDF view and forwards overlay word taps', (
     tester,
   ) async {
@@ -174,6 +243,38 @@ void main() {
       ),
     );
 
+    expect(deltas, [12, -7]);
+    params.onInteractionUpdate!(
+      ScaleUpdateDetails(
+        pointerCount: 1,
+        scale: 1,
+        focalPointDelta: Offset.zero,
+      ),
+    );
+    expect(deltas, [12, -7]);
+    params.onInteractionUpdate!(
+      ScaleUpdateDetails(
+        pointerCount: 1,
+        scale: 1,
+        focalPointDelta: Offset(0, double.nan),
+      ),
+    );
+    expect(deltas, [12, -7]);
+    params.onInteractionUpdate!(
+      ScaleUpdateDetails(
+        pointerCount: 1,
+        scale: 1,
+        focalPointDelta: Offset(0, double.infinity),
+      ),
+    );
+    expect(deltas, [12, -7]);
+    params.onInteractionUpdate!(
+      ScaleUpdateDetails(
+        pointerCount: 1,
+        scale: 1,
+        focalPointDelta: Offset(0, double.negativeInfinity),
+      ),
+    );
     expect(deltas, [12, -7]);
   });
 

@@ -23,16 +23,27 @@ void main() {
     final selections = <ReaderSelection>[];
     final controller = PdfViewerController();
     final store = PdfPageTextStore();
+    ReaderSelection? selection;
+    late StateSetter updateSelection;
 
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
-          body: PdfDocumentView(
-            localPath: file.path,
-            initialPageNumber: 99,
-            controller: controller,
-            textStore: store,
-            onWordTap: selections.add,
+          body: StatefulBuilder(
+            builder: (context, setState) {
+              updateSelection = setState;
+              return PdfDocumentView(
+                localPath: file.path,
+                selection: selection,
+                initialPageNumber: 99,
+                controller: controller,
+                textStore: store,
+                onWordTap: (value) {
+                  selections.add(value);
+                  setState(() => selection = value);
+                },
+              );
+            },
           ),
         ),
       ),
@@ -53,7 +64,11 @@ void main() {
       page: page,
       pageRect: pageRect,
     );
-    await tester.tapAt(controller.documentToLocal(documentPoint));
+    final viewerRect = tester.getRect(find.byType(PdfViewer));
+    final targetBeforeZoom = controller.documentToLocal(documentPoint);
+    final targetBeforeZoomGlobal = controller.localToGlobal(targetBeforeZoom)!;
+    expect(viewerRect.contains(targetBeforeZoomGlobal), isTrue);
+    await tester.tapAt(targetBeforeZoomGlobal);
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(selections.single.surface, 'Foundation');
@@ -61,16 +76,29 @@ void main() {
     expect(overlay, paints..rect());
     expect(_pdfWordHitWidgets(), findsNothing);
 
+    updateSelection(() => selection = null);
+    await tester.pump();
+    expect(overlay, paintsNothing);
+
+    final initialZoom = controller.currentZoom;
+    final zoomFocalPoint = targetBeforeZoom + const Offset(40, 40);
+    expect((zoomFocalPoint - targetBeforeZoom).distance, greaterThan(20));
     await controller.zoomUpOnLocalPosition(
-      localPosition: controller.documentToLocal(documentPoint),
+      localPosition: zoomFocalPoint,
       duration: Duration.zero,
     );
-    await tester.pump(const Duration(milliseconds: 100));
-    await tester.tapAt(controller.documentToLocal(documentPoint));
+    await _pumpUntil(tester, () => controller.currentZoom > initialZoom);
+    final targetAfterZoom = controller.documentToLocal(documentPoint);
+    expect((targetAfterZoom - targetBeforeZoom).distance, greaterThan(1));
+    final targetAfterZoomGlobal = controller.localToGlobal(targetAfterZoom)!;
+    expect(viewerRect.contains(targetAfterZoomGlobal), isTrue);
+    await tester.tapAt(targetAfterZoomGlobal);
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(selections, hasLength(2));
     expect(selections.last.surface, 'Foundation');
+    expect(selections.last.pageNumber, 1);
+    expect(overlay, paints..rect());
     expect(_pdfWordHitWidgets(), findsNothing);
   });
 }

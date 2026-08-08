@@ -60,52 +60,50 @@ class AdaptiveTranslationSurface extends StatelessWidget {
   }
 
   Widget _tablet() {
-    if (!visible) {
-      return Stack(
-        children: [
-          Positioned.fill(child: _documentViewport()),
-          ?idleOverlay,
-        ],
-      );
-    }
-    if (preferences.mode == ReaderCardMode.sidePane) {
-      return Row(
-        children: [
-          Expanded(child: _documentViewport()),
-          const VerticalDivider(width: 1),
-          SizedBox(
-            key: const Key('translation-side-pane'),
-            width: 360,
-            child: Column(
-              children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: IconButton(
-                    key: const Key('reader-float-card'),
-                    tooltip: '悬浮词卡',
-                    onPressed: () => onPreferencesChanged(
-                      preferences.copyWith(mode: ReaderCardMode.floating),
-                    ),
-                    icon: const Icon(Icons.open_in_new_rounded),
-                  ),
-                ),
-                Expanded(child: translation),
-              ],
-            ),
-          ),
-        ],
-      );
-    }
+    final showSidePane = visible && preferences.mode == ReaderCardMode.sidePane;
+    final showFloating = visible && preferences.mode == ReaderCardMode.floating;
     return Stack(
       children: [
-        Positioned.fill(child: _documentViewport()),
         Positioned.fill(
-          child: DraggableTranslationCard(
-            preferences: preferences,
-            onPreferencesChanged: onPreferencesChanged,
-            translation: translation,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: _documentViewport()),
+              if (showSidePane) ...[
+                const VerticalDivider(width: 1),
+                SizedBox(
+                  key: const Key('translation-side-pane'),
+                  width: 360,
+                  child: Column(
+                    children: [
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: IconButton(
+                          key: const Key('reader-float-card'),
+                          tooltip: '悬浮词卡',
+                          onPressed: () => onPreferencesChanged(
+                            preferences.copyWith(mode: ReaderCardMode.floating),
+                          ),
+                          icon: const Icon(Icons.open_in_new_rounded),
+                        ),
+                      ),
+                      Expanded(child: translation),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
+        if (!visible) ?idleOverlay,
+        if (showFloating)
+          Positioned.fill(
+            child: DraggableTranslationCard(
+              preferences: preferences,
+              onPreferencesChanged: onPreferencesChanged,
+              translation: translation,
+            ),
+          ),
       ],
     );
   }
