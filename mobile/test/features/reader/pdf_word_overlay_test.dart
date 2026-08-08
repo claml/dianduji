@@ -247,6 +247,82 @@ void main() {
     expect(store.get(1), isNull);
   });
 
+  testWidgets(
+    'changing document and store invalidates the new store cached page',
+    (tester) async {
+      final oldStore = PdfPageTextStore();
+      final newStore = PdfPageTextStore();
+      await newStore.load(_FakeTextSource(_pageText('stale cached page')));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PdfDocumentView(
+            localPath: 'first.pdf',
+            onWordTap: (_) {},
+            textStore: oldStore,
+            renderer: (_, _) => const SizedBox(),
+          ),
+        ),
+      );
+      expect(newStore.get(1)?.fullText, 'stale cached page');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PdfDocumentView(
+            localPath: 'second.pdf',
+            onWordTap: (_) {},
+            textStore: newStore,
+            renderer: (_, _) => const SizedBox(),
+          ),
+        ),
+      );
+
+      expect(newStore.get(1), isNull);
+    },
+  );
+
+  testWidgets(
+    'changing document and store invalidates the new store in-flight page',
+    (tester) async {
+      final oldStore = PdfPageTextStore();
+      final newStore = PdfPageTextStore();
+      final structured = Completer<PdfPageText>();
+      final staleLoad = newStore.load(
+        _FakeTextSource(
+          null,
+          pageNumber: 1,
+          structuredLoader: structured.future,
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PdfDocumentView(
+            localPath: 'first.pdf',
+            onWordTap: (_) {},
+            textStore: oldStore,
+            renderer: (_, _) => const SizedBox(),
+          ),
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PdfDocumentView(
+            localPath: 'second.pdf',
+            onWordTap: (_) {},
+            textStore: newStore,
+            renderer: (_, _) => const SizedBox(),
+          ),
+        ),
+      );
+
+      structured.complete(_pageText('stale in-flight page'));
+      await staleLoad;
+
+      expect(newStore.get(1), isNull);
+    },
+  );
+
   testWidgets('an unrelated parent update does not rebuild the PDF renderer', (
     tester,
   ) async {

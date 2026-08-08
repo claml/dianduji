@@ -60,15 +60,20 @@ class _PdfDocumentViewState extends State<PdfDocumentView> {
     super.didUpdateWidget(oldWidget);
     final documentChanged = oldWidget.localPath != widget.localPath;
     final storeChanged = !identical(oldWidget.textStore, widget.textStore);
+    final previousTextStore = _textStore;
 
-    if (documentChanged) {
-      _textStore.clear();
-      _selectedTarget.value = null;
-      _pageCount = 1;
-    }
     if (storeChanged) {
       _textStore = widget.textStore ?? PdfPageTextStore();
       _selectedTarget.value = null;
+    }
+
+    if (documentChanged) {
+      previousTextStore.clear();
+      if (!identical(previousTextStore, _textStore)) {
+        _textStore.clear();
+      }
+      _selectedTarget.value = null;
+      _pageCount = 1;
     }
     if (documentChanged ||
         storeChanged ||
