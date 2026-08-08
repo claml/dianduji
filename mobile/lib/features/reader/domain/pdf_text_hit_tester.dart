@@ -4,13 +4,31 @@ import 'pdf_page_geometry.dart';
 import 'pdf_word_hit_target.dart';
 
 final _pageNumber = RegExp(
-  r'^(?:page\s*)?\d+(?:\s*(?:of|/)\s*\d+)?$',
+  r'^[\s\u2014\u2013\-\u00b7\u2022|()\[\]]*'
+  r'(?:page\s*)?\d+(?:\s*(?:of|/)\s*\d+)?'
+  r'[\s\u2014\u2013\-\u00b7\u2022|()\[\]]*$',
   caseSensitive: false,
 );
-final _affiliation = RegExp(
-  r'\b(department|university|institute|college|school|laboratory|lab|'
-  r'correspondence|orcid)\b|@',
+final _affiliationPhrase = RegExp(
+  r'\b(?:department|school|college|institute|laboratory|lab|university)'
+  r'\s+of\b',
   caseSensitive: false,
+);
+final _affiliationMarker = RegExp(
+  r'\b(?:correspondence|orcid)\b|@',
+  caseSensitive: false,
+);
+final _affiliationTerm = RegExp(
+  r'\b(?:department|university|institute|college|school|laboratory|lab)\b',
+  caseSensitive: false,
+);
+final _sectionHeading = RegExp(r'^\d+(?:\.\d+)*(?:[.)])?\s+');
+final _authorList = RegExp(
+  r"^[A-Z][A-Za-z.'\u2019-]*(?:\s+[A-Z][A-Za-z.'\u2019-]*){1,3}"
+  r'[0-9*\u2020\u2021]*'
+  r"(?:\s*(?:,|;|&|and)\s*"
+  r"[A-Z][A-Za-z.'\u2019-]*(?:\s+[A-Z][A-Za-z.'\u2019-]*){1,3}"
+  r'[0-9*\u2020\u2021]*)+$',
 );
 final _softLineBreak = RegExp(r'-\s*[\r\n]\s*');
 final _lineBreak = RegExp(r'[\r\n]+');
@@ -26,7 +44,7 @@ PdfWordHitTarget? hitTestPdfText(
 
   final range = _wordRangeAt(page, textIndex);
   if (range == null) return null;
-  if (!_isInteractiveLine(_lineAt(page.fullText, textIndex))) return null;
+  if (!_isInteractiveLine(_geometricLineAt(page, textIndex))) return null;
 
   final bounds = _boundsForRange(page, range.start, range.end);
   if (bounds.isEmpty) return null;
@@ -119,7 +137,8 @@ _TextRange? _wordRangeAt(PdfPageGeometry page, int textIndex) {
         continue;
       }
       final softContinuation = _softContinuationAfter(text, end);
-      if (softContinuation != null) {
+      if (softContinuation != null &&
+          _isPlausibleSoftWrap(page, end - 1, softContinuation)) {
         end = softContinuation + 1;
         while (_isLetterAt(text, end)) {
           end++;
@@ -148,7 +167,9 @@ _TextRange? _wordRangeAt(PdfPageGeometry page, int textIndex) {
       continue;
     }
     final softHyphen = _softHyphenBefore(text, start);
-    if (softHyphen != null && _isLetterAt(text, softHyphen - 1)) {
+    if (softHyphen != null &&
+        _isLetterAt(text, softHyphen - 1) &&
+        _isPlausibleSoftWrap(page, softHyphen - 1, start)) {
       start = softHyphen - 1;
       while (_isLetterAt(text, start - 1)) {
         start--;
@@ -202,19 +223,30 @@ bool _sameLineAcross(
     right = page.rectAt(index);
     if (right != null) break;
   }
-  return left != null && right != null && _sameVisualLine(left, right);
+  return left != null &&
+      right != null &&
+      _isPlausibleSameLineContinuation(left, right);
+}
+
+bool _isPlausibleSoftWrap(PdfPageGeometry page, int leftIndex, int rightIndex) {
+  final left = page.rectAt(leftIndex);
+  final right = page.rectAt(rightIndex);
+  return left != null && right != null && !_sameVisualLine(left, right);
 }
 
 List<PdfRect> _boundsForRange(PdfPageGeometry page, int start, int end) {
   final bounds = <PdfRect>[];
+  PdfRect? previousRect;
   for (var index = start; index < end; index++) {
     final rect = page.rectAt(index);
     if (rect == null) continue;
-    if (bounds.isEmpty || !_sameVisualLine(bounds.last, rect)) {
+    if (bounds.isEmpty ||
+        !_isPlausibleSameLineContinuation(previousRect!, rect)) {
       bounds.add(rect);
     } else {
       bounds[bounds.length - 1] = bounds.last.merge(rect);
     }
+    previousRect = rect;
   }
   return bounds;
 }
@@ -227,28 +259,73 @@ bool _sameVisualLine(PdfRect left, PdfRect right) {
   return overlap > shorterHeight * 0.35;
 }
 
-String _lineAt(String text, int offset) {
-  final start = offset == 0 ? 0 : text.lastIndexOf('\n', offset - 1) + 1;
-  final nextLineBreak = text.indexOf('\n', offset);
-  final end = nextLineBreak == -1 ? text.length : nextLineBreak;
-  return text.substring(start, end).replaceAll('\r', '').trim();
+bool _isPlausibleSameLineContinuation(PdfRect left, PdfRect right) {
+  if (!_sameVisualLine(left, right)) return false;
+
+  final glyphScale = [
+    left.width,
+    left.height,
+    right.width,
+    right.height,
+  ].reduce((largest, value) => value > largest ? value : largest);
+  final gap = right.left - left.right;
+  return right.center.x > left.center.x && gap <= glyphScale * 2;
+}
+
+String _geometricLineAt(PdfPageGeometry page, int clickedIndex) {
+  final clickedRect = page.rectAt(clickedIndex);
+  if (clickedRect == null) return '';
+
+  var start = clickedIndex;
+  var leftEdge = clickedRect;
+  for (var index = clickedIndex - 1; index >= 0; index--) {
+    final rect = page.rectAt(index);
+    if (rect == null) {
+      if (_isWhitespaceAt(page.fullText, index)) continue;
+      break;
+    }
+    if (!_isPlausibleSameLineContinuation(rect, leftEdge)) break;
+    start = index;
+    leftEdge = rect;
+  }
+
+  var end = clickedIndex + 1;
+  var rightEdge = clickedRect;
+  for (var index = clickedIndex + 1; index < page.fullText.length; index++) {
+    final rect = page.rectAt(index);
+    if (rect == null) {
+      if (_isWhitespaceAt(page.fullText, index)) continue;
+      break;
+    }
+    if (!_isPlausibleSameLineContinuation(rightEdge, rect)) break;
+    end = index + 1;
+    rightEdge = rect;
+  }
+
+  return page.fullText
+      .substring(start, end)
+      .replaceAll(_lineBreak, ' ')
+      .replaceAll(_whitespace, ' ')
+      .trim();
 }
 
 bool _isInteractiveLine(String line) {
   final compact = line.trim();
   if (compact.isEmpty || _pageNumber.hasMatch(compact)) return false;
-  if (_affiliation.hasMatch(compact)) return false;
+  if (_looksLikeAffiliation(compact)) return false;
   return !_looksLikeAuthorList(compact);
 }
 
+bool _looksLikeAffiliation(String line) {
+  if (_sectionHeading.hasMatch(line)) return false;
+  if (_affiliationMarker.hasMatch(line) || _affiliationPhrase.hasMatch(line)) {
+    return true;
+  }
+  return _affiliationTerm.allMatches(line).length >= 2;
+}
+
 bool _looksLikeAuthorList(String line) {
-  final names = line.split(',').map((name) => name.trim()).toList();
-  if (names.length < 2) return false;
-  return names.every((name) {
-    final words = name.split(RegExp(r'\s+'));
-    if (words.length < 2 || words.length > 4) return false;
-    return words.every((word) => RegExp(r'^[A-Z][A-Za-z.\-]*$').hasMatch(word));
-  });
+  return _authorList.hasMatch(line);
 }
 
 String _sentenceAt(String text, int offset) {

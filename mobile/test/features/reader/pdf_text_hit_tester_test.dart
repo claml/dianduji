@@ -105,6 +105,34 @@ void main() {
         'wayfinding',
       );
     });
+
+    test('rejects a negative-index fragment and keeps a valid run', () {
+      const text = 'wayfinding';
+      final validRects = _horizontalRects(text, left: 100, top: 100);
+      final geometry = _fragmentGeometry(text, [
+        const _FragmentSpec(-1, [PdfRect(10, 100, 18, 88)]),
+        _FragmentSpec(0, validRects),
+      ]);
+
+      expect(geometry.runs, hasLength(1));
+      expect(geometry.rectAt(0), validRects.first);
+    });
+
+    test('rejects a fragment ending beyond the page and keeps a valid run', () {
+      const text = 'wayfinding';
+      final validRects = _horizontalRects(text, left: 100, top: 100);
+      final geometry = _fragmentGeometry(text, [
+        const _FragmentSpec(8, [
+          PdfRect(10, 100, 18, 88),
+          PdfRect(18, 100, 26, 88),
+          PdfRect(26, 100, 34, 88),
+        ]),
+        _FragmentSpec(0, validRects),
+      ]);
+
+      expect(geometry.runs, hasLength(1));
+      expect(geometry.rectAt(text.length - 1), validRects.last);
+    });
   });
 
   group('hitTestPdfText', () {
@@ -112,12 +140,17 @@ void main() {
       final fixture = _laidOutText("context-sensitive model's");
       final page = PdfPageGeometry.fromStructured(fixture.pageText);
 
-      final compound = hitTestPdfText(page, fixture.pointIn('sensitive'));
+      final compoundFromLeft = hitTestPdfText(page, fixture.pointIn('context'));
+      final compoundFromRight = hitTestPdfText(
+        page,
+        fixture.pointIn('sensitive'),
+      );
       final possessive = hitTestPdfText(page, fixture.pointIn("model's"));
 
-      expect(compound?.surface, 'context-sensitive');
-      expect(compound?.normalized, 'context-sensitive');
-      expect(compound?.bounds, hasLength(1));
+      expect(compoundFromLeft?.surface, 'context-sensitive');
+      expect(compoundFromRight?.surface, 'context-sensitive');
+      expect(compoundFromRight?.normalized, 'context-sensitive');
+      expect(compoundFromRight?.bounds, hasLength(1));
       expect(possessive?.surface, "model's");
       expect(possessive?.normalized, "model's");
     });
@@ -127,14 +160,16 @@ void main() {
       final fixture = _laidOutText(text);
       final page = PdfPageGeometry.fromStructured(fixture.pageText);
 
-      final result = hitTestPdfText(page, fixture.pointIn('nisms'));
+      final resultFromLeft = hitTestPdfText(page, fixture.pointIn('mecha'));
+      final resultFromRight = hitTestPdfText(page, fixture.pointIn('nisms'));
 
-      expect(result?.surface, 'mechanisms');
-      expect(result?.normalized, 'mechanisms');
-      expect(result?.start, text.indexOf('mecha'));
-      expect(result?.end, text.indexOf('nisms') + 'nisms'.length);
-      expect(result?.bounds, hasLength(2));
-      expect(result?.contextText, 'It explains mechanisms at scale.');
+      expect(resultFromLeft?.surface, 'mechanisms');
+      expect(resultFromRight?.surface, 'mechanisms');
+      expect(resultFromRight?.normalized, 'mechanisms');
+      expect(resultFromRight?.start, text.indexOf('mecha'));
+      expect(resultFromRight?.end, text.indexOf('nisms') + 'nisms'.length);
+      expect(resultFromRight?.bounds, hasLength(2));
+      expect(resultFromRight?.contextText, 'It explains mechanisms at scale.');
     });
 
     test('uses PDF coordinates to select text in a two-column row', () {
@@ -161,6 +196,66 @@ void main() {
       );
     });
 
+    test('does not join a right-column hyphen to a left-column word', () {
+      const text = 'right-\nleft';
+      final rects = List<PdfRect>.filled(text.length, PdfRect.empty);
+      _placeText(rects, 0, 200, 100, 'right-');
+      _placeText(rects, text.indexOf('left'), 10, 100, 'left');
+      final page = _geometryWithRects(text, rects);
+
+      final right = hitTestPdfText(page, const PdfPoint(204, 94));
+      final left = hitTestPdfText(page, const PdfPoint(14, 94));
+
+      expect(right?.surface, 'right');
+      expect(right?.bounds, hasLength(1));
+      expect(left?.surface, 'left');
+      expect(left?.bounds, hasLength(1));
+    });
+
+    test('splits highlight bounds at an implausible same-line column gap', () {
+      const text = 'wayfinding';
+      final rects = List<PdfRect>.filled(text.length, PdfRect.empty);
+      _placeText(rects, 0, 10, 100, 'way');
+      _placeText(rects, 3, 200, 100, 'finding');
+      final page = _geometryWithRects(text, rects);
+
+      final result = hitTestPdfText(page, const PdfPoint(204, 94));
+
+      expect(result?.surface, 'wayfinding');
+      expect(result?.bounds, hasLength(2));
+      expect(result?.bounds.first.right, lessThan(50));
+      expect(result?.bounds.last.left, greaterThan(150));
+    });
+
+    test('classifies metadata from the clicked geometric line', () {
+      const text = 'University of Example Navigation';
+      final rects = List<PdfRect>.filled(text.length, PdfRect.empty);
+      _placeText(rects, 0, 10, 80, 'University of Example');
+      _placeText(rects, text.indexOf('Navigation'), 10, 100, 'Navigation');
+      final page = _geometryWithRects(text, rects);
+
+      expect(
+        hitTestPdfText(page, const PdfPoint(14, 94))?.surface,
+        'Navigation',
+      );
+    });
+
+    test('joins source lines that form one geometric metadata line', () {
+      const text = 'Department of\nComputer Science';
+      final rects = List<PdfRect>.filled(text.length, PdfRect.empty);
+      _placeText(rects, 0, 10, 100, 'Department of');
+      _placeText(
+        rects,
+        text.indexOf('Computer'),
+        10 + 'Department of'.length * 8,
+        100,
+        'Computer Science',
+      );
+      final page = _geometryWithRects(text, rects);
+
+      expect(hitTestPdfText(page, const PdfPoint(118, 94)), isNull);
+    });
+
     test('filters metadata only on the clicked visual line', () {
       final fixture = _laidOutText(
         'Research on Foundation Models\n'
@@ -184,7 +279,49 @@ void main() {
       );
     });
 
-    test('prefers a containing character then honors nearest margin', () {
+    test('handles author markers and decorated page numbers structurally', () {
+      final fixture = _laidOutText(
+        'University Wayfinding Methods\n'
+        'Department-Aware Navigation\n'
+        'Alice Smith1 and Bob Jones2\n'
+        '\u2014 Page 42 of 100 \u2014\n'
+        '2. University Methods',
+      );
+      final page = PdfPageGeometry.fromStructured(fixture.pageText);
+
+      expect(
+        hitTestPdfText(page, fixture.pointIn('University Wayfinding'))?.surface,
+        'University',
+      );
+      expect(
+        hitTestPdfText(page, fixture.pointIn('Department-Aware'))?.surface,
+        'Department-Aware',
+      );
+      expect(hitTestPdfText(page, fixture.pointIn('Alice')), isNull);
+      expect(hitTestPdfText(page, fixture.pointIn('Page 42')), isNull);
+      expect(
+        hitTestPdfText(page, fixture.pointIn('University Methods'))?.surface,
+        'University',
+      );
+    });
+
+    test('prefers a wide containing rect over a closer rect center', () {
+      final page = PdfPageGeometry(
+        pageNumber: 1,
+        fullText: 'a b',
+        runs: [
+          PdfTextGeometryRun(0, const [PdfRect(-2, 100, 0.5, 88)]),
+          PdfTextGeometryRun(2, const [PdfRect(0, 100, 100, 88)]),
+        ],
+      );
+
+      expect(
+        hitTestPdfText(page, const PdfPoint(1, 94), margin: 12)?.surface,
+        'b',
+      );
+    });
+
+    test('honors nearest margin when no character contains the point', () {
       final page = PdfPageGeometry(
         pageNumber: 1,
         fullText: 'left right',
@@ -205,10 +342,6 @@ void main() {
         ],
       );
 
-      expect(
-        hitTestPdfText(page, const PdfPoint(31.5, 94), margin: 12)?.surface,
-        'right',
-      );
       expect(
         hitTestPdfText(page, const PdfPoint(75, 94), margin: 5)?.surface,
         'right',
@@ -285,4 +418,75 @@ void _placeWord(
     final x = left + index * 8;
     rects[textStart + index] = PdfRect(x, top, x + 8, top - 12);
   }
+}
+
+PdfPageGeometry _geometryWithRects(String text, List<PdfRect> rects) {
+  return PdfPageGeometry.fromStructured(
+    PdfPageText(
+      pageNumber: 1,
+      fullText: text,
+      charRects: rects,
+      fragments: const [],
+    ),
+  );
+}
+
+List<PdfRect> _horizontalRects(
+  String text, {
+  required double left,
+  required double top,
+}) {
+  return List.generate(text.length, (index) {
+    final x = left + index * 8;
+    return PdfRect(x, top, x + 8, top - 12);
+  });
+}
+
+void _placeText(
+  List<PdfRect> rects,
+  int textStart,
+  double left,
+  double top,
+  String text,
+) {
+  for (var index = 0; index < text.length; index++) {
+    final x = left + index * 8;
+    rects[textStart + index] = PdfRect(x, top, x + 8, top - 12);
+  }
+}
+
+PdfPageGeometry _fragmentGeometry(String text, List<_FragmentSpec> specs) {
+  final owner = PdfPageText(
+    pageNumber: 1,
+    fullText: text,
+    charRects: const [],
+    fragments: const [],
+  );
+  final fragments = specs
+      .map(
+        (spec) => PdfPageTextFragment(
+          pageText: owner,
+          index: spec.index,
+          length: spec.rects.length,
+          bounds: PdfRect.empty,
+          charRects: spec.rects,
+          direction: PdfTextDirection.ltr,
+        ),
+      )
+      .toList(growable: false);
+  return PdfPageGeometry.fromStructured(
+    PdfPageText(
+      pageNumber: 1,
+      fullText: text,
+      charRects: const [],
+      fragments: fragments,
+    ),
+  );
+}
+
+class _FragmentSpec {
+  const _FragmentSpec(this.index, this.rects);
+
+  final int index;
+  final List<PdfRect> rects;
 }
