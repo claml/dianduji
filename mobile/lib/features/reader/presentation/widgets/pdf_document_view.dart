@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
-import '../../domain/pdf_word_geometry_builder.dart';
+import '../../domain/pdf_text_hit_tester.dart';
 import '../../domain/pdf_word_hit_target.dart';
 import '../../domain/reader_selection.dart';
+import 'pdf_page_text_store.dart';
 import 'pdf_word_overlay.dart';
 
 typedef PdfDocumentRenderer =
@@ -15,27 +16,6 @@ int clampPdfInitialPage(int requestedPage, int pageCount) {
   return requestedPage;
 }
 
-class PdfWordTargetCache {
-  PdfWordTargetCache({this.maxPages = 8}) : assert(maxPages > 0);
-
-  final int maxPages;
-  final Map<int, List<PdfWordHitTarget>> _pages = {};
-
-  int get length => _pages.length;
-
-  List<PdfWordHitTarget>? operator [](int pageNumber) => _pages[pageNumber];
-
-  void put(int pageNumber, List<PdfWordHitTarget> targets) {
-    _pages.remove(pageNumber);
-    _pages[pageNumber] = targets;
-    while (_pages.length > maxPages) {
-      _pages.remove(_pages.keys.first);
-    }
-  }
-
-  void clear() => _pages.clear();
-}
-
 class PdfDocumentView extends StatefulWidget {
   const PdfDocumentView({
     required this.localPath,
@@ -45,6 +25,7 @@ class PdfDocumentView extends StatefulWidget {
     this.controller,
     this.onPageChanged,
     this.renderer,
+    this.textStore,
     super.key,
   });
 
@@ -55,27 +36,63 @@ class PdfDocumentView extends StatefulWidget {
   final ValueChanged<ReaderSelection> onWordTap;
   final PdfPageProgressChanged? onPageChanged;
   final PdfDocumentRenderer? renderer;
+  final PdfPageTextStore? textStore;
 
   @override
   State<PdfDocumentView> createState() => _PdfDocumentViewState();
 }
 
 class _PdfDocumentViewState extends State<PdfDocumentView> {
-  final _targetsByPage = PdfWordTargetCache();
+  late PdfPageTextStore _textStore;
+  late final ValueNotifier<PdfWordHitTarget?> _selectedTarget;
+  Widget? _renderedDocument;
   var _pageCount = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _textStore = widget.textStore ?? PdfPageTextStore();
+    _selectedTarget = ValueNotifier(null);
+  }
 
   @override
   void didUpdateWidget(PdfDocumentView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.localPath != widget.localPath) {
-      _targetsByPage.clear();
+    final documentChanged = oldWidget.localPath != widget.localPath;
+    final storeChanged = !identical(oldWidget.textStore, widget.textStore);
+
+    if (documentChanged) {
+      _textStore.clear();
+      _selectedTarget.value = null;
       _pageCount = 1;
+    }
+    if (storeChanged) {
+      _textStore = widget.textStore ?? PdfPageTextStore();
+      _selectedTarget.value = null;
+    }
+    if (documentChanged ||
+        storeChanged ||
+        !identical(oldWidget.controller, widget.controller)) {
+      _renderedDocument = null;
+    }
+    if (oldWidget.selection != null && widget.selection == null) {
+      _selectedTarget.value = null;
     }
   }
 
   @override
+  void dispose() {
+    _selectedTarget.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (widget.renderer != null) return widget.renderer!(context, widget);
+    return _renderedDocument ??=
+        widget.renderer?.call(context, widget) ?? _buildPdfViewer();
+  }
+
+  Widget _buildPdfViewer() {
     return PdfViewer.file(
       widget.localPath,
       key: const Key('pdf-original-page-viewer'),
@@ -102,27 +119,26 @@ class _PdfDocumentViewState extends State<PdfDocumentView> {
             useDocumentLayoutCoordinates: true,
           );
           if (hit == null) return false;
-          final targets = _targetsByPage[hit.page.pageNumber];
-          if (targets == null) return false;
-          final zoom = controller.currentZoom.clamp(0.1, 100.0);
-          final target = findPdfWordTargetAt(
-            targets,
-            hit.offset,
-            margin: 24 / zoom,
-          );
+          final geometry = _textStore.get(hit.page.pageNumber);
+          if (geometry == null) return false;
+          final margin = 24 / controller.currentZoom.clamp(0.1, 100.0);
+          final target = hitTestPdfText(geometry, hit.offset, margin: margin);
           if (target == null) return false;
-          widget.onWordTap(readerSelectionForPdfTarget(target));
+          _selectedTarget.value = target;
+          widget.onWordTap(_readerSelectionForTarget(target));
           return true;
         },
         textSelectionParams: const PdfTextSelectionParams(enabled: false),
         pageOverlaysBuilder: (context, pageRect, page) => [
-          PdfWordOverlay(
-            key: ValueKey('pdf-word-overlay-${page.pageNumber}'),
-            page: PdfrxPageOverlayData(page),
-            selection: widget.selection,
-            onWordTap: widget.onWordTap,
-            onTargetsLoaded: (pageNumber, targets) {
-              _targetsByPage.put(pageNumber, targets);
+          ValueListenableBuilder<PdfWordHitTarget?>(
+            valueListenable: _selectedTarget,
+            builder: (context, selectedTarget, child) {
+              return PdfWordOverlay(
+                key: ValueKey('pdf-word-overlay-${page.pageNumber}'),
+                page: PdfrxPageOverlayData(page),
+                selectedTarget: selectedTarget,
+                store: _textStore,
+              );
             },
           ),
         ],
@@ -137,4 +153,15 @@ class _PdfDocumentViewState extends State<PdfDocumentView> {
       ),
     );
   }
+}
+
+ReaderSelection _readerSelectionForTarget(PdfWordHitTarget target) {
+  return ReaderSelection(
+    surface: target.surface,
+    normalized: target.normalized,
+    contextText: target.contextText,
+    startOffset: target.start,
+    endOffset: target.end,
+    pageNumber: target.pageNumber,
+  );
 }
