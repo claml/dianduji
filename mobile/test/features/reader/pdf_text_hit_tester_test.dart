@@ -172,6 +172,33 @@ void main() {
       expect(resultFromRight?.contextText, 'It explains mechanisms at scale.');
     });
 
+    test('recovers a soft wrap across one malformed boundary glyph', () {
+      const text = 'sidebar\nmecha-\nnisms';
+      final rects = List<PdfRect>.filled(text.length, PdfRect.empty);
+      _placeText(rects, 0, 10, 100, 'sidebar');
+      final leftStart = text.indexOf('mecha');
+      final rightStart = text.indexOf('nisms');
+      _placeText(rects, leftStart, 200, 100, 'mecha-');
+      _placeText(rects, rightStart, 200, 80, 'nisms');
+      rects[leftStart + 'mech'.length] = PdfRect.empty;
+      final page = _geometryWithRects(text, rects);
+
+      final resultFromLeft = hitTestPdfText(page, const PdfPoint(204, 94));
+      final resultFromRight = hitTestPdfText(page, const PdfPoint(204, 74));
+
+      for (final result in [resultFromLeft, resultFromRight]) {
+        expect(result?.surface, 'mechanisms');
+        expect(result?.normalized, 'mechanisms');
+        expect(result?.bounds, hasLength(2));
+        expect(
+          result!.bounds.every(
+            (bound) => bound.left >= 200 && bound.right <= 248,
+          ),
+          isTrue,
+        );
+      }
+    });
+
     test('uses PDF coordinates to select text in a two-column row', () {
       const text = 'navigation\nwayfinding';
       final rects = List<PdfRect>.filled(text.length, PdfRect.empty);

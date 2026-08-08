@@ -229,8 +229,16 @@ bool _sameLineAcross(
 }
 
 bool _isPlausibleSoftWrap(PdfPageGeometry page, int leftIndex, int rightIndex) {
-  final left = page.rectAt(leftIndex);
-  final right = page.rectAt(rightIndex);
+  PdfRect? left;
+  for (var index = leftIndex; _isLetterAt(page.fullText, index); index--) {
+    left = page.rectAt(index);
+    if (left != null) break;
+  }
+  PdfRect? right;
+  for (var index = rightIndex; _isLetterAt(page.fullText, index); index++) {
+    right = page.rectAt(index);
+    if (right != null) break;
+  }
   return left != null && right != null && !_sameVisualLine(left, right);
 }
 
