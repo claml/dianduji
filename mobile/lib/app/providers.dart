@@ -1,9 +1,12 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/database/app_database.dart';
+import '../core/platform/android_shared_file_receiver.dart';
+import '../core/platform/shared_file_receiver.dart';
 import '../features/dictionary/data/dictionary_repository.dart';
 import '../features/documents/data/drift_document_import_store.dart';
 import '../features/documents/data/drift_document_repository.dart';
@@ -124,11 +127,17 @@ final documentPickerProvider = Provider<DocumentPicker>((ref) {
   return const FilePickerDocumentPicker();
 });
 
+final sharedFileReceiverProvider = Provider<SharedFileReceiver>((ref) {
+  if (!kIsWeb && Platform.isAndroid) return AndroidSharedFileReceiver();
+  return const NoopSharedFileReceiver();
+});
+
 final documentImportControllerProvider =
     ChangeNotifierProvider.autoDispose<DocumentImportController>((ref) {
       return DocumentImportController(
         picker: ref.watch(documentPickerProvider),
         importer: ref.watch(importDocumentUseCaseProvider),
         repository: ref.watch(documentRepositoryProvider),
+        sharedFileReceiver: ref.watch(sharedFileReceiverProvider),
       );
     });

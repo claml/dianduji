@@ -704,30 +704,30 @@ git commit -m "feat: extract PDF text on Android"
 
 **Interfaces:**
 - Consumes: Android `ACTION_SEND`, `ACTION_VIEW`, `Intent.EXTRA_STREAM`, content URIs, and `DocumentImportController`.
-- Produces a broadcast stream of sandbox-ready `SelectedFile` values routed through the same intake/import use case as the file picker.
+- Produces a broadcast stream of sandbox-ready `SharedFileEvent` values (local path, display name, MIME, optional failure code) routed through the same intake/import use case as the file picker. The event carries MIME and failure info the plan's `SelectedFile` stream cannot express.
 
 ```dart
 abstract interface class SharedFileReceiver {
-  Stream<SelectedFile> get files;
+  Stream<SharedFileEvent> get events;
   Future<void> initialize();
 }
 ```
 
-- [ ] **Step 1: Write failing receiver/controller tests**
+- [x] **Step 1: Write failing receiver/controller tests**
 
 Cover cold-start event replay exactly once, warm-start delivery, duplicate intent fingerprint suppression, unsupported MIME, missing display name fallback, revoked URI permission, multiple rapid intents, and receiver disposal.
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 ```powershell
 & $flutter test test/core/platform/shared_file_receiver_test.dart test/features/documents/document_import_controller_test.dart
 ```
 
-- [ ] **Step 3: Add narrow Android intent filters**
+- [x] **Step 3: Add narrow Android intent filters**
 
 Declare exported `singleTop` handling only for `text/plain`, `application/pdf`, and `application/vnd.openxmlformats-officedocument.wordprocessingml.document`. Include `CATEGORY_DEFAULT`, accept `content:` URIs, and do not request broad storage permissions.
 
-- [ ] **Step 4: Implement safe native URI copying and event delivery**
+- [x] **Step 4: Implement safe native URI copying and event delivery**
 
 Use `ContentResolver.openInputStream`, copy into the app cache with a generated temporary name, close every stream, and pass only the resulting private path/name/MIME to Dart. Check `FLAG_GRANT_READ_URI_PERMISSION`; map `SecurityException` to a revoked-permission error. Fingerprint action + URI + size + last-modified where available and suppress only repeated delivery of the same intent, not repeated user imports.
 
@@ -743,7 +743,7 @@ eventSink.success(mapOf(
 ))
 ```
 
-- [ ] **Step 5: Route shared files through the existing controller and verify**
+- [x] **Step 5: Route shared files through the existing controller and verify**
 
 ```powershell
 & $flutter test test/core/platform/shared_file_receiver_test.dart test/features/documents/document_import_controller_test.dart
@@ -752,7 +752,9 @@ eventSink.success(mapOf(
 
 Also manually share one TXT, PDF, and DOCX from the Huawei file manager into 点读机 in both stopped and already-running states.
 
-- [ ] **Step 6: Commit Task 7**
+> Device note: BTK-W00 (`26DYD24119408737`) was not attached during this round. Dart channel/controller tests pass on the host (219 total, including 9 new shared-file tests) and `gradlew testDebugUnitTest` covers the fingerprint deduplicator on the JVM. The device integration test and the manual share checks above remain pending device time.
+
+- [x] **Step 6: Commit Task 7**
 
 ```powershell
 git add mobile/lib/core/platform mobile/lib/features/documents/presentation mobile/android/app/src/main mobile/test/core/platform mobile/integration_test/shared_file_import_test.dart

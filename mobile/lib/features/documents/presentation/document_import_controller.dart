@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../../core/errors/app_failure.dart';
 import '../../../core/platform/pdf_text_extractor.dart';
+import '../../../core/platform/shared_file_receiver.dart';
 import '../data/drift_document_repository.dart';
 import '../data/file_picker_document_picker.dart';
 import '../data/services/file_intake_service.dart';
@@ -16,13 +17,20 @@ class DocumentImportController extends ChangeNotifier {
     required this.picker,
     required this.importer,
     required this.repository,
+    SharedFileReceiver? sharedFileReceiver,
   }) {
     _subscription = repository.watchDocuments().listen(_receiveDocuments);
+    final receiver = sharedFileReceiver;
+    if (receiver != null) {
+      unawaited(receiver.initialize());
+      _sharedSubscription = receiver.events.listen(_receiveSharedFile);
+    }
   }
 
   final DocumentPicker picker;
   final DocumentImporter importer;
   final DocumentRepository repository;
+  StreamSubscription<SharedFileEvent>? _sharedSubscription;
   final _imports = <String, ImportState>{};
   final _cancellations = <String, ParseCancellationToken>{};
   final _activeCancellations = <ParseCancellationToken>{};
@@ -53,6 +61,28 @@ class DocumentImportController extends ChangeNotifier {
     return _consume(
       importer.start(selectedFile, cancellationToken: token),
       cancellationToken: token,
+    );
+  }
+
+  void _receiveSharedFile(SharedFileEvent event) {
+    if (event.isFailure) {
+      _setState(
+        errorMessage:
+            '\u65e0\u6cd5\u8bfb\u53d6\u5206\u4eab\u7684\u6587\u4ef6\uff0c\u6743\u9650\u53ef\u80fd\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u5206\u4eab\u3002',
+      );
+      return;
+    }
+    if (!event.isSupportedDocument) {
+      _setState(
+        errorMessage:
+            '\u4e0d\u652f\u6301\u8be5\u6587\u4ef6\u683c\u5f0f\uff0c\u8bf7\u5206\u4eab TXT\u3001PDF \u6216 DOCX \u6587\u4ef6\u3002',
+      );
+      return;
+    }
+    unawaited(
+      importSelectedFile(
+        SelectedFile(path: event.path, originalName: event.name),
+      ),
     );
   }
 
@@ -222,6 +252,7 @@ class DocumentImportController extends ChangeNotifier {
   @override
   void dispose() {
     _subscription.cancel();
+    _sharedSubscription?.cancel();
     super.dispose();
   }
 }

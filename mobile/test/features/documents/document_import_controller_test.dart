@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dian_du_ji/core/errors/app_failure.dart';
 import 'package:dian_du_ji/core/platform/pdf_text_extractor.dart';
+import 'package:dian_du_ji/core/platform/shared_file_receiver.dart';
 import 'package:dian_du_ji/features/documents/data/drift_document_repository.dart';
 import 'package:dian_du_ji/features/documents/data/file_picker_document_picker.dart';
 import 'package:dian_du_ji/features/documents/data/services/file_intake_service.dart';
@@ -273,6 +274,109 @@ void main() {
       expect(revokedController.state.errorMessage, '无法读取该文件，请重新选择。');
     },
   );
+
+  test('shared file events import the shared document once', () async {
+    final receiver = _FakeSharedFileReceiver();
+    final controller = DocumentImportController(
+      picker: _FakePicker(),
+      importer: importer,
+      repository: repository,
+      sharedFileReceiver: receiver,
+    );
+    addTearDown(controller.dispose);
+
+    expect(receiver.initializeCalls, 1);
+    receiver.push(
+      const SharedFileEvent(
+        path: '/cache/shared.bin',
+        name: 'shared.txt',
+        mime: 'text/plain',
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(importer.startCalls, 1);
+    expect(controller.state.errorMessage, isNull);
+  });
+
+  test('unsupported shared MIME shows a message and imports nothing', () async {
+    final receiver = _FakeSharedFileReceiver();
+    final controller = DocumentImportController(
+      picker: _FakePicker(),
+      importer: importer,
+      repository: repository,
+      sharedFileReceiver: receiver,
+    );
+    addTearDown(controller.dispose);
+
+    receiver.push(
+      const SharedFileEvent(
+        path: '/cache/notes.bin',
+        name: 'notes.rtf',
+        mime: 'application/rtf',
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(importer.startCalls, 0);
+    expect(controller.state.errorMessage, '不支持该文件格式，请分享 TXT、PDF 或 DOCX 文件。');
+  });
+
+  test('revoked-permission shared events show a message and import nothing', () async {
+    final receiver = _FakeSharedFileReceiver();
+    final controller = DocumentImportController(
+      picker: _FakePicker(),
+      importer: importer,
+      repository: repository,
+      sharedFileReceiver: receiver,
+    );
+    addTearDown(controller.dispose);
+
+    receiver.push(
+      const SharedFileEvent(
+        path: '',
+        name: 'locked.pdf',
+        mime: 'application/pdf',
+        error: 'permission_revoked',
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(importer.startCalls, 0);
+    expect(
+      controller.state.errorMessage,
+      '无法读取分享的文件，权限可能已失效，请重新分享。',
+    );
+  });
+
+  test('shared imports fail cleanly when the copied file is gone', () async {
+    importer.startEvents = const [
+      ImportState(
+        documentId: 'doc-1',
+        status: ImportStatus.failed,
+        failure: AppFailure(AppFailureCode.fileUnavailable, 'raw'),
+      ),
+    ];
+    final receiver = _FakeSharedFileReceiver();
+    final controller = DocumentImportController(
+      picker: _FakePicker(),
+      importer: importer,
+      repository: repository,
+      sharedFileReceiver: receiver,
+    );
+    addTearDown(controller.dispose);
+
+    receiver.push(
+      const SharedFileEvent(
+        path: '/cache/missing.bin',
+        name: 'missing.txt',
+        mime: 'text/plain',
+      ),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.state.errorMessage, '无法读取该文件，请重新选择。');
+  });
 }
 
 DocumentSummary _summary({
@@ -386,4 +490,19 @@ class _FakeRepository implements DocumentRepository {
 
   @override
   Stream<List<DocumentSummary>> watchDocuments() => _documents.stream;
+}
+
+class _FakeSharedFileReceiver implements SharedFileReceiver {
+  final _events = StreamController<SharedFileEvent>.broadcast();
+  var initializeCalls = 0;
+
+  @override
+  Stream<SharedFileEvent> get events => _events.stream;
+
+  @override
+  Future<void> initialize() async {
+    initializeCalls++;
+  }
+
+  void push(SharedFileEvent event) => _events.add(event);
 }
