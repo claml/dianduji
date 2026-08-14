@@ -154,7 +154,11 @@ class TranslationViewModel extends ChangeNotifier {
     }
     final generation = ++_requestGeneration;
     final selected = tokens[selectedTokenOrdinal];
-    final sentence = tokens.map((token) => token.surface).join(' ');
+    // Prefer the full context sentence (keeps punctuation; for PDF taps it
+    // carries the surrounding text) and fall back to the token surfaces.
+    final sentence = context.sentence.isNotEmpty
+        ? context.sentence
+        : tokens.map((token) => token.surface).join(' ');
     _setState(
       TranslationState(
         status: TranslationStatus.loading,
