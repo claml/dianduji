@@ -131,6 +131,76 @@ def _translate_text(signer: _Tc3Signer, text: str) -> str:
     return response_payload.get("TargetText", "")
 
 
+# ---------------------------------------------------------------------------
+# DeepSeek (LLM) enrichment for the user-grown dictionary.
+# ---------------------------------------------------------------------------
+
+DEEPSEEK_HOST = "api.deepseek.com"
+DEEPSEEK_MODEL = os.environ.get("DEEPSEEK_MODEL", "deepseek-v4-flash")
+ENRICH_BATCH = 40  # 每次最多整理的候选词数
+
+ENRICH_SYSTEM_PROMPT = (
+    "You are a lexicographer enriching an English learner's dictionary. "
+    "For each word: judge whether it is a real English word or term "
+    "(isValid=false for obvious misspellings, gibberish, or proper nouns); "
+    "give the IPA phonetic, a concise part-of-speech tag, a short English "
+    "definition, and a concise Simplified Chinese definition. "
+    "Respond with JSON only, in the exact schema: "
+    '{"entries":[{"surface":str,"phonetic":str,"partOfSpeech":str,'
+    '"definitionEnglish":str,"definitionChinese":str,"isValid":bool}]}'
+)
+
+
+def _enrich_words(api_key: str, words: list) -> list:
+    payload = {
+        "model": DEEPSEEK_MODEL,
+        "messages": [
+            {"role": "system", "content": ENRICH_SYSTEM_PROMPT},
+            {
+                "role": "user",
+                "content": json.dumps({"words": words}, ensure_ascii=False),
+            },
+        ],
+        "response_format": {"type": "json_object"},
+        "temperature": 0.2,
+    }
+    request = urllib.request.Request(
+        f"https://{DEEPSEEK_HOST}/chat/completions",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        method="POST",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json; charset=utf-8",
+        },
+    )
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open(request, timeout=90) as response:
+        result = json.loads(response.read().decode("utf-8"))
+    content = result["choices"][0]["message"]["content"]
+    parsed = json.loads(content)
+    entries = parsed.get("entries")
+    if not isinstance(entries, list):
+        raise RuntimeError("enrich response has no entries list")
+    cleaned = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        surface = str(entry.get("surface", "")).strip()
+        if not surface:
+            continue
+        cleaned.append(
+            {
+                "surface": surface,
+                "phonetic": str(entry.get("phonetic", "")),
+                "partOfSpeech": str(entry.get("partOfSpeech", "")),
+                "definitionEnglish": str(entry.get("definitionEnglish", "")),
+                "definitionChinese": str(entry.get("definitionChinese", "")),
+                "isValid": bool(entry.get("isValid", True)),
+            }
+        )
+    return cleaned
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "DiandujiGateway/1.0"
 
@@ -147,10 +217,41 @@ class Handler(BaseHTTPRequestHandler):
             self._reply(400, {"error": "malformed request"})
             return
 
-        if self.path != "/translate":
+        if self.path == "/translate":
+            self._handle_translate(request, started)
+        elif self.path == "/enrich":
+            self._handle_enrich(request, started)
+        else:
             self._reply(404, {"error": "not found"})
-            return
 
+    def _handle_enrich(self, request, started):
+        api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+        if not api_key:
+            self._reply(503, {"error": "DEEPSEEK_API_KEY is not configured"})
+            return
+        words = request.get("words")
+        if not isinstance(words, list) or not words:
+            self._reply(400, {"error": "words must be a non-empty list"})
+            return
+        words = [str(word).strip() for word in words[:ENRICH_BATCH] if str(word).strip()]
+        if not words:
+            self._reply(400, {"error": "words must be a non-empty list"})
+            return
+        try:
+            entries = _enrich_words(api_key, words)
+        except Exception as error:  # noqa: BLE001
+            LOG.warning("enrich failed in %.0fms: %s",
+                        (time.time() - started) * 1000, error)
+            self._reply(502, {"error": str(error)})
+            return
+        LOG.info("enrich ok in %.0fms (%d words -> %d entries)",
+                 (time.time() - started) * 1000, len(words), len(entries))
+        self._reply(
+            200,
+            {"entries": entries, "sourceId": DEEPSEEK_MODEL, "cacheVersion": "1"},
+        )
+
+    def _handle_translate(self, request, started):
         term = str(request.get("term", "")).strip()
         sentence = str(request.get("sentence", "")).strip()
         if not term and not sentence:
