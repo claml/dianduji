@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:dian_du_ji/app/app_runtime.dart';
+import 'package:dian_du_ji/core/database/app_database.dart';
 import 'package:dian_du_ji/core/platform/android_shared_file_receiver.dart';
 import 'package:dian_du_ji/core/platform/shared_file_receiver.dart';
 import 'package:dian_du_ji/features/documents/data/default_document_parser_resolver.dart';
@@ -13,6 +14,7 @@ import 'package:dian_du_ji/features/documents/domain/document_structure_builder.
 import 'package:dian_du_ji/features/documents/domain/import_document_use_case.dart';
 import 'package:dian_du_ji/features/documents/presentation/document_import_controller.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';

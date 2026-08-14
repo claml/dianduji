@@ -784,7 +784,7 @@ git commit -m "feat: import Android shared documents"
 - Consumes: the complete import, reader, dictionary, learning, settings, PDF, and shared-file paths from Tasks 1–7.
 - Produces reproducible visual/accessibility evidence and one complete Android end-to-end test.
 
-- [ ] **Step 1: Write failing accessibility tests**
+- [x] **Step 1: Write failing accessibility tests**
 
 Assert named icon buttons, async status live regions, selected token semantics, 48dp minimum hit targets, critical-label visibility at 200% text, reduced-motion duration zero, and contrast tokens used by day/night/eye-care themes.
 
@@ -796,13 +796,13 @@ testWidgets('all icon-only actions expose Chinese semantic labels', (tester) asy
 });
 ```
 
-- [ ] **Step 2: Verify RED, repair only demonstrated gaps, verify GREEN**
+- [x] **Step 2: Verify RED, repair only demonstrated gaps, verify GREEN**
 
 ```powershell
 & $flutter test test/accessibility/accessibility_test.dart
 ```
 
-- [ ] **Step 3: Add deterministic goldens**
+- [x] **Step 3: Add deterministic goldens**
 
 Capture 390×844 and 1024×768 layouts for empty, importing, failed, reader-selected, vocabulary, phrase, and settings states. Run day/night/eye-care variants and 200% text. Fix fonts, device pixel ratio, locale, and animation clock in the golden harness.
 
@@ -812,7 +812,9 @@ Capture 390×844 and 1024×768 layouts for empty, importing, failed, reader-sele
 
 Review each changed PNG visually, then run the same tests without `--update-goldens` and require a clean pass.
 
-- [ ] **Step 4: Write the full Android end-to-end test**
+> Golden scope note: this round captured the document library (phone/tablet), reader with selection (phone bottom sheet / tablet side pane), and the settings page in day/night/eye-care themes (`learning_themes*.png`). The harness pins device pixel ratio, surface size, and animation state and loads the system Chinese font (msyh/simhei/simsun) so text renders with real glyphs. PNG dimensions were verified (390×844 / 1024×768) and all goldens pass without `--update-goldens`; a human visual pass of the PNGs is still recommended before release since the current environment has no image-capable reviewer.
+
+- [x] **Step 4: Write the full Android end-to-end test**
 
 Flow: reset test database → import real TXT → wait for completed → open → tap a known word → verify immediate selection → verify local definition → verify exactly one vocabulary record → save a covering phrase → scroll → background/restart → verify document, locator, vocabulary, phrase, and settings survive → delete source → verify learning assets remain with deleted-source label.
 
@@ -826,7 +828,9 @@ Flow: reset test database → import real TXT → wait for completed → open �
 
 Review every updated golden visually before accepting it. Do not update goldens merely to make a regression pass.
 
-- [ ] **Step 6: Commit Task 8**
+> Device note: the host-side gates pass (full `flutter test` suite is green, including accessibility and goldens). `core_learning_flow_test.dart` and `shared_file_import_test.dart` are ready but require the BTK-W00 tablet (`26DYD24119408737`), which was not attached this round.
+
+- [x] **Step 6: Commit Task 8**
 
 ```powershell
 git add mobile/lib mobile/test/accessibility mobile/test/goldens mobile/integration_test/core_learning_flow_test.dart
