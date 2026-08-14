@@ -1,9 +1,10 @@
-# 点读机 (dian_du_ji)
+# 典读鸡 (dian_du_ji)
 
 面向手机、平板与桌面的英文文档点读翻译应用：离线导入 TXT / 文本 PDF / DOCX，
 点按单词即查本地词典（ECDICT），自动收录生词与短语，支持手机底部词卡、
-平板右侧栏/悬浮词卡，以及 Android 系统分享/打开文件导入。所有解析、查询与
-学习数据均在本机完成，不上传任何内容。
+平板右侧栏/悬浮词卡，以及 Android 系统分享/打开文件导入。解析、查询与
+学习数据默认全部在本机完成；可选功能（在线翻译、云同步）仅按需发送
+所点单词与所在单句、或学习数据快照，详见下方说明。
 
 ## 发布信息（v1.0.0）
 
@@ -31,6 +32,20 @@
   `--dart-define=DIANDUJI_TRANSLATE_API_KEY=...` 注入网关地址与密钥，
   安装包内不硬编码任何第三方密钥。
 
+## v1.1 交付（2026-08）
+
+- **整句翻译**：词卡「翻译整句」按钮，显式调用网关翻译当前原句，带
+  加载/失败/重试状态；结果优先于自动附带的句子译文。
+- **账号与云同步**：设置页「账号与云同步」区块——注册/登录（网关
+  `/auth`，scrypt 密码哈希、HMAC 令牌，令牌存 flutter_secure_storage）、
+  立即同步、退出登录。同步内容：生词（含熟练度）、短语收藏、自定义释义、
+  阅读设置；last-write-wins，令牌失效自动登出。
+- 网关契约：`docs/gateway-reference/sync-api.md` 与
+  `docs/online-translation-gateway.md`；构建期注入网关地址：
+  `--dart-define=DIANDUJI_SYNC_BASE_URL=http://<网关>/`（默认 127.0.0.1:8080）。
+- **Web 版**为独立项目（`claml/dianduji-web`，GitHub Pages 托管），与移动端
+  共享同一网关契约，学习数据可互相同步。
+
 ## 阅读器体验增强（2026-08-15 交付）
 
 - **PDF 目录导航**：读取 PDF 书签大纲，顶部"目录"按钮弹出章节列表
@@ -44,8 +59,8 @@
 - Android 8.0 (API 26) 起；参考真机：Huawei BTK-W00（Android 12 / API 31 / arm64）。
 - iOS 14+：保持源码兼容；签名与真机验收留待 macOS 环境执行（本仓库在 Windows 开发）。
 - 桌面：Windows（本仓库可构建验证）；macOS / Linux 目录已生成，待对应平台验证。
-- Web 原型保留在仓库根目录 `src/`（React + Vite），与 Flutter 应用相互独立，
-  不参与 Flutter 构建。
+- **Web 版**：独立项目 `claml/dianduji-web`（TypeScript + Vite + PDF.js），
+  与移动端代码互相独立，共享网关契约与设计规范。
 
 ## 环境要求
 
@@ -233,6 +248,7 @@ Windows 开发环境无法完成 iOS 签名与真机验收；iOS 构建配置（
 
 ## 文档索引
 
-- 需求与设计：仓库根目录《英文文档点读翻译 App 需求文档.md》《英文文档点读翻译 App 设计方案.md》
-- 实施计划：`docs/superpowers/plans/2026-07-29-flutter-mvp-remaining-implementation.md`
+- 网关契约：`docs/gateway-reference/`（在线翻译、账号与云同步、部署）
+- 隐私政策：`docs/privacy-policy.md`
 - 第三方许可：`docs/third-party-notices.md`
+- 设计规格：仓库根目录 `docs/superpowers/specs/`
