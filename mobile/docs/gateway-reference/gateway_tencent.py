@@ -118,7 +118,11 @@ def _translate_text(signer: _Tc3Signer, text: str) -> str:
             "X-TC-Region": REGION,
         },
     )
-    with urllib.request.urlopen(request, timeout=10) as response:
+    # 强制直连：urllib 默认会读取 Windows 系统代理设置，若代理软件未运行
+    # 会得到 "WinError 10061 目标计算机积极拒绝"。腾讯云 API 在国内直连
+    # 即可，这里显式绕过代理。
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open(request, timeout=10) as response:
         result = json.loads(response.read().decode("utf-8"))
     response_payload = result.get("Response", {})
     if "Error" in response_payload:
