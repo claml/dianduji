@@ -54,7 +54,7 @@ class _TranslationDetailState extends State<TranslationDetail> {
               children: [
                 Expanded(
                   child: Text(
-                    state.surface,
+                    state.displaySurface,
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
@@ -65,7 +65,7 @@ class _TranslationDetailState extends State<TranslationDetail> {
                   button: true,
                   child: IconButton(
                     tooltip: '发音',
-                    onPressed: state.surface.isEmpty ? null : _speak,
+                    onPressed: state.displaySurface.isEmpty ? null : _speak,
                     icon: const Icon(Icons.volume_up_outlined),
                   ),
                 ),
@@ -105,23 +105,70 @@ class _TranslationDetailState extends State<TranslationDetail> {
   };
 
   Widget _found(TranslationState state) {
-    final entry = state.entry!;
+    final entry = state.entry;
+    final specialized = state.specializedTerm;
+    final online = state.onlineResult;
     return ListView(
       padding: EdgeInsets.zero,
       children: [
-        if (entry.phonetic.isNotEmpty) Text(entry.phonetic),
-        if (entry.partOfSpeech.isNotEmpty)
+        if (entry != null && entry.phonetic.isNotEmpty) Text(entry.phonetic),
+        if (entry != null && entry.partOfSpeech.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(entry.partOfSpeech),
           ),
-        if (entry.definitionChinese.isNotEmpty)
+        if (entry != null && entry.definitionChinese.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(entry.definitionChinese),
           ),
+        if (specialized != null) ...[
+          _sectionTitle('专业释义'),
+          Chip(
+            label: Text(specialized.domain.label),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(specialized.definition),
+          ),
+        ],
+        if (state.sentence.isNotEmpty) ...[
+          _sectionTitle('原文'),
+          Text(state.sentence),
+        ],
+        if (online != null && online.sentenceTranslation.isNotEmpty) ...[
+          _sectionTitle('译文'),
+          Text(online.sentenceTranslation),
+        ],
+        if (online != null && online.examples.isNotEmpty) ...[
+          _sectionTitle('例句'),
+          for (final example in online.examples)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(example.source),
+                  if (example.translation.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        example.translation,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
         if (state.phrases.isNotEmpty) ...[
-          const Padding(padding: EdgeInsets.only(top: 18), child: Text('相关短语')),
+          _sectionTitle('相关短语'),
           for (final phrase in state.phrases)
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -136,12 +183,43 @@ class _TranslationDetailState extends State<TranslationDetail> {
                     ),
             ),
         ],
+        _sectionTitle('来源'),
+        Text(
+          _sourceLabel(state),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ],
     );
   }
 
+  Widget _sectionTitle(String title) => Padding(
+    padding: const EdgeInsets.only(top: 18, bottom: 6),
+    child: Text(
+      title,
+      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+        fontWeight: FontWeight.w700,
+      ),
+    ),
+  );
+
+  String _sourceLabel(TranslationState state) {
+    final sources = <String>[];
+    if (state.entry != null) sources.add('通用词典');
+    if (state.specializedTerm != null) {
+      sources.add('专业词典·${state.specializedTerm!.domain.label}');
+    }
+    if (state.onlineStatus == OnlineTranslationStatus.available &&
+        state.onlineResult != null) {
+      sources.add('在线翻译·${state.onlineResult!.sourceId}');
+    }
+    if (sources.isEmpty) sources.add('本地词典');
+    return sources.join(' / ');
+  }
+
   Future<void> _speak() async {
-    final result = await _pronunciation.speak(_state.surface);
+    final result = await _pronunciation.speak(_state.displaySurface);
     if (!mounted || result == PronunciationResult.spoken) return;
     setState(() => _feedback = '本机未安装英语语音');
   }

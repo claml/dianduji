@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../../core/network/online_translation_gateway.dart';
 import '../../learning/data/learning_repository.dart';
 import '../../phrases/domain/phrase_recognizer.dart';
 import '../../documents/domain/models/parsed_block.dart';
@@ -13,6 +14,10 @@ export '../../learning/data/learning_repository.dart'
 
 enum TranslationStatus { idle, loading, found, notFound, failed }
 
+/// Whether an online translation supplement is present, in flight, or
+/// unavailable (offline/disabled).
+enum OnlineTranslationStatus { none, loading, available, unavailable }
+
 class TranslationState {
   const TranslationState({
     this.status = TranslationStatus.idle,
@@ -23,6 +28,8 @@ class TranslationState {
     this.sentence = '',
     this.specializedTerm,
     this.matchedCandidate,
+    this.onlineResult,
+    this.onlineStatus = OnlineTranslationStatus.none,
   });
 
   final TranslationStatus status;
@@ -39,6 +46,11 @@ class TranslationState {
 
   /// The multi-word term that produced [specializedTerm], if any.
   final TermCandidate? matchedCandidate;
+
+  /// The online translation supplement, when it has arrived.
+  final OnlineTranslationResult? onlineResult;
+
+  final OnlineTranslationStatus onlineStatus;
 
   /// The term surface to present first (the matched term, else the tapped
   /// word).
