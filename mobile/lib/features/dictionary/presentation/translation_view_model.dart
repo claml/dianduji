@@ -64,16 +64,27 @@ class TranslationViewModel extends ChangeNotifier {
     required this.phraseRecognizer,
     SpecializedTermIndex? specializedIndex,
     this.enabledDomains = SpecializedDomain.values,
+    this.onlineGateway,
+    // ignore: prefer_initializing_formals — private field, public name.
+    bool onlineEnabled = false,
   }) : _layered = LayeredLookup(
          general: dictionary,
          specialized: specializedIndex,
-       );
+       ),
+       // ignore: prefer_initializing_formals — private field, public name.
+       _onlineEnabled = onlineEnabled;
 
   final DictionaryLookup dictionary;
   final LearningRepository learning;
   final PhraseRecognizer phraseRecognizer;
   final LayeredLookup _layered;
   final List<SpecializedDomain> enabledDomains;
+  final OnlineTranslationGateway? onlineGateway;
+  var _onlineEnabled = false;
+
+  /// Updates the online fallback switch at runtime (e.g. when the settings
+  /// page toggles it while the reader is open).
+  set onlineEnabled(bool value) => _onlineEnabled = value;
 
   TranslationState _state = const TranslationState();
   var _requestGeneration = 0;
@@ -117,12 +128,38 @@ class TranslationViewModel extends ChangeNotifier {
       );
       final entry = result.generalEntry;
       if (entry == null && result.specializedTerm == null) {
+        final online = await _lookupOnline(
+          tokens: tokens,
+          selectedTokenOrdinal: selectedTokenOrdinal,
+          matchedCandidate: result.matchedCandidate,
+          sentence: sentence,
+          generation: generation,
+        );
+        if (generation != _requestGeneration) return;
+        if (online != null) {
+          _setState(
+            TranslationState(
+              status: TranslationStatus.found,
+              surface: selected.surface,
+              sentence: sentence,
+              phrases: phrases,
+              matchedCandidate: result.matchedCandidate,
+              onlineResult: online,
+              onlineStatus: OnlineTranslationStatus.available,
+            ),
+          );
+          return;
+        }
         _setState(
           TranslationState(
             status: TranslationStatus.notFound,
             surface: selected.surface,
             sentence: sentence,
             phrases: phrases,
+            onlineStatus:
+                !_onlineEnabled || onlineGateway == null
+                ? OnlineTranslationStatus.none
+                : OnlineTranslationStatus.unavailable,
           ),
         );
         return;
@@ -158,6 +195,34 @@ class TranslationViewModel extends ChangeNotifier {
           errorMessage: error.toString(),
         ),
       );
+    }
+  }
+
+  Future<OnlineTranslationResult?> _lookupOnline({
+    required List<TokenSpan> tokens,
+    required int selectedTokenOrdinal,
+    required TermCandidate? matchedCandidate,
+    required String sentence,
+    required int generation,
+  }) async {
+    final gateway = onlineGateway;
+    if (!_onlineEnabled || gateway == null) return null;
+    final term = matchedCandidate?.surface ?? tokens[selectedTokenOrdinal].surface;
+    try {
+      final result = await gateway.translate(
+        OnlineTranslationRequest(
+          term: term,
+          sentence: sentence,
+          domain: matchedCandidate?.domain,
+        ),
+      );
+      if (generation != _requestGeneration) return null;
+      return result;
+    } on Object {
+      // Online failure is non-fatal: keep the local result and mark the
+      // supplement unavailable. The stale-request generation guard already
+      // drops out-of-order responses.
+      return null;
     }
   }
 

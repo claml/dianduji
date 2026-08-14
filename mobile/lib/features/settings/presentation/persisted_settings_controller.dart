@@ -63,6 +63,12 @@ class PersistedSettingsController extends ChangeNotifier {
   Future<void> updateAutoSaveVocabulary(bool value) =>
       _update((current) => _copy(current, autoSaveVocabulary: value));
 
+  Future<void> updateOnlineTranslationEnabled(bool value) =>
+      _update((current) => _copy(current, onlineTranslationEnabled: value));
+
+  Future<void> updateOnlineTranslationConsented(bool value) =>
+      _update((current) => _copy(current, onlineTranslationConsented: value));
+
   Future<void> retrySave() {
     final current = _state.settings;
     if (current == null) {
@@ -129,9 +135,15 @@ ReadingSettings _copy(
   double? fontSize,
   double? lineHeight,
   bool? autoSaveVocabulary,
+  bool? onlineTranslationEnabled,
+  bool? onlineTranslationConsented,
 }) => ReadingSettings(
   theme: theme ?? current.theme,
   fontSize: fontSize ?? current.fontSize,
   lineHeight: lineHeight ?? current.lineHeight,
   autoSaveVocabulary: autoSaveVocabulary ?? current.autoSaveVocabulary,
+  onlineTranslationEnabled:
+      onlineTranslationEnabled ?? current.onlineTranslationEnabled,
+  onlineTranslationConsented:
+      onlineTranslationConsented ?? current.onlineTranslationConsented,
 );

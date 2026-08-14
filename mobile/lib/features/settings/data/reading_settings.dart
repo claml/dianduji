@@ -6,6 +6,8 @@ class ReadingSettings {
     double fontSize = 16,
     double lineHeight = 1.6,
     bool autoSaveVocabulary = true,
+    bool onlineTranslationEnabled = false,
+    bool onlineTranslationConsented = false,
   }) {
     if (fontSize < 12 || fontSize > 24) {
       throw ArgumentError.value(
@@ -26,6 +28,8 @@ class ReadingSettings {
       fontSize: fontSize,
       lineHeight: lineHeight,
       autoSaveVocabulary: autoSaveVocabulary,
+      onlineTranslationEnabled: onlineTranslationEnabled,
+      onlineTranslationConsented: onlineTranslationConsented,
     );
   }
 
@@ -34,6 +38,8 @@ class ReadingSettings {
     required this.fontSize,
     required this.lineHeight,
     required this.autoSaveVocabulary,
+    required this.onlineTranslationEnabled,
+    required this.onlineTranslationConsented,
   });
 
   final ReaderTheme theme;
@@ -41,11 +47,40 @@ class ReadingSettings {
   final double lineHeight;
   final bool autoSaveVocabulary;
 
+  /// Master switch for online translation fallback. Off by default.
+  final bool onlineTranslationEnabled;
+
+  /// Whether the user acknowledged the minimal-disclosure consent. Without
+  /// consent, [onlineTranslationEnabled] alone does not allow network calls.
+  final bool onlineTranslationConsented;
+
+  ReadingSettings copyWith({
+    ReaderTheme? theme,
+    double? fontSize,
+    double? lineHeight,
+    bool? autoSaveVocabulary,
+    bool? onlineTranslationEnabled,
+    bool? onlineTranslationConsented,
+  }) {
+    return ReadingSettings._(
+      theme: theme ?? this.theme,
+      fontSize: fontSize ?? this.fontSize,
+      lineHeight: lineHeight ?? this.lineHeight,
+      autoSaveVocabulary: autoSaveVocabulary ?? this.autoSaveVocabulary,
+      onlineTranslationEnabled:
+          onlineTranslationEnabled ?? this.onlineTranslationEnabled,
+      onlineTranslationConsented:
+          onlineTranslationConsented ?? this.onlineTranslationConsented,
+    );
+  }
+
   Map<String, Object> toJson() => {
     'theme': theme.name,
     'fontSize': fontSize,
     'lineHeight': lineHeight,
     'autoSaveVocabulary': autoSaveVocabulary,
+    'onlineTranslationEnabled': onlineTranslationEnabled,
+    'onlineTranslationConsented': onlineTranslationConsented,
   };
 
   factory ReadingSettings.fromJson(Map<String, Object?> json) {
@@ -68,6 +103,10 @@ class ReadingSettings {
       fontSize: fontSize.toDouble(),
       lineHeight: lineHeight.toDouble(),
       autoSaveVocabulary: autoSave,
+      onlineTranslationEnabled:
+          json['onlineTranslationEnabled'] as bool? ?? false,
+      onlineTranslationConsented:
+          json['onlineTranslationConsented'] as bool? ?? false,
     );
   }
 
@@ -85,9 +124,17 @@ class ReadingSettings {
       other.theme == theme &&
       other.fontSize == fontSize &&
       other.lineHeight == lineHeight &&
-      other.autoSaveVocabulary == autoSaveVocabulary;
+      other.autoSaveVocabulary == autoSaveVocabulary &&
+      other.onlineTranslationEnabled == onlineTranslationEnabled &&
+      other.onlineTranslationConsented == onlineTranslationConsented;
 
   @override
-  int get hashCode =>
-      Object.hash(theme, fontSize, lineHeight, autoSaveVocabulary);
+  int get hashCode => Object.hash(
+    theme,
+    fontSize,
+    lineHeight,
+    autoSaveVocabulary,
+    onlineTranslationEnabled,
+    onlineTranslationConsented,
+  );
 }

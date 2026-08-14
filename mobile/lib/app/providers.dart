@@ -5,6 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/database/app_database.dart';
+import '../core/network/drift_online_translation_cache.dart';
+import '../core/network/http_online_translation_gateway.dart';
+import '../core/network/online_translation_cache.dart';
+import '../core/network/online_translation_gateway.dart';
 import '../core/platform/android_shared_file_receiver.dart';
 import '../core/platform/shared_file_receiver.dart';
 import '../features/dictionary/data/dictionary_repository.dart';
@@ -55,6 +59,20 @@ final phraseRecognizerProvider = Provider<PhraseRecognizer>((ref) {
 
 final specializedTermCatalogProvider = Provider<SpecializedTermIndex?>((ref) {
   return ref.watch(appRuntimeProvider).specializedIndex;
+});
+
+final onlineTranslationGatewayProvider = Provider<OnlineTranslationGateway?>((
+  ref,
+) {
+  const baseUrl = String.fromEnvironment('DIANDUJI_TRANSLATE_BASE_URL');
+  if (baseUrl.isEmpty) return null;
+  const apiKey = String.fromEnvironment('DIANDUJI_TRANSLATE_API_KEY');
+  final inner = HttpOnlineTranslationGateway(
+    baseUrl: Uri.parse(baseUrl),
+    apiKey: apiKey.isEmpty ? null : apiKey,
+  );
+  final cache = DriftOnlineTranslationCache(ref.watch(appDatabaseProvider));
+  return CachedOnlineTranslationGateway(inner: inner, cache: cache);
 });
 
 final learningRepositoryProvider = Provider<LearningRepository>((ref) {

@@ -166,7 +166,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byType(SwitchListTile));
+      await tester.tap(find.byType(SwitchListTile).first);
       await repository.waitForAttempt(1);
       repository.completeNext();
       await tester.pumpAndSettle();
@@ -228,7 +228,7 @@ void main() {
     await tester.pumpAndSettle();
     tester.widgetList<Slider>(find.byType(Slider)).last.onChanged!(1.8);
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(SwitchListTile));
+    await tester.tap(find.byType(SwitchListTile).first);
     await tester.pumpAndSettle();
 
     expect(
@@ -271,6 +271,7 @@ void main() {
     await tester.pumpWidget(_settingsApp(cleanup));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.text('清理可重建缓存'), 120);
     await tester.tap(find.text('清理可重建缓存'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('取消'));
@@ -286,6 +287,7 @@ void main() {
     await tester.pumpWidget(_settingsApp(cleanup));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(find.text('清理可重建缓存'), 120);
     await tester.tap(find.text('清理可重建缓存'));
     await tester.pumpAndSettle();
     expect(find.text('清理缓存？'), findsOneWidget);
@@ -303,6 +305,7 @@ void main() {
     final cleanup = _RecordingCacheCleanupService()..error = StateError('io');
     await tester.pumpWidget(_settingsApp(cleanup));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('清理可重建缓存'), 120);
     await tester.tap(find.text('清理可重建缓存'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('确认'));
@@ -310,6 +313,59 @@ void main() {
 
     expect(find.text('缓存清理失败，请重试'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('online translation switch requires first-use consent', (
+    tester,
+  ) async {
+    final repository = _SettingsRepository();
+    addTearDown(repository.dispose);
+    await tester.pumpWidget(
+      _settingsApp(_RecordingCacheCleanupService(), repository: repository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('在线翻译'), 120);
+    await tester.tap(find.byType(SwitchListTile).at(1));
+    await tester.pumpAndSettle();
+    expect(find.text('开启在线翻译'), findsOneWidget);
+    expect(find.textContaining('不会上传'), findsOneWidget);
+
+    // Cancelling leaves both the switch and consent off.
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
+    expect(repository.value.onlineTranslationEnabled, isFalse);
+    expect(repository.value.onlineTranslationConsented, isFalse);
+
+    // Agreeing turns both on.
+    await tester.tap(find.byType(SwitchListTile).at(1));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('同意并开启'));
+    await tester.pumpAndSettle();
+    expect(repository.value.onlineTranslationEnabled, isTrue);
+    expect(repository.value.onlineTranslationConsented, isTrue);
+  });
+
+  testWidgets('online translation switch turns off without re-consent', (
+    tester,
+  ) async {
+    final repository = _SettingsRepository()
+      ..value = ReadingSettings(
+        onlineTranslationEnabled: true,
+        onlineTranslationConsented: true,
+      );
+    addTearDown(repository.dispose);
+    await tester.pumpWidget(
+      _settingsApp(_RecordingCacheCleanupService(), repository: repository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('在线翻译'), 120);
+    await tester.tap(find.byType(SwitchListTile).at(1));
+    await tester.pumpAndSettle();
+
+    expect(repository.value.onlineTranslationEnabled, isFalse);
+    expect(repository.value.onlineTranslationConsented, isTrue);
   });
 
   test('production cleanup only deletes bounded rebuildable caches', () async {

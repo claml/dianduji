@@ -62,6 +62,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
             learning: ref.read(learningRepositoryProvider),
             phraseRecognizer: ref.read(phraseRecognizerProvider),
             specializedIndex: ref.read(specializedTermCatalogProvider),
+            onlineGateway: ref.read(onlineTranslationGatewayProvider),
+            onlineEnabled: ref
+                    .read(readingSettingsProvider)
+                    .settings
+                    ?.onlineTranslationEnabled ??
+                false,
           ),
           settings: ReadingSettings(autoSaveVocabulary: false),
         );
@@ -257,6 +263,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         ),
       );
     }
+    // Keep the open reader's online-fallback switch in sync with settings.
+    _controller.translation.onlineEnabled = settings.onlineTranslationEnabled;
     _controller.updateSettings(settings);
     final state = _controller.state;
     if (!_opened || state.isLoading) {

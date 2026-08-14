@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
+import '../../../core/network/drift_online_translation_cache.dart';
 import '../data/reading_settings.dart';
+import 'persisted_settings_controller.dart';
 
 class PersistedSettingsPage extends ConsumerWidget {
   const PersistedSettingsPage({super.key});
@@ -105,6 +107,18 @@ class PersistedSettingsPage extends ConsumerWidget {
             value: settings.autoSaveVocabulary,
             onChanged: controller.updateAutoSaveVocabulary,
           ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('在线翻译'),
+            subtitle: const Text('本地未收录时联网查询，仅发送所点词与所在句子'),
+            value: settings.onlineTranslationEnabled,
+            onChanged: (value) => _toggleOnlineTranslation(
+              context,
+              ref,
+              controller,
+              value,
+            ),
+          ),
           const Divider(),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -125,9 +139,98 @@ class PersistedSettingsPage extends ConsumerWidget {
             subtitle: const Text('仅清理词典和解析缓存，不会删除文档或学习记录'),
             onTap: () => _confirmCacheCleanup(context, ref),
           ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            minVerticalPadding: 12,
+            title: const Text('清除在线翻译缓存'),
+            subtitle: const Text('删除已缓存的在线翻译结果，不影响本地词典'),
+            onTap: () => _confirmOnlineCacheCleanup(context, ref),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _toggleOnlineTranslation(
+    BuildContext context,
+    WidgetRef ref,
+    PersistedSettingsController controller,
+    bool enable,
+  ) async {
+    final settings = ref.read(readingSettingsProvider).settings;
+    if (settings == null) return;
+    if (enable && !settings.onlineTranslationConsented) {
+      final agreed = await _showOnlineConsentDialog(context);
+      if (agreed != true) return;
+      await controller.updateOnlineTranslationConsented(true);
+    }
+    await controller.updateOnlineTranslationEnabled(enable);
+  }
+
+  Future<bool?> _showOnlineConsentDialog(BuildContext context) =>
+      showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('开启在线翻译'),
+          content: const SingleChildScrollView(
+            child: Text(
+              '本地词典未收录时，将把所点击的单词或术语及其所在的单个句子'
+              '发送至在线翻译服务。\n\n'
+              '不会上传：文档全文、PDF 页面图像、文档标题、作者、文件路径、'
+              '设备标识或阅读历史。\n\n'
+              '可随时在设置中关闭，并可清除本地缓存。',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('同意并开启'),
+            ),
+          ],
+        ),
+      );
+
+  Future<void> _confirmOnlineCacheCleanup(
+    BuildContext context,
+    WidgetRef ref,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('清除在线翻译缓存？'),
+        content: const Text('不会删除文档、生词、短语或本地词典。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('确认'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      final cache = DriftOnlineTranslationCache(ref.read(appDatabaseProvider));
+      await cache.clear();
+    } on Object {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('清除失败，请重试')));
+      return;
+    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('在线翻译缓存已清除')));
   }
 
   Future<void> _showPrivacyDialog(BuildContext context) => showDialog<void>(
