@@ -3,6 +3,9 @@
 点读机的在线翻译通过受控网关接入。正式发布前须确定网关地址、服务端密钥
 管理、日志脱敏与保留期限。移动端不内置任何第三方服务密钥。
 
+**参考实现**：`docs/gateway-reference/gateway_tencent.py`（腾讯云 TMT 后端，
+零依赖 Python，含申请步骤与部署说明，见 `docs/gateway-reference/README.md`）。
+
 ## 请求 (POST, application/json)
 
 请求体只包含最小必要字段，**绝不**包含 PDF、页图、整页文本、文档标题、
