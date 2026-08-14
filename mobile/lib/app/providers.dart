@@ -12,7 +12,9 @@ import '../core/network/online_translation_gateway.dart';
 import '../core/platform/android_shared_file_receiver.dart';
 import '../core/platform/shared_file_receiver.dart';
 import '../features/dictionary/data/dictionary_repository.dart';
+import '../features/dictionary/data/drift_user_dictionary.dart';
 import '../features/dictionary/domain/specialized_terms.dart';
+import '../features/dictionary/domain/user_dictionary_repository.dart';
 import '../features/documents/data/drift_document_import_store.dart';
 import '../features/documents/data/drift_document_repository.dart';
 import '../features/documents/data/default_document_parser_resolver.dart';
@@ -61,10 +63,17 @@ final specializedTermCatalogProvider = Provider<SpecializedTermIndex?>((ref) {
   return ref.watch(appRuntimeProvider).specializedIndex;
 });
 
+final userDictionaryProvider = Provider<UserDictionaryStore>((ref) {
+  return DriftUserDictionary(ref.watch(appDatabaseProvider));
+});
+
 final onlineTranslationGatewayProvider = Provider<OnlineTranslationGateway?>((
   ref,
 ) {
   const baseUrl = String.fromEnvironment('DIANDUJI_TRANSLATE_BASE_URL');
+  // Logging the configured base URL (not any key) so a missing dart-define
+  // is immediately visible in logcat.
+  debugPrint('ONLINE_GATEWAY_CONFIG baseUrl="$baseUrl"');
   if (baseUrl.isEmpty) return null;
   const apiKey = String.fromEnvironment('DIANDUJI_TRANSLATE_API_KEY');
   final inner = HttpOnlineTranslationGateway(

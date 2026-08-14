@@ -70,6 +70,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
             phraseRecognizer: ref.read(phraseRecognizerProvider),
             specializedIndex: ref.read(specializedTermCatalogProvider),
             onlineGateway: ref.read(onlineTranslationGatewayProvider),
+            userDictionary: ref.read(userDictionaryProvider),
             onlineEnabled: ref
                     .read(readingSettingsProvider)
                     .settings

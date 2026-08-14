@@ -8,6 +8,7 @@ import '../data/dictionary_repository.dart';
 import '../domain/layered_lookup.dart';
 import '../domain/specialized_terms.dart';
 import '../domain/term_candidate_recognizer.dart';
+import '../domain/user_dictionary_repository.dart';
 
 export '../../learning/data/learning_repository.dart'
     show LearningContext, LearningRepository, SavedPhraseDraft;
@@ -30,6 +31,7 @@ class TranslationState {
     this.matchedCandidate,
     this.onlineResult,
     this.onlineStatus = OnlineTranslationStatus.none,
+    this.fromUserDictionary = false,
   });
 
   final TranslationStatus status;
@@ -52,6 +54,9 @@ class TranslationState {
 
   final OnlineTranslationStatus onlineStatus;
 
+  /// Whether [entry] came from the user-grown dictionary.
+  final bool fromUserDictionary;
+
   /// The term surface to present first (the matched term, else the tapped
   /// word).
   String get displaySurface => matchedCandidate?.surface ?? surface;
@@ -67,10 +72,13 @@ class TranslationViewModel extends ChangeNotifier {
     this.onlineGateway,
     // ignore: prefer_initializing_formals — private field, public name.
     bool onlineEnabled = false,
+    UserDictionaryStore? userDictionary,
   }) : _layered = LayeredLookup(
          general: dictionary,
          specialized: specializedIndex,
+         userDictionary: userDictionary,
        ),
+       _userDictionary = userDictionary,
        // ignore: prefer_initializing_formals — private field, public name.
        _onlineEnabled = onlineEnabled;
 
@@ -80,6 +88,7 @@ class TranslationViewModel extends ChangeNotifier {
   final LayeredLookup _layered;
   final List<SpecializedDomain> enabledDomains;
   final OnlineTranslationGateway? onlineGateway;
+  final UserDictionaryStore? _userDictionary;
   var _onlineEnabled = false;
 
   /// Updates the online fallback switch at runtime (e.g. when the settings
@@ -126,7 +135,7 @@ class TranslationViewModel extends ChangeNotifier {
         phraseRecognizer.recognize(tokens),
         selectedTokenOrdinal,
       );
-      final entry = result.generalEntry;
+      final entry = result.userEntry ?? result.generalEntry;
       if (entry == null && result.specializedTerm == null) {
         final online = await _lookupOnline(
           tokens: tokens,
@@ -171,6 +180,7 @@ class TranslationViewModel extends ChangeNotifier {
           surface: selected.surface,
           sentence: sentence,
           entry: entry,
+          fromUserDictionary: result.userEntry != null,
           specializedTerm: result.specializedTerm,
           matchedCandidate: result.matchedCandidate,
           phrases: phrases,
@@ -206,7 +216,12 @@ class TranslationViewModel extends ChangeNotifier {
     required int generation,
   }) async {
     final gateway = onlineGateway;
-    if (!_onlineEnabled || gateway == null) return null;
+    if (!_onlineEnabled || gateway == null) {
+      debugPrint(
+        'ONLINE_LOOKUP skipped: enabled=$_onlineEnabled gateway=${gateway != null}',
+      );
+      return null;
+    }
     final term = matchedCandidate?.surface ?? tokens[selectedTokenOrdinal].surface;
     try {
       final result = await gateway.translate(
@@ -217,11 +232,20 @@ class TranslationViewModel extends ChangeNotifier {
         ),
       );
       if (generation != _requestGeneration) return null;
+      debugPrint('ONLINE_LOOKUP ok: term=$term');
+      // Grow the user dictionary: every online-translated word becomes a
+      // candidate for later LLM enrichment and offline reuse.
+      await _userDictionary?.collectCandidate(
+        term,
+        source: 'online-translation',
+      );
       return result;
-    } on Object {
+    } on Object catch (error) {
       // Online failure is non-fatal: keep the local result and mark the
       // supplement unavailable. The stale-request generation guard already
-      // drops out-of-order responses.
+      // drops out-of-order responses. The term is logged (not the sentence)
+      // so failures stay diagnosable without leaking document text.
+      debugPrint('ONLINE_LOOKUP failed: term=$term error=$error');
       return null;
     }
   }

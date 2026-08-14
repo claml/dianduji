@@ -18,6 +18,11 @@ void main() {
     baseUrl = Uri.parse('http://127.0.0.1:${server.port}/translate');
     server.listen((request) async {
       lastQueryKey = request.uri.queryParameters['key'];
+      expect(
+        request.headers.contentLength,
+        greaterThan(0),
+        reason: 'gateway contract requires a Content-Length body',
+      );
       lastBody = utf8.decode(
         await request.fold<List<int>>([], (a, b) => a..addAll(b)),
       );

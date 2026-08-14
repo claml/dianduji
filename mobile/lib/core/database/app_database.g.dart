@@ -5084,6 +5084,624 @@ class OnlineTranslationCacheCompanion
   }
 }
 
+class $UserDictionaryTable extends UserDictionary
+    with TableInfo<$UserDictionaryTable, UserDictionaryData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $UserDictionaryTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _lemmaMeta = const VerificationMeta('lemma');
+  @override
+  late final GeneratedColumn<String> lemma = GeneratedColumn<String>(
+    'lemma',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _surfaceMeta = const VerificationMeta(
+    'surface',
+  );
+  @override
+  late final GeneratedColumn<String> surface = GeneratedColumn<String>(
+    'surface',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _phoneticMeta = const VerificationMeta(
+    'phonetic',
+  );
+  @override
+  late final GeneratedColumn<String> phonetic = GeneratedColumn<String>(
+    'phonetic',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _partOfSpeechMeta = const VerificationMeta(
+    'partOfSpeech',
+  );
+  @override
+  late final GeneratedColumn<String> partOfSpeech = GeneratedColumn<String>(
+    'part_of_speech',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _definitionEnglishMeta = const VerificationMeta(
+    'definitionEnglish',
+  );
+  @override
+  late final GeneratedColumn<String> definitionEnglish =
+      GeneratedColumn<String>(
+        'definition_english',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
+  static const VerificationMeta _definitionChineseMeta = const VerificationMeta(
+    'definitionChinese',
+  );
+  @override
+  late final GeneratedColumn<String> definitionChinese =
+      GeneratedColumn<String>(
+        'definition_chinese',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: false,
+        defaultValue: const Constant(''),
+      );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('candidate'),
+  );
+  static const VerificationMeta _sourceMeta = const VerificationMeta('source');
+  @override
+  late final GeneratedColumn<String> source = GeneratedColumn<String>(
+    'source',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    lemma,
+    surface,
+    phonetic,
+    partOfSpeech,
+    definitionEnglish,
+    definitionChinese,
+    status,
+    source,
+    createdAt,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'user_dictionary';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<UserDictionaryData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('lemma')) {
+      context.handle(
+        _lemmaMeta,
+        lemma.isAcceptableOrUnknown(data['lemma']!, _lemmaMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_lemmaMeta);
+    }
+    if (data.containsKey('surface')) {
+      context.handle(
+        _surfaceMeta,
+        surface.isAcceptableOrUnknown(data['surface']!, _surfaceMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_surfaceMeta);
+    }
+    if (data.containsKey('phonetic')) {
+      context.handle(
+        _phoneticMeta,
+        phonetic.isAcceptableOrUnknown(data['phonetic']!, _phoneticMeta),
+      );
+    }
+    if (data.containsKey('part_of_speech')) {
+      context.handle(
+        _partOfSpeechMeta,
+        partOfSpeech.isAcceptableOrUnknown(
+          data['part_of_speech']!,
+          _partOfSpeechMeta,
+        ),
+      );
+    }
+    if (data.containsKey('definition_english')) {
+      context.handle(
+        _definitionEnglishMeta,
+        definitionEnglish.isAcceptableOrUnknown(
+          data['definition_english']!,
+          _definitionEnglishMeta,
+        ),
+      );
+    }
+    if (data.containsKey('definition_chinese')) {
+      context.handle(
+        _definitionChineseMeta,
+        definitionChinese.isAcceptableOrUnknown(
+          data['definition_chinese']!,
+          _definitionChineseMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('source')) {
+      context.handle(
+        _sourceMeta,
+        source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {lemma};
+  @override
+  UserDictionaryData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return UserDictionaryData(
+      lemma: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}lemma'],
+      )!,
+      surface: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}surface'],
+      )!,
+      phonetic: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}phonetic'],
+      )!,
+      partOfSpeech: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}part_of_speech'],
+      )!,
+      definitionEnglish: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}definition_english'],
+      )!,
+      definitionChinese: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}definition_chinese'],
+      )!,
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      source: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}source'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $UserDictionaryTable createAlias(String alias) {
+    return $UserDictionaryTable(attachedDatabase, alias);
+  }
+}
+
+class UserDictionaryData extends DataClass
+    implements Insertable<UserDictionaryData> {
+  /// Normalized (lower-case, apostrophe-collapsed) word form.
+  final String lemma;
+  final String surface;
+  final String phonetic;
+  final String partOfSpeech;
+  final String definitionEnglish;
+  final String definitionChinese;
+
+  /// candidate (collected, not yet enriched) | confirmed (usable in lookup).
+  final String status;
+
+  /// How the candidate entered the table (e.g. online-translation).
+  final String source;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const UserDictionaryData({
+    required this.lemma,
+    required this.surface,
+    required this.phonetic,
+    required this.partOfSpeech,
+    required this.definitionEnglish,
+    required this.definitionChinese,
+    required this.status,
+    required this.source,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['lemma'] = Variable<String>(lemma);
+    map['surface'] = Variable<String>(surface);
+    map['phonetic'] = Variable<String>(phonetic);
+    map['part_of_speech'] = Variable<String>(partOfSpeech);
+    map['definition_english'] = Variable<String>(definitionEnglish);
+    map['definition_chinese'] = Variable<String>(definitionChinese);
+    map['status'] = Variable<String>(status);
+    map['source'] = Variable<String>(source);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  UserDictionaryCompanion toCompanion(bool nullToAbsent) {
+    return UserDictionaryCompanion(
+      lemma: Value(lemma),
+      surface: Value(surface),
+      phonetic: Value(phonetic),
+      partOfSpeech: Value(partOfSpeech),
+      definitionEnglish: Value(definitionEnglish),
+      definitionChinese: Value(definitionChinese),
+      status: Value(status),
+      source: Value(source),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory UserDictionaryData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return UserDictionaryData(
+      lemma: serializer.fromJson<String>(json['lemma']),
+      surface: serializer.fromJson<String>(json['surface']),
+      phonetic: serializer.fromJson<String>(json['phonetic']),
+      partOfSpeech: serializer.fromJson<String>(json['partOfSpeech']),
+      definitionEnglish: serializer.fromJson<String>(json['definitionEnglish']),
+      definitionChinese: serializer.fromJson<String>(json['definitionChinese']),
+      status: serializer.fromJson<String>(json['status']),
+      source: serializer.fromJson<String>(json['source']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'lemma': serializer.toJson<String>(lemma),
+      'surface': serializer.toJson<String>(surface),
+      'phonetic': serializer.toJson<String>(phonetic),
+      'partOfSpeech': serializer.toJson<String>(partOfSpeech),
+      'definitionEnglish': serializer.toJson<String>(definitionEnglish),
+      'definitionChinese': serializer.toJson<String>(definitionChinese),
+      'status': serializer.toJson<String>(status),
+      'source': serializer.toJson<String>(source),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  UserDictionaryData copyWith({
+    String? lemma,
+    String? surface,
+    String? phonetic,
+    String? partOfSpeech,
+    String? definitionEnglish,
+    String? definitionChinese,
+    String? status,
+    String? source,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => UserDictionaryData(
+    lemma: lemma ?? this.lemma,
+    surface: surface ?? this.surface,
+    phonetic: phonetic ?? this.phonetic,
+    partOfSpeech: partOfSpeech ?? this.partOfSpeech,
+    definitionEnglish: definitionEnglish ?? this.definitionEnglish,
+    definitionChinese: definitionChinese ?? this.definitionChinese,
+    status: status ?? this.status,
+    source: source ?? this.source,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  UserDictionaryData copyWithCompanion(UserDictionaryCompanion data) {
+    return UserDictionaryData(
+      lemma: data.lemma.present ? data.lemma.value : this.lemma,
+      surface: data.surface.present ? data.surface.value : this.surface,
+      phonetic: data.phonetic.present ? data.phonetic.value : this.phonetic,
+      partOfSpeech: data.partOfSpeech.present
+          ? data.partOfSpeech.value
+          : this.partOfSpeech,
+      definitionEnglish: data.definitionEnglish.present
+          ? data.definitionEnglish.value
+          : this.definitionEnglish,
+      definitionChinese: data.definitionChinese.present
+          ? data.definitionChinese.value
+          : this.definitionChinese,
+      status: data.status.present ? data.status.value : this.status,
+      source: data.source.present ? data.source.value : this.source,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserDictionaryData(')
+          ..write('lemma: $lemma, ')
+          ..write('surface: $surface, ')
+          ..write('phonetic: $phonetic, ')
+          ..write('partOfSpeech: $partOfSpeech, ')
+          ..write('definitionEnglish: $definitionEnglish, ')
+          ..write('definitionChinese: $definitionChinese, ')
+          ..write('status: $status, ')
+          ..write('source: $source, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    lemma,
+    surface,
+    phonetic,
+    partOfSpeech,
+    definitionEnglish,
+    definitionChinese,
+    status,
+    source,
+    createdAt,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is UserDictionaryData &&
+          other.lemma == this.lemma &&
+          other.surface == this.surface &&
+          other.phonetic == this.phonetic &&
+          other.partOfSpeech == this.partOfSpeech &&
+          other.definitionEnglish == this.definitionEnglish &&
+          other.definitionChinese == this.definitionChinese &&
+          other.status == this.status &&
+          other.source == this.source &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class UserDictionaryCompanion extends UpdateCompanion<UserDictionaryData> {
+  final Value<String> lemma;
+  final Value<String> surface;
+  final Value<String> phonetic;
+  final Value<String> partOfSpeech;
+  final Value<String> definitionEnglish;
+  final Value<String> definitionChinese;
+  final Value<String> status;
+  final Value<String> source;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  final Value<int> rowid;
+  const UserDictionaryCompanion({
+    this.lemma = const Value.absent(),
+    this.surface = const Value.absent(),
+    this.phonetic = const Value.absent(),
+    this.partOfSpeech = const Value.absent(),
+    this.definitionEnglish = const Value.absent(),
+    this.definitionChinese = const Value.absent(),
+    this.status = const Value.absent(),
+    this.source = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  UserDictionaryCompanion.insert({
+    required String lemma,
+    required String surface,
+    this.phonetic = const Value.absent(),
+    this.partOfSpeech = const Value.absent(),
+    this.definitionEnglish = const Value.absent(),
+    this.definitionChinese = const Value.absent(),
+    this.status = const Value.absent(),
+    this.source = const Value.absent(),
+    required DateTime createdAt,
+    required DateTime updatedAt,
+    this.rowid = const Value.absent(),
+  }) : lemma = Value(lemma),
+       surface = Value(surface),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<UserDictionaryData> custom({
+    Expression<String>? lemma,
+    Expression<String>? surface,
+    Expression<String>? phonetic,
+    Expression<String>? partOfSpeech,
+    Expression<String>? definitionEnglish,
+    Expression<String>? definitionChinese,
+    Expression<String>? status,
+    Expression<String>? source,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (lemma != null) 'lemma': lemma,
+      if (surface != null) 'surface': surface,
+      if (phonetic != null) 'phonetic': phonetic,
+      if (partOfSpeech != null) 'part_of_speech': partOfSpeech,
+      if (definitionEnglish != null) 'definition_english': definitionEnglish,
+      if (definitionChinese != null) 'definition_chinese': definitionChinese,
+      if (status != null) 'status': status,
+      if (source != null) 'source': source,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  UserDictionaryCompanion copyWith({
+    Value<String>? lemma,
+    Value<String>? surface,
+    Value<String>? phonetic,
+    Value<String>? partOfSpeech,
+    Value<String>? definitionEnglish,
+    Value<String>? definitionChinese,
+    Value<String>? status,
+    Value<String>? source,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return UserDictionaryCompanion(
+      lemma: lemma ?? this.lemma,
+      surface: surface ?? this.surface,
+      phonetic: phonetic ?? this.phonetic,
+      partOfSpeech: partOfSpeech ?? this.partOfSpeech,
+      definitionEnglish: definitionEnglish ?? this.definitionEnglish,
+      definitionChinese: definitionChinese ?? this.definitionChinese,
+      status: status ?? this.status,
+      source: source ?? this.source,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (lemma.present) {
+      map['lemma'] = Variable<String>(lemma.value);
+    }
+    if (surface.present) {
+      map['surface'] = Variable<String>(surface.value);
+    }
+    if (phonetic.present) {
+      map['phonetic'] = Variable<String>(phonetic.value);
+    }
+    if (partOfSpeech.present) {
+      map['part_of_speech'] = Variable<String>(partOfSpeech.value);
+    }
+    if (definitionEnglish.present) {
+      map['definition_english'] = Variable<String>(definitionEnglish.value);
+    }
+    if (definitionChinese.present) {
+      map['definition_chinese'] = Variable<String>(definitionChinese.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (source.present) {
+      map['source'] = Variable<String>(source.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('UserDictionaryCompanion(')
+          ..write('lemma: $lemma, ')
+          ..write('surface: $surface, ')
+          ..write('phonetic: $phonetic, ')
+          ..write('partOfSpeech: $partOfSpeech, ')
+          ..write('definitionEnglish: $definitionEnglish, ')
+          ..write('definitionChinese: $definitionChinese, ')
+          ..write('status: $status, ')
+          ..write('source: $source, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -5099,6 +5717,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
   late final $OnlineTranslationCacheTable onlineTranslationCache =
       $OnlineTranslationCacheTable(this);
+  late final $UserDictionaryTable userDictionary = $UserDictionaryTable(this);
   late final DocumentsDao documentsDao = DocumentsDao(this as AppDatabase);
   late final LearningDao learningDao = LearningDao(this as AppDatabase);
   late final SettingsDao settingsDao = SettingsDao(this as AppDatabase);
@@ -5116,6 +5735,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     savedPhrases,
     appSettings,
     onlineTranslationCache,
+    userDictionary,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -9132,6 +9752,313 @@ typedef $$OnlineTranslationCacheTableProcessedTableManager =
       OnlineTranslationCacheData,
       PrefetchHooks Function()
     >;
+typedef $$UserDictionaryTableCreateCompanionBuilder =
+    UserDictionaryCompanion Function({
+      required String lemma,
+      required String surface,
+      Value<String> phonetic,
+      Value<String> partOfSpeech,
+      Value<String> definitionEnglish,
+      Value<String> definitionChinese,
+      Value<String> status,
+      Value<String> source,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+      Value<int> rowid,
+    });
+typedef $$UserDictionaryTableUpdateCompanionBuilder =
+    UserDictionaryCompanion Function({
+      Value<String> lemma,
+      Value<String> surface,
+      Value<String> phonetic,
+      Value<String> partOfSpeech,
+      Value<String> definitionEnglish,
+      Value<String> definitionChinese,
+      Value<String> status,
+      Value<String> source,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$UserDictionaryTableFilterComposer
+    extends Composer<_$AppDatabase, $UserDictionaryTable> {
+  $$UserDictionaryTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get lemma => $composableBuilder(
+    column: $table.lemma,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get surface => $composableBuilder(
+    column: $table.surface,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get phonetic => $composableBuilder(
+    column: $table.phonetic,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get partOfSpeech => $composableBuilder(
+    column: $table.partOfSpeech,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get definitionEnglish => $composableBuilder(
+    column: $table.definitionEnglish,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get definitionChinese => $composableBuilder(
+    column: $table.definitionChinese,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$UserDictionaryTableOrderingComposer
+    extends Composer<_$AppDatabase, $UserDictionaryTable> {
+  $$UserDictionaryTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get lemma => $composableBuilder(
+    column: $table.lemma,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get surface => $composableBuilder(
+    column: $table.surface,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get phonetic => $composableBuilder(
+    column: $table.phonetic,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get partOfSpeech => $composableBuilder(
+    column: $table.partOfSpeech,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get definitionEnglish => $composableBuilder(
+    column: $table.definitionEnglish,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get definitionChinese => $composableBuilder(
+    column: $table.definitionChinese,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get source => $composableBuilder(
+    column: $table.source,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$UserDictionaryTableAnnotationComposer
+    extends Composer<_$AppDatabase, $UserDictionaryTable> {
+  $$UserDictionaryTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get lemma =>
+      $composableBuilder(column: $table.lemma, builder: (column) => column);
+
+  GeneratedColumn<String> get surface =>
+      $composableBuilder(column: $table.surface, builder: (column) => column);
+
+  GeneratedColumn<String> get phonetic =>
+      $composableBuilder(column: $table.phonetic, builder: (column) => column);
+
+  GeneratedColumn<String> get partOfSpeech => $composableBuilder(
+    column: $table.partOfSpeech,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get definitionEnglish => $composableBuilder(
+    column: $table.definitionEnglish,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get definitionChinese => $composableBuilder(
+    column: $table.definitionChinese,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get source =>
+      $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$UserDictionaryTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $UserDictionaryTable,
+          UserDictionaryData,
+          $$UserDictionaryTableFilterComposer,
+          $$UserDictionaryTableOrderingComposer,
+          $$UserDictionaryTableAnnotationComposer,
+          $$UserDictionaryTableCreateCompanionBuilder,
+          $$UserDictionaryTableUpdateCompanionBuilder,
+          (
+            UserDictionaryData,
+            BaseReferences<
+              _$AppDatabase,
+              $UserDictionaryTable,
+              UserDictionaryData
+            >,
+          ),
+          UserDictionaryData,
+          PrefetchHooks Function()
+        > {
+  $$UserDictionaryTableTableManager(
+    _$AppDatabase db,
+    $UserDictionaryTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$UserDictionaryTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$UserDictionaryTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$UserDictionaryTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> lemma = const Value.absent(),
+                Value<String> surface = const Value.absent(),
+                Value<String> phonetic = const Value.absent(),
+                Value<String> partOfSpeech = const Value.absent(),
+                Value<String> definitionEnglish = const Value.absent(),
+                Value<String> definitionChinese = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => UserDictionaryCompanion(
+                lemma: lemma,
+                surface: surface,
+                phonetic: phonetic,
+                partOfSpeech: partOfSpeech,
+                definitionEnglish: definitionEnglish,
+                definitionChinese: definitionChinese,
+                status: status,
+                source: source,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String lemma,
+                required String surface,
+                Value<String> phonetic = const Value.absent(),
+                Value<String> partOfSpeech = const Value.absent(),
+                Value<String> definitionEnglish = const Value.absent(),
+                Value<String> definitionChinese = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String> source = const Value.absent(),
+                required DateTime createdAt,
+                required DateTime updatedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => UserDictionaryCompanion.insert(
+                lemma: lemma,
+                surface: surface,
+                phonetic: phonetic,
+                partOfSpeech: partOfSpeech,
+                definitionEnglish: definitionEnglish,
+                definitionChinese: definitionChinese,
+                status: status,
+                source: source,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$UserDictionaryTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $UserDictionaryTable,
+      UserDictionaryData,
+      $$UserDictionaryTableFilterComposer,
+      $$UserDictionaryTableOrderingComposer,
+      $$UserDictionaryTableAnnotationComposer,
+      $$UserDictionaryTableCreateCompanionBuilder,
+      $$UserDictionaryTableUpdateCompanionBuilder,
+      (
+        UserDictionaryData,
+        BaseReferences<_$AppDatabase, $UserDictionaryTable, UserDictionaryData>,
+      ),
+      UserDictionaryData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -9157,6 +10084,8 @@ class $AppDatabaseManager {
         _db,
         _db.onlineTranslationCache,
       );
+  $$UserDictionaryTableTableManager get userDictionary =>
+      $$UserDictionaryTableTableManager(_db, _db.userDictionary);
 }
 
 mixin _$DocumentsDaoMixin on DatabaseAccessor<AppDatabase> {

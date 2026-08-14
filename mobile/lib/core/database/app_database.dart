@@ -151,6 +151,31 @@ class OnlineTranslationCache extends Table {
   Set<Column<Object>> get primaryKey => {cacheKey};
 }
 
+/// User-grown dictionary entries. Words that miss every local dictionary and
+/// are translated online are collected as candidates; after LLM enrichment
+/// they are confirmed and take priority over the bundled dictionaries. This
+/// table is user data and is never touched by asset upgrades.
+class UserDictionary extends Table {
+  /// Normalized (lower-case, apostrophe-collapsed) word form.
+  TextColumn get lemma => text()();
+  TextColumn get surface => text()();
+  TextColumn get phonetic => text().withDefault(const Constant(''))();
+  TextColumn get partOfSpeech => text().withDefault(const Constant(''))();
+  TextColumn get definitionEnglish => text().withDefault(const Constant(''))();
+  TextColumn get definitionChinese => text().withDefault(const Constant(''))();
+
+  /// candidate (collected, not yet enriched) | confirmed (usable in lookup).
+  TextColumn get status => text().withDefault(const Constant('candidate'))();
+
+  /// How the candidate entered the table (e.g. online-translation).
+  TextColumn get source => text().withDefault(const Constant(''))();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {lemma};
+}
+
 class LookupRecord {
   const LookupRecord({
     required this.surface,
@@ -230,6 +255,7 @@ enum LearningVocabularySort { recent, alphabetical, lookupCount }
     SavedPhrases,
     AppSettings,
     OnlineTranslationCache,
+    UserDictionary,
   ],
   daos: [DocumentsDao, LearningDao, SettingsDao],
 )
@@ -237,13 +263,16 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
       if (from < 2) {
         await m.createTable(onlineTranslationCache);
+      }
+      if (from < 3) {
+        await m.createTable(userDictionary);
       }
     },
     beforeOpen: (details) async {

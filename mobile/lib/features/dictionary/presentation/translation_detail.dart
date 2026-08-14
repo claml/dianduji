@@ -206,7 +206,9 @@ class _TranslationDetailState extends State<TranslationDetail> {
 
   String _sourceLabel(TranslationState state) {
     final sources = <String>[];
-    if (state.entry != null) sources.add('通用词典');
+    if (state.entry != null) {
+      sources.add(state.fromUserDictionary ? '用户词典' : '通用词典');
+    }
     if (state.specializedTerm != null) {
       sources.add('专业词典·${state.specializedTerm!.domain.label}');
     }

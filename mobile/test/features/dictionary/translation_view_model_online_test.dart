@@ -1,5 +1,6 @@
 import 'package:dian_du_ji/core/network/online_translation_gateway.dart';
 import 'package:dian_du_ji/features/dictionary/data/dictionary_repository.dart';
+import 'package:dian_du_ji/features/dictionary/domain/user_dictionary_repository.dart';
 import 'package:dian_du_ji/features/dictionary/presentation/translation_view_model.dart';
 import 'package:dian_du_ji/features/documents/domain/models/parsed_block.dart';
 import 'package:dian_du_ji/features/learning/data/learning_repository.dart';
@@ -103,6 +104,88 @@ void main() {
     expect(vm.state.onlineResult, isNull);
     expect(gateway.calls, 0);
   });
+
+  test('a successful online translation collects a dictionary candidate', (
+  ) async {
+    final gateway = _RecordingGateway();
+    final dictionary = _MemoryUserDictionary();
+    final vm = TranslationViewModel(
+      dictionary: const _General({}),
+      learning: const _Learning(),
+      phraseRecognizer: PhraseRecognizer(const []),
+      onlineGateway: gateway,
+      onlineEnabled: true,
+      userDictionary: dictionary,
+    );
+
+    await vm.lookup(
+      tokens: tokensOf('an unknown phrase here'),
+      selectedTokenOrdinal: 1,
+    );
+
+    expect(vm.state.status, TranslationStatus.found);
+    expect(dictionary.collected, ['unknown']);
+    expect(dictionary.collectedSources.single, 'online-translation');
+  });
+
+  test('a confirmed user entry wins over the general dictionary', () async {
+    final dictionary = _MemoryUserDictionary()
+      ..confirmed['word'] = const DictionaryEntry(
+        word: 'word',
+        phonetic: 'wɜːd',
+        partOfSpeech: 'n.',
+        definitionEnglish: 'a single unit of language',
+        definitionChinese: '词语（用户词典）',
+      );
+    final vm = TranslationViewModel(
+      dictionary: const _General({
+        'word': DictionaryEntry(
+          word: 'word',
+          phonetic: '',
+          partOfSpeech: 'n.',
+          definitionEnglish: 'general',
+          definitionChinese: '通用释义',
+        ),
+      }),
+      learning: const _Learning(),
+      phraseRecognizer: PhraseRecognizer(const []),
+      userDictionary: dictionary,
+    );
+
+    await vm.lookup(tokens: tokensOf('a word here'), selectedTokenOrdinal: 1);
+
+    expect(vm.state.status, TranslationStatus.found);
+    expect(vm.state.entry?.definitionChinese, '词语（用户词典）');
+    expect(vm.state.fromUserDictionary, isTrue);
+  });
+}
+
+class _MemoryUserDictionary implements UserDictionaryStore {
+  final collected = <String>[];
+  final collectedSources = <String>[];
+  final confirmed = <String, DictionaryEntry>{};
+
+  @override
+  Future<void> applyEnrichment(List<EnrichedDictionaryEntry> entries) async {}
+
+  @override
+  Future<void> clearCandidates() async {}
+
+  @override
+  Future<void> collectCandidate(String surface, {String source = ''}) async {
+    collected.add(surface);
+    collectedSources.add(source);
+  }
+
+  @override
+  Future<DictionaryEntry?> lookupConfirmed(String surface) async =>
+      confirmed[normalizeUserLemma(surface)];
+
+  @override
+  Future<int> pendingCandidateCount() async => 0;
+
+  @override
+  Future<List<UserDictionaryCandidate>> pendingCandidates() async => const [];
 }
 
 class _RecordingGateway implements OnlineTranslationGateway {

@@ -51,7 +51,12 @@ class HttpOnlineTranslationGateway implements OnlineTranslationGateway {
         charset: 'utf-8',
       );
       httpRequest.headers.set(HttpHeaders.acceptHeader, _kAcceptJson);
-      httpRequest.write(jsonEncode(body));
+      // Explicit Content-Length: Dart's HttpClient otherwise streams the body
+      // with chunked transfer encoding, which simple reference gateways that
+      // read Content-Length (e.g. Python http.server) reject with 400.
+      final bodyBytes = utf8.encode(jsonEncode(body));
+      httpRequest.contentLength = bodyBytes.length;
+      httpRequest.add(bodyBytes);
 
       final response = await httpRequest.close().timeout(timeout);
       final responseBody = await response
