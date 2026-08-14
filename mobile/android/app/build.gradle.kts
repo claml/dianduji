@@ -19,10 +19,22 @@ if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(keystorePropertiesFile.inputStream())
 }
 
-fun releaseValue(key: String): String? =
-    keystoreProperties.getProperty(key)
+// Accept both the DIANDUJI_* key names (environment/CI style) and the
+// short Flutter-template names (storeFile/storePassword/keyAlias/keyPassword)
+// used inside android/key.properties.
+fun releaseValue(key: String): String? {
+    val shortName = when (key) {
+        "DIANDUJI_STORE_FILE" -> "storeFile"
+        "DIANDUJI_STORE_PASSWORD" -> "storePassword"
+        "DIANDUJI_KEY_ALIAS" -> "keyAlias"
+        "DIANDUJI_KEY_PASSWORD" -> "keyPassword"
+        else -> null
+    }
+    return keystoreProperties.getProperty(key)
+        ?: shortName?.let(keystoreProperties::getProperty)
         ?: System.getenv(key)
         ?: providers.gradleProperty(key).orNull
+}
 
 val releaseValues = listOf(
     "DIANDUJI_STORE_FILE",
