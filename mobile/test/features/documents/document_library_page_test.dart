@@ -251,6 +251,38 @@ void main() {
     expect(openedId, 'doc-1');
   });
 
+  testWidgets('narrow tablet detail pane never overflows horizontally', (
+    tester,
+  ) async {
+    // Just above the tablet threshold: the detail pane is very narrow and
+    // the action buttons must wrap instead of overflowing to the right.
+    tester.view.physicalSize = const Size(640, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = _PageRepository();
+    final controller = DocumentImportController(
+      picker: _PagePicker(),
+      importer: _PageImporter(),
+      repository: repository,
+    );
+    addTearDown(controller.dispose);
+    repository.emit([_pageSummary('doc-1', 'Lesson')]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DocumentLibraryPage(controller: controller),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Lesson'));
+    await tester.pump();
+
+    expect(find.text('继续阅读'), findsOneWidget);
+    expect(find.text('删除'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'page exposes search and sort controls and opens a selected document',
     (tester) async {

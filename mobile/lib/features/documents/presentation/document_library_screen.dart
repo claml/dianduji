@@ -505,7 +505,11 @@ class _DocumentDetail extends StatelessWidget {
           const SizedBox(height: 12),
           LinearProgressIndicator(value: document.progress, minHeight: 6),
           const SizedBox(height: 32),
-          Row(
+          // Wrap instead of Row so a narrow portrait detail pane never
+          // overflows horizontally; buttons wrap onto a second line.
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
             children: [
               FilledButton.icon(
                 onPressed: document.status == LibraryDocumentStatus.completed
@@ -514,7 +518,6 @@ class _DocumentDetail extends StatelessWidget {
                 icon: const Icon(Icons.chrome_reader_mode_rounded),
                 label: const Text('继续阅读'),
               ),
-              const SizedBox(width: 12),
               OutlinedButton.icon(
                 onPressed: onDelete,
                 icon: const Icon(Icons.delete_outline_rounded),

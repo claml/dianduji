@@ -36,11 +36,15 @@ class ReaderTopBar extends StatelessWidget {
             duration: MediaQuery.disableAnimationsOf(context)
                 ? Duration.zero
                 : const Duration(milliseconds: 180),
-            child: SafeArea(
-              bottom: false,
-              child: Material(
-                color: Theme.of(context).colorScheme.surface,
-                elevation: 2,
+            // The material background starts at the very top of the screen so
+            // the transparent system status-bar region is covered by the bar
+            // (edge-to-edge Android) instead of showing the document beneath;
+            // only the bar's contents clear the status bar.
+            child: Material(
+              color: Theme.of(context).colorScheme.surface,
+              elevation: 2,
+              child: SafeArea(
+                bottom: false,
                 child: SizedBox(
                   height: kToolbarHeight,
                   child: Row(
