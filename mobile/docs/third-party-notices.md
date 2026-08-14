@@ -8,6 +8,12 @@
 - 许可证: MIT
 - 说明: 打包为 `assets/dictionary/ecdict.sqlite`，词典文件与 `LICENSE-ECDICT` 一并随应用分发。仅用于本机离线查询。
 
+## 四领域专业术语表
+
+- 来源: 项目自建汇编（计算机/医学/生物/化学高频科研术语，基于公开教材与术语资料整理，非第三方词库转载）
+- 许可证: MIT（见 `assets/specialized/LICENSE.md`）
+- 说明: 打包为 `assets/specialized/terms.json`，数据集级记录版本、来源与许可；仅用于本机离线查询。
+
 ## Flutter / Dart 生态
 
 - [Flutter](https://flutter.dev) — BSD-3-Clause
@@ -20,6 +26,7 @@
 - [path_provider](https://pub.dev/packages/path_provider) — BSD-3-Clause
 - [go_router](https://pub.dev/packages/go_router) — BSD-3-Clause
 - [uuid](https://pub.dev/packages/uuid) — MIT
+- [crypto](https://pub.dev/packages/crypto) — BSD-3-Clause（在线缓存键的句子摘要哈希）
 - [crypto](https://pub.dev/packages/crypto) — BSD-3-Clause
 - [mammoth](https://pub.dev/packages/mammoth) — BSD-2-Clause（DOCX 解析）
 - 其余 Dart 依赖的完整许可证列表见各包内的 LICENSE 文件以及
