@@ -162,11 +162,12 @@ class ReaderController extends ChangeNotifier {
 
   Future<void> selectExternalWord(ReaderSelection selection) async {
     if (_disposed) return;
+    final resolved = await _resolveLineBreakWord(selection);
     _setState(
       ReaderState(
         document: _state.document,
         sentences: _state.sentences,
-        selection: selection,
+        selection: resolved,
         restoredSentenceId: _state.restoredSentenceId,
         restoredLocalOffset: _state.restoredLocalOffset,
         restoredPageNumber: _state.restoredPageNumber,
@@ -175,20 +176,49 @@ class ReaderController extends ChangeNotifier {
     await translation.lookup(
       tokens: [
         TokenSpan(
-          surface: selection.surface,
-          normalized: selection.normalized,
-          start: selection.startOffset,
-          end: selection.endOffset,
+          surface: resolved.surface,
+          normalized: resolved.normalized,
+          start: resolved.startOffset,
+          end: resolved.endOffset,
         ),
       ],
       selectedTokenOrdinal: 0,
       context: LearningContext(
         documentId: _state.document?.id,
         documentTitle: _state.document?.title ?? '',
-        sentence: selection.contextText,
+        sentence: resolved.contextText,
       ),
       autoSaveVocabulary: settings.autoSaveVocabulary,
     );
+  }
+
+  /// When the tapped word sits at a visual line break with a dropped hyphen
+  /// (PDF engines often strip the break hyphen), try the joined forms against
+  /// the dictionary first; the split halves only stay if the dictionary does
+  /// not know any joined candidate.
+  Future<ReaderSelection> _resolveLineBreakWord(
+    ReaderSelection selection,
+  ) async {
+    final candidates = lineBreakJoinedCandidates(
+      selection.contextText,
+      selection.surface,
+    );
+    for (final joined in candidates) {
+      if (joined == selection.surface) continue;
+      final entry = await translation.dictionary.lookup(joined);
+      if (entry == null) continue;
+      return ReaderSelection(
+        surface: joined,
+        normalized: joined.toLowerCase().replaceAll('\u2019', "'"),
+        contextText: selection.contextText,
+        startOffset: selection.startOffset,
+        endOffset: selection.endOffset,
+        sentenceId: selection.sentenceId,
+        tokenId: selection.tokenId,
+        pageNumber: selection.pageNumber,
+      );
+    }
+    return selection;
   }
 
   void closeTranslation() {

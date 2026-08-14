@@ -82,7 +82,9 @@ void main() {
     expect(controller.state.selectedSentenceId, isNull);
     expect(controller.state.selectedTokenId, isNull);
     expect(controller.translation.state.surface, 'Models');
-    expect(dictionary.surfaces, ['Models']);
+    // The line-break candidate is probed first and misses the dictionary,
+    // so the tapped word itself stays selected.
+    expect(dictionary.surfaces, ['Modelsimprove', 'Models']);
     expect(
       () => controller.savePhrase(
         const PhraseMatch(
