@@ -130,6 +130,16 @@ class _PdfDocumentViewState extends State<PdfDocumentView> {
         backgroundColor: isDark
             ? const Color(0xFF16191E)
             : Colors.grey,
+        // In night mode the page drop shadow is inverted into a white halo;
+        // drop it so pages sit flush on the dark surface.
+        pageDropShadow: isDark
+            ? const BoxShadow(color: Colors.transparent)
+            : const BoxShadow(
+                color: Colors.black54,
+                blurRadius: 4,
+                spreadRadius: 2,
+                offset: Offset(2, 2),
+              ),
         onInteractionUpdate: (details) {
           if (details.pointerCount != 1 || (details.scale - 1).abs() > 0.01) {
             return;
