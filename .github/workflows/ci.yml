@@ -25,7 +25,14 @@ jobs:
         # golden: reference PNGs are produced on Windows (fonts from
         # C:/Windows/Fonts), not comparable on Linux. benchmark: a performance
         # gate measured against the reference device, not shared runners.
-        run: flutter test --coverage --exclude-tags golden,benchmark
+        run: flutter test --coverage --exclude-tags golden,benchmark 2>&1 | tee test-output.log
+      - name: Upload test log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-log
+          path: mobile/test-output.log
+          retention-days: 3
 
   # Web 版独立开发中（见 README「Web 版」章节），完成后在此追加
   # build-web / deploy-pages jobs。
