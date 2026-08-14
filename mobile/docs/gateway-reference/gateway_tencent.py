@@ -158,7 +158,7 @@ class Handler(BaseHTTPRequestHandler):
             sentence_translation = (
                 _translate_text(self.server.signer, sentence) if sentence else ""
             )
-        except RuntimeError as error:
+        except Exception as error:  # noqa: BLE001 —— 网关对上游错误统一返回 502
             LOG.warning("translate failed in %.0fms: %s",
                         (time.time() - started) * 1000, error)
             self._reply(502, {"error": str(error)})
