@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,31 +20,16 @@ class DianDuJiApp extends ConsumerStatefulWidget {
 class _DianDuJiAppState extends ConsumerState<DianDuJiApp> {
   var _selectedIndex = 0;
   late final GoRouter _router;
-  late final ValueNotifier<_AppShellState> _shell;
+  late final ValueNotifier<AppShellState> _shell;
 
   @override
   void initState() {
     super.initState();
-    _shell = ValueNotifier(_AppShellState(selectedIndex: _selectedIndex));
-    _router = GoRouter(
-      routes: [
-        GoRoute(
-          path: '/',
-          builder: (context, state) => ValueListenableBuilder(
-            valueListenable: _shell,
-            builder: (context, shell, child) => _AppHome(
-              selectedIndex: shell.selectedIndex,
-              onSelected: _select,
-              onOpenDocument: _openDocument,
-            ),
-          ),
-        ),
-        GoRoute(
-          path: '/reader/:documentId',
-          builder: (context, state) =>
-              ReaderPage(documentId: state.pathParameters['documentId']!),
-        ),
-      ],
+    _shell = ValueNotifier(AppShellState(selectedIndex: _selectedIndex));
+    _router = buildAppRouter(
+      shell: _shell,
+      onSelected: _select,
+      onOpenDocument: _openDocument,
     );
   }
 
@@ -73,16 +59,65 @@ class _DianDuJiAppState extends ConsumerState<DianDuJiApp> {
 
   void _select(int index) {
     _selectedIndex = index;
-    _shell.value = _AppShellState(selectedIndex: index);
+    _shell.value = AppShellState(selectedIndex: index);
   }
 
   void _openDocument(String documentId) => _router.push('/reader/$documentId');
 }
 
-class _AppShellState {
-  const _AppShellState({required this.selectedIndex});
+/// App shell navigation state.
+class AppShellState {
+  const AppShellState({required this.selectedIndex});
 
   final int selectedIndex;
+}
+
+/// Builds the application router.
+///
+/// Android hands the launch intent's data URI (for example a shared
+/// `content://` file) to Flutter as the initial route. Those URIs are not app
+/// routes — shared-file intake happens through the platform channel — so
+/// external schemes are redirected to the library instead of throwing a
+/// `GoException`. Unknown internal paths get a friendly fallback page.
+GoRouter buildAppRouter({
+  required ValueListenable<AppShellState> shell,
+  required ValueChanged<int> onSelected,
+  required ValueChanged<String> onOpenDocument,
+}) {
+  return GoRouter(
+    redirect: (context, state) {
+      // Any URI with a scheme (content:// shares, http(s) links) is external
+      // to this app; the router only knows scheme-less internal paths.
+      if (state.uri.scheme.isNotEmpty) return '/';
+      return null;
+    },
+    errorBuilder: (context, state) => Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text('无法打开该页面，请返回文档库重试。'),
+        ),
+      ),
+    ),
+    routes: [
+      GoRoute(
+        path: '/',
+        builder: (context, state) => ValueListenableBuilder<AppShellState>(
+          valueListenable: shell,
+          builder: (context, shellState, child) => _AppHome(
+            selectedIndex: shellState.selectedIndex,
+            onSelected: onSelected,
+            onOpenDocument: onOpenDocument,
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/reader/:documentId',
+        builder: (context, state) =>
+            ReaderPage(documentId: state.pathParameters['documentId']!),
+      ),
+    ],
+  );
 }
 
 class _AppHome extends StatelessWidget {
