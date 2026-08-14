@@ -178,8 +178,12 @@ class DocumentLibraryScreen extends StatelessWidget {
           document: document,
           selected: document.id == state.selectedDocumentId,
           onTap: () {
+            // On tablets a tap only selects the document and shows its
+            // details in the right pane; the explicit "open" action enters
+            // the reader. On phones a tap opens the reader directly.
+            final isWide = MediaQuery.sizeOf(context).width >= 600;
             onSelect?.call(document.id);
-            if (document.status == LibraryDocumentStatus.completed) {
+            if (!isWide && document.status == LibraryDocumentStatus.completed) {
               onOpen?.call(document.id);
             }
           },

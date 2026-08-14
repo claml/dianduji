@@ -166,6 +166,25 @@ void main() {
   );
 
   test(
+    'recovers queued imports that never reached parsing',
+    () async {
+      await importStore.createQueued(_record());
+
+      await repository.recoverInterruptedImports();
+
+      final summary = (await repository.watchDocuments().first).single;
+      expect(summary.status, 'failed');
+      expect(summary.failureCode, 'storage');
+      expect(
+        summary.failureMessage,
+        'Import interrupted locally. Retry to continue.',
+      );
+      // The sandbox file stays so the user can retry the same document.
+      expect(await importStore.findByContentHash('content-hash'), 'doc-1');
+    },
+  );
+
+  test(
     'saves progress and deleting a document retains learning assets',
     () async {
       await importStore.createQueued(_record());

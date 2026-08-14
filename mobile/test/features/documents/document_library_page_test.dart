@@ -101,8 +101,10 @@ void main() {
   testWidgets(
     'page creates its controller on first display and shows watched documents',
     (tester) async {
-      await tester.binding.setSurfaceSize(const Size(390, 844));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final repository = _PageRepository();
       final controller = DocumentImportController(
         picker: _PagePicker(),
@@ -133,8 +135,10 @@ void main() {
   testWidgets(
     'production provider keeps listening after its first document rebuild',
     (tester) async {
-      await tester.binding.setSurfaceSize(const Size(390, 844));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final repository = _PageRepository();
       final controller = DocumentImportController(
         picker: _PagePicker(),
@@ -170,11 +174,53 @@ void main() {
     },
   );
 
+  testWidgets('tablet tap selects for the detail pane instead of opening', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1024, 768);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = _PageRepository();
+    final controller = DocumentImportController(
+      picker: _PagePicker(),
+      importer: _PageImporter(),
+      repository: repository,
+    );
+    addTearDown(controller.dispose);
+    String? openedId;
+    repository.emit([_pageSummary('doc-1', 'Lesson')]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DocumentLibraryPage(
+          controller: controller,
+          onOpen: (id) => openedId = id,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Lesson'));
+    await tester.pump();
+
+    // Selecting must not open the reader on tablets; the right pane shows
+    // the document details and its explicit open action enters the reader.
+    expect(openedId, isNull);
+    expect(find.byKey(const Key('document-detail-pane')), findsOneWidget);
+    expect(find.text('继续阅读'), findsOneWidget);
+
+    await tester.tap(find.text('继续阅读'));
+    await tester.pump();
+    expect(openedId, 'doc-1');
+  });
+
   testWidgets(
     'page exposes search and sort controls and opens a selected document',
     (tester) async {
-      await tester.binding.setSurfaceSize(const Size(390, 844));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
       final repository = _PageRepository();
       final controller = DocumentImportController(
         picker: _PagePicker(),

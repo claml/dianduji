@@ -390,13 +390,13 @@ class DocumentsDao extends DatabaseAccessor<AppDatabase>
     await transaction(() async {
       final interrupted = await (select(
         documents,
-      )..where((row) => row.parseStatus.equals('parsing'))).get();
+      )..where((row) => row.parseStatus.isIn(const ['parsing', 'queued']))).get();
       for (final document in interrupted) {
         await _clearStructure(document.id);
       }
       await (update(
         documents,
-      )..where((row) => row.parseStatus.equals('parsing'))).write(
+      )..where((row) => row.parseStatus.isIn(const ['parsing', 'queued']))).write(
         DocumentsCompanion(
           parseStatus: const Value('failed'),
           failureCode: Value(failureCode),
