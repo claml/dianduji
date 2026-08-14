@@ -22,7 +22,7 @@ class SpecializedCatalogMetadata {
 /// Exact lookup is O(1); prefix lookup returns the longest matching term,
 /// which powers multi-word term recognition (e.g. tapping "random" surfaces
 /// "random forest").
-class SpecializedTermCatalog {
+class SpecializedTermCatalog implements SpecializedTermIndex {
   SpecializedTermCatalog._(
     this.metadata,
     Map<String, SpecializedTerm> exactIndex,

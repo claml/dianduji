@@ -31,3 +31,11 @@ class SpecializedTerm {
   final String definition;
   final List<String> synonyms;
 }
+
+/// Read-only lookup surface over the specialized dictionary, so domain logic
+/// (e.g. term recognition) never depends on the concrete data layer.
+abstract interface class SpecializedTermIndex {
+  SpecializedTerm? lookup(String term);
+
+  SpecializedTerm? lookupLongestPrefix(String term);
+}
