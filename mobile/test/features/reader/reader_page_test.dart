@@ -14,6 +14,10 @@ import 'package:dian_du_ji/features/reader/presentation/widgets/pdf_document_vie
 import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
 import 'package:dian_du_ji/features/settings/data/settings_repository.dart';
 import 'package:dian_du_ji/features/settings/presentation/persisted_settings_controller.dart';
+import 'package:dian_du_ji/features/sync/domain/sync_api_client.dart';
+import 'package:dian_du_ji/features/sync/domain/sync_engine.dart';
+import 'package:dian_du_ji/features/sync/domain/token_storage.dart';
+import 'package:dian_du_ji/features/sync/presentation/sync_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -656,6 +660,15 @@ Widget _page(
     readerCardPreferencesRepositoryProvider.overrideWithValue(
       cardPreferences ?? _PreferencesStore(ReaderCardPreferences.defaults),
     ),
+    syncControllerProvider.overrideWith(
+      (_) => SyncController(
+        engine: SyncEngine(
+          api: SyncApiClient(baseUrl: Uri.parse('http://127.0.0.1:0')),
+          storage: MemoryTokenStorage(),
+          local: _NoopLocalData(),
+        ),
+      ),
+    ),
   ],
   child: MaterialApp(
     key: appKey,
@@ -677,6 +690,15 @@ Widget _routerPage(GoRouter router) => ProviderScope(
     ),
     readerCardPreferencesRepositoryProvider.overrideWithValue(
       _PreferencesStore(ReaderCardPreferences.defaults),
+    ),
+    syncControllerProvider.overrideWith(
+      (_) => SyncController(
+        engine: SyncEngine(
+          api: SyncApiClient(baseUrl: Uri.parse('http://127.0.0.1:0')),
+          storage: MemoryTokenStorage(),
+          local: _NoopLocalData(),
+        ),
+      ),
     ),
   ],
   child: MaterialApp.router(routerConfig: router),
@@ -1047,4 +1069,13 @@ class _EmptyTokenDocuments implements DocumentRepository {
       saved.add((locator, progress));
   @override
   Stream<List<DocumentSummary>> watchDocuments() => const Stream.empty();
+}
+
+class _NoopLocalData implements LocalDataProvider {
+  @override
+  Future<({Map<String, Object?> data, int updatedAt})> collect() async =>
+      (data: const <String, Object?>{}, updatedAt: 0);
+
+  @override
+  Future<void> apply(Map<String, Object?> data, int updatedAt) async {}
 }

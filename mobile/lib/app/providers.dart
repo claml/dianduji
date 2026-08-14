@@ -35,6 +35,11 @@ import '../features/reader/data/reader_card_preferences.dart';
 import '../features/settings/data/cache_cleanup_service.dart';
 import '../features/settings/data/settings_repository.dart';
 import '../features/settings/presentation/persisted_settings_controller.dart';
+import '../features/sync/domain/app_local_data_provider.dart';
+import '../features/sync/domain/sync_api_client.dart';
+import '../features/sync/domain/sync_engine.dart';
+import '../features/sync/domain/token_storage.dart';
+import '../features/sync/presentation/sync_controller.dart';
 import 'app_runtime.dart';
 
 final appRuntimeProvider = Provider<AppRuntime>((ref) {
@@ -190,3 +195,25 @@ final documentImportControllerProvider =
         sharedFileReceiver: ref.watch(sharedFileReceiverProvider),
       );
     });
+
+final syncApiClientProvider = Provider<SyncApiClient>((ref) {
+  const configured = String.fromEnvironment('DIANDUJI_SYNC_BASE_URL');
+  final url = configured.isEmpty ? kDefaultSyncBaseUrl : configured;
+  debugPrint('SYNC_GATEWAY_CONFIG baseUrl="$url"');
+  return SyncApiClient(baseUrl: Uri.parse(url));
+});
+
+final syncEngineProvider = Provider<SyncEngine>((ref) {
+  return SyncEngine(
+    api: ref.watch(syncApiClientProvider),
+    storage: SecureTokenStorage(),
+    local: AppLocalDataProvider(
+      learning: ref.watch(learningRepositoryProvider),
+      settings: ref.watch(settingsRepositoryProvider),
+    ),
+  );
+});
+
+final syncControllerProvider = ChangeNotifierProvider<SyncController>((ref) {
+  return SyncController(engine: ref.watch(syncEngineProvider));
+});

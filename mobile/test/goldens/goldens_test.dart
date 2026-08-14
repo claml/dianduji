@@ -26,6 +26,10 @@ import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
 import 'package:dian_du_ji/features/settings/data/settings_repository.dart';
 import 'package:dian_du_ji/features/settings/presentation/persisted_settings_controller.dart';
 import 'package:dian_du_ji/features/settings/presentation/persisted_settings_page.dart';
+import 'package:dian_du_ji/features/sync/domain/sync_api_client.dart';
+import 'package:dian_du_ji/features/sync/domain/sync_engine.dart';
+import 'package:dian_du_ji/features/sync/domain/token_storage.dart';
+import 'package:dian_du_ji/features/sync/presentation/sync_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
@@ -183,7 +187,20 @@ Future<void> _pumpGolden(
   addTearDown(tester.view.resetPhysicalSize);
   await tester.pumpWidget(
     ProviderScope(
-      overrides: overrides,
+      overrides: [
+        ...overrides,
+        // Sync section never touches platform channels or the network in
+        // golden tests.
+        syncControllerProvider.overrideWith(
+          (_) => SyncController(
+            engine: SyncEngine(
+              api: SyncApiClient(baseUrl: Uri.parse('http://127.0.0.1:0')),
+              storage: MemoryTokenStorage(),
+              local: _NoopLocalData(),
+            ),
+          ),
+        ),
+      ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
@@ -426,6 +443,15 @@ class _FakeSettingsRepository implements SettingsRepository {
 
   @override
   Stream<ReadingSettings> watch() => Stream.value(value);
+}
+
+class _NoopLocalData implements LocalDataProvider {
+  @override
+  Future<({Map<String, Object?> data, int updatedAt})> collect() async =>
+      (data: const <String, Object?>{}, updatedAt: 0);
+
+  @override
+  Future<void> apply(Map<String, Object?> data, int updatedAt) async {}
 }
 
 class _NoopCacheCleanup implements CacheCleanupService {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../app/providers.dart';
 import '../../../core/network/drift_online_translation_cache.dart';
+import '../../sync/presentation/sync_section.dart';
 import '../data/reading_settings.dart';
 import 'persisted_settings_controller.dart';
 
@@ -154,6 +155,8 @@ class PersistedSettingsPage extends ConsumerWidget {
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => _openDictionaryUpdateCenter(context),
           ),
+          const Divider(height: 32),
+          const SyncSection(),
         ],
       ),
     );

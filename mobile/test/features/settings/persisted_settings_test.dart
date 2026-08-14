@@ -11,6 +11,10 @@ import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
 import 'package:dian_du_ji/features/settings/data/settings_repository.dart';
 import 'package:dian_du_ji/features/settings/presentation/persisted_settings_page.dart';
 import 'package:dian_du_ji/features/settings/presentation/persisted_settings_controller.dart';
+import 'package:dian_du_ji/features/sync/domain/sync_api_client.dart';
+import 'package:dian_du_ji/features/sync/domain/sync_engine.dart';
+import 'package:dian_du_ji/features/sync/domain/token_storage.dart';
+import 'package:dian_du_ji/features/sync/presentation/sync_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -262,7 +266,11 @@ void main() {
     await tester.tap(find.text('知道了'));
     await tester.pumpAndSettle();
 
-    await tester.scrollUntilVisible(find.text('开源许可证'), 120);
+    await tester.scrollUntilVisible(
+      find.text('开源许可证'),
+      120,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('开源许可证'));
     await tester.pumpAndSettle();
     expect(find.textContaining('ECDICT 英汉词典'), findsOneWidget);
@@ -386,6 +394,15 @@ void main() {
             _RecordingCacheCleanupService(),
           ),
           dictionaryUpdateCenterProvider.overrideWith((ref) => center),
+          syncControllerProvider.overrideWith(
+            (_) => SyncController(
+              engine: SyncEngine(
+                api: SyncApiClient(baseUrl: Uri.parse('http://127.0.0.1:0')),
+                storage: MemoryTokenStorage(),
+                local: _NoopLocalData(),
+              ),
+            ),
+          ),
         ],
         child: const MaterialApp(home: PersistedSettingsPage()),
       ),
@@ -454,9 +471,29 @@ Widget _settingsApp(
       repository ?? _SettingsRepository(),
     ),
     cacheCleanupServiceProvider.overrideWithValue(cleanup),
+    // Sync section uses an in-memory session so widget tests never touch
+    // platform channels or the network.
+    syncControllerProvider.overrideWith(
+      (_) => SyncController(
+        engine: SyncEngine(
+          api: SyncApiClient(baseUrl: Uri.parse('http://127.0.0.1:0')),
+          storage: MemoryTokenStorage(),
+          local: _NoopLocalData(),
+        ),
+      ),
+    ),
   ],
   child: const MaterialApp(home: PersistedSettingsPage()),
 );
+
+class _NoopLocalData implements LocalDataProvider {
+  @override
+  Future<({Map<String, Object?> data, int updatedAt})> collect() async =>
+      (data: const <String, Object?>{}, updatedAt: 0);
+
+  @override
+  Future<void> apply(Map<String, Object?> data, int updatedAt) async {}
+}
 
 class _RecordingCacheCleanupService implements CacheCleanupService {
   var calls = 0;
