@@ -377,6 +377,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         onCloseTranslation: _controller.closeTranslation,
         onSavePhrase: _controller.savePhrase,
         onAddManualDefinition: _controller.saveManualDefinition,
+        onTranslateSentence: _controller.translation.translateSentence,
         onNavigateBack: _leaveReader,
         onSettings: _openReadingSettings,
         chromeController: _chromeController,

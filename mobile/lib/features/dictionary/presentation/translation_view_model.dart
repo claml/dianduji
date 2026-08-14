@@ -32,6 +32,8 @@ class TranslationState {
     this.onlineResult,
     this.onlineStatus = OnlineTranslationStatus.none,
     this.fromUserDictionary = false,
+    this.sentenceTranslation = '',
+    this.sentenceTranslationStatus = OnlineTranslationStatus.none,
   });
 
   final TranslationStatus status;
@@ -57,9 +59,46 @@ class TranslationState {
   /// Whether [entry] came from the user-grown dictionary.
   final bool fromUserDictionary;
 
+  /// Whole-sentence translation requested explicitly by the user.
+  final String sentenceTranslation;
+  final OnlineTranslationStatus sentenceTranslationStatus;
+
   /// The term surface to present first (the matched term, else the tapped
   /// word).
   String get displaySurface => matchedCandidate?.surface ?? surface;
+
+  TranslationState copyWith({
+    TranslationStatus? status,
+    String? surface,
+    DictionaryEntry? entry,
+    List<PhraseMatch>? phrases,
+    String? errorMessage,
+    String? sentence,
+    SpecializedTerm? specializedTerm,
+    TermCandidate? matchedCandidate,
+    OnlineTranslationResult? onlineResult,
+    OnlineTranslationStatus? onlineStatus,
+    bool? fromUserDictionary,
+    String? sentenceTranslation,
+    OnlineTranslationStatus? sentenceTranslationStatus,
+  }) {
+    return TranslationState(
+      status: status ?? this.status,
+      surface: surface ?? this.surface,
+      entry: entry ?? this.entry,
+      phrases: phrases ?? this.phrases,
+      errorMessage: errorMessage ?? this.errorMessage,
+      sentence: sentence ?? this.sentence,
+      specializedTerm: specializedTerm ?? this.specializedTerm,
+      matchedCandidate: matchedCandidate ?? this.matchedCandidate,
+      onlineResult: onlineResult ?? this.onlineResult,
+      onlineStatus: onlineStatus ?? this.onlineStatus,
+      fromUserDictionary: fromUserDictionary ?? this.fromUserDictionary,
+      sentenceTranslation: sentenceTranslation ?? this.sentenceTranslation,
+      sentenceTranslationStatus:
+          sentenceTranslationStatus ?? this.sentenceTranslationStatus,
+    );
+  }
 }
 
 class TranslationViewModel extends ChangeNotifier {
@@ -123,7 +162,6 @@ class TranslationViewModel extends ChangeNotifier {
         sentence: sentence,
       ),
     );
-
     try {
       final result = await _layered.lookup(
         tokens: tokens,
@@ -259,6 +297,44 @@ class TranslationViewModel extends ChangeNotifier {
   /// card shows the entry on the next tap of the same word.
   Future<void> saveManualDefinition(ManualDictionaryEntry entry) async {
     await _userDictionary?.saveManualEntry(entry);
+  }
+
+  /// Translates the current sentence explicitly (whole-sentence translation).
+  /// Requires the online gateway and the user's online switch; results are
+  /// shown in the card below the original sentence.
+  Future<void> translateSentence() async {
+    final gateway = onlineGateway;
+    final sentence = _state.sentence;
+    if (!_onlineEnabled || gateway == null || sentence.isEmpty) return;
+    final generation = ++_requestGeneration;
+    _setState(
+      _state.copyWith(
+        sentenceTranslationStatus: OnlineTranslationStatus.loading,
+      ),
+    );
+    try {
+      final result = await gateway.translate(
+        OnlineTranslationRequest(
+          term: _state.displaySurface,
+          sentence: sentence,
+          domain: _state.matchedCandidate?.domain,
+        ),
+      );
+      if (generation != _requestGeneration) return;
+      _setState(
+        _state.copyWith(
+          sentenceTranslation: result.sentenceTranslation,
+          sentenceTranslationStatus: OnlineTranslationStatus.available,
+        ),
+      );
+    } on Object {
+      if (generation != _requestGeneration) return;
+      _setState(
+        _state.copyWith(
+          sentenceTranslationStatus: OnlineTranslationStatus.unavailable,
+        ),
+      );
+    }
   }
 
   void _setState(TranslationState value) {

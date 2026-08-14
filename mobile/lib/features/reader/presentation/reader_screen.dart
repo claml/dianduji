@@ -42,6 +42,7 @@ class ReaderScreen extends StatefulWidget {
     this.tokenKeyFor,
     this.onSavePhrase,
     this.onAddManualDefinition,
+    this.onTranslateSentence,
     this.onNavigateBack,
     this.onSettings,
     this.chromeController,
@@ -71,6 +72,9 @@ class ReaderScreen extends StatefulWidget {
   final Future<void> Function(PhraseMatch phrase)? onSavePhrase;
   final Future<void> Function(ManualDictionaryEntry entry)?
   onAddManualDefinition;
+
+  /// Translates the whole current sentence explicitly; hidden when null.
+  final VoidCallback? onTranslateSentence;
   final Future<void> Function()? onNavigateBack;
   final VoidCallback? onSettings;
   final ReaderChromeController? chromeController;
@@ -133,6 +137,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
               onClose: _close,
               onSavePhrase: widget.onSavePhrase,
               onAddManualDefinition: widget.onAddManualDefinition,
+              onTranslateSentence: widget.onTranslateSentence,
             ),
       preferences: widget.cardPreferences,
       onPreferencesChanged:

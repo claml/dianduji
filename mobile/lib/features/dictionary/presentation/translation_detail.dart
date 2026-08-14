@@ -17,6 +17,7 @@ class TranslationDetail extends StatefulWidget {
     this.onSavePhrase,
     this.pronunciation,
     this.onAddManualDefinition,
+    this.onTranslateSentence,
     super.key,
   });
 
@@ -30,6 +31,9 @@ class TranslationDetail extends StatefulWidget {
   /// when null the "add definition" action is hidden.
   final Future<void> Function(ManualDictionaryEntry entry)?
   onAddManualDefinition;
+
+  /// Translates the whole sentence explicitly; hidden when null.
+  final VoidCallback? onTranslateSentence;
 
   @override
   State<TranslationDetail> createState() => _TranslationDetailState();
@@ -181,8 +185,48 @@ class _TranslationDetailState extends State<TranslationDetail> {
         if (state.sentence.isNotEmpty) ...[
           _sectionTitle('原文'),
           Text(state.sentence),
+          if (widget.onTranslateSentence != null) ...[
+            const SizedBox(height: 12),
+            if (state.sentenceTranslationStatus ==
+                OnlineTranslationStatus.loading)
+              const Row(
+                children: [
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  SizedBox(width: 10),
+                  Text('正在翻译整句…'),
+                ],
+              )
+            else
+              OutlinedButton.icon(
+                key: const Key('translate-sentence-button'),
+                onPressed: widget.onTranslateSentence,
+                icon: const Icon(Icons.translate_rounded),
+                label: Text(
+                  state.sentenceTranslationStatus ==
+                          OnlineTranslationStatus.available
+                      ? '重新翻译整句'
+                      : '翻译整句',
+                ),
+              ),
+            if (state.sentenceTranslationStatus ==
+                OnlineTranslationStatus.unavailable)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  '翻译失败，请检查网络后重试',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+          ],
         ],
-        if (online != null && online.sentenceTranslation.isNotEmpty) ...[
+        if (state.sentenceTranslation.isNotEmpty) ...[
+          _sectionTitle('译文'),
+          Text(state.sentenceTranslation),
+        ] else if (online != null && online.sentenceTranslation.isNotEmpty) ...[
           _sectionTitle('译文'),
           Text(online.sentenceTranslation),
         ],
