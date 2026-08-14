@@ -5,6 +5,15 @@
 平板右侧栏/悬浮词卡，以及 Android 系统分享/打开文件导入。所有解析、查询与
 学习数据均在本机完成，不上传任何内容。
 
+## 发布信息（v1.0.0）
+
+- 应用名：典读鸡；包名 `com.dianduji.dian_du_ji`；版本 1.0.0 (build 1)。
+- Release AAB：`build\app\outputs\bundle\release\app-release.aab`（签名
+  `dianduji-release.jks`；各次构建 SHA-256 见构建记录）。
+- 隐私政策：`docs/privacy-policy.md`（商店上架需网页版 URL，可部署后引用）。
+- 图标：占位图标由 `tool/generate_launcher_icon.ps1` 生成，正式品牌图标
+  替换 `android/app/src/main/res/mipmap-*/ic_launcher.png` 即可。
+
 ## 科研翻译增强（2026-08 交付）
 
 - **离线专业词典**：内置计算机、医学、生物、化学、地理信息（GIS）五领域
