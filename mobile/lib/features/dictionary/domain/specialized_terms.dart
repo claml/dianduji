@@ -3,7 +3,8 @@ enum SpecializedDomain {
   computerScience('计算机'),
   medicine('医学'),
   biology('生物'),
-  chemistry('化学');
+  chemistry('化学'),
+  gis('地理信息');
 
   const SpecializedDomain(this.label);
 

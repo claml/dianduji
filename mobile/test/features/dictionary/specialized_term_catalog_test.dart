@@ -62,7 +62,17 @@ void main() {
   test('domains reflects the data present', () {
     final catalog = SpecializedTermCatalog.load(sampleJson);
 
-    expect(catalog.domains, containsAll(SpecializedDomain.values));
+    expect(
+      catalog.domains,
+      containsAll(const [
+        SpecializedDomain.computerScience,
+        SpecializedDomain.biology,
+        SpecializedDomain.medicine,
+        SpecializedDomain.chemistry,
+      ]),
+    );
+    // The sample has no gis entries, so the domain is absent.
+    expect(catalog.hasDomain(SpecializedDomain.gis), isFalse);
   });
 
   test('malformed entries are skipped and metadata defaults are safe', () {
@@ -90,18 +100,19 @@ void main() {
     );
   });
 
-  test('bundled asset loads and covers all four domains', () async {
+  test('bundled asset loads and covers every domain', () async {
     final catalog = await SpecializedTermCatalog.loadFromAssets();
 
     expect(catalog.metadata.version, isNotEmpty);
     expect(catalog.metadata.license, 'MIT');
     expect(catalog.metadata.source, isNotEmpty);
-    expect(catalog.length, greaterThan(300));
+    expect(catalog.length, greaterThan(700));
     expect(
       catalog.domains.toSet(),
       containsAll(SpecializedDomain.values),
     );
-    // Spot-check a multi-word term and a synonym from the real table.
+    // Spot-check a multi-word term, a synonym, and GIS terms from the real
+    // table.
     expect(
       catalog.lookup('random forest')?.domain,
       SpecializedDomain.computerScience,
@@ -114,6 +125,18 @@ void main() {
     expect(
       catalog.lookup('myocardial infarction')?.domain,
       SpecializedDomain.medicine,
+    );
+    expect(
+      catalog.lookup('road network')?.domain,
+      SpecializedDomain.gis,
+    );
+    expect(
+      catalog.lookup('spatial autocorrelation')?.domain,
+      SpecializedDomain.gis,
+    );
+    expect(
+      catalog.lookup('remote sensing')?.domain,
+      SpecializedDomain.gis,
     );
   });
 }
