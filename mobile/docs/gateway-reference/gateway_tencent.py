@@ -20,11 +20,14 @@
   - 仅翻译 term 与 sentence 两个字段，不转发任何其他内容。
 """
 
+import base64
 import hashlib
 import hmac
 import json
 import logging
 import os
+import sqlite3
+import threading
 import time
 import urllib.request
 from datetime import datetime, timezone
@@ -207,10 +210,25 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # 关闭默认访问日志（避免记录路径）
         return
 
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._cors_headers()
+        self.end_headers()
+
+    def do_GET(self):
+        started = time.time()
+        if self.path == "/sync/get":
+            self._handle_sync_get(started)
+        else:
+            self._reply(404, {"error": "not found"})
+
     def do_POST(self):
         started = time.time()
         try:
             length = int(self.headers.get("Content-Length", 0))
+            if length > MAX_REQUEST_BYTES:
+                self._reply(413, {"error": "request too large"})
+                return
             raw = self.rfile.read(length)
             request = json.loads(raw.decode("utf-8"))
         except (ValueError, UnicodeDecodeError):
@@ -221,6 +239,12 @@ class Handler(BaseHTTPRequestHandler):
             self._handle_translate(request, started)
         elif self.path == "/enrich":
             self._handle_enrich(request, started)
+        elif self.path == "/auth/register":
+            self._handle_register(request, started)
+        elif self.path == "/auth/login":
+            self._handle_login(request, started)
+        elif self.path == "/sync/put":
+            self._handle_sync_put(request, started)
         else:
             self._reply(404, {"error": "not found"})
 
@@ -280,16 +304,301 @@ class Handler(BaseHTTPRequestHandler):
         LOG.info("ok in %.0fms", (time.time() - started) * 1000)
         self._reply(200, result)
 
+    def _handle_register(self, request, started):
+        username = str(request.get("username", "")).strip()
+        password = str(request.get("password", ""))
+        if not username or len(password) < MIN_PASSWORD_LENGTH:
+            self._reply(
+                400,
+                {"error": "username is required and password must be >= 6 chars"},
+            )
+            return
+        if not _sync_secret():
+            self._reply(503, {"error": "DIANDUJI_SYNC_SECRET is not configured"})
+            return
+        try:
+            with _db_lock:
+                connection = _db()
+                try:
+                    cursor = connection.execute(
+                        "INSERT INTO users (username, password_hash, created_at) "
+                        "VALUES (?, ?, ?)",
+                        (username, _hash_password(password), int(time.time())),
+                    )
+                    user_id = cursor.lastrowid
+                    connection.commit()
+                except sqlite3.IntegrityError:
+                    self._reply(409, {"error": "username already taken"})
+                    return
+                finally:
+                    connection.close()
+        except Exception as error:  # noqa: BLE001
+            LOG.warning("register failed: %s", error)
+            self._reply(500, {"error": "internal error"})
+            return
+        token = _issue_token(user_id)
+        LOG.info(
+            "register ok in %.0fms (user=%d)",
+            (time.time() - started) * 1000,
+            user_id,
+        )
+        self._reply(
+            201, {"token": token, "user": {"id": user_id, "username": username}}
+        )
+
+    def _handle_login(self, request, started):
+        username = str(request.get("username", "")).strip()
+        password = str(request.get("password", ""))
+        if not username or not password:
+            self._reply(400, {"error": "username and password are required"})
+            return
+        if not _sync_secret():
+            self._reply(503, {"error": "DIANDUJI_SYNC_SECRET is not configured"})
+            return
+        with _db_lock:
+            connection = _db()
+            try:
+                row = connection.execute(
+                    "SELECT id, username, password_hash FROM users "
+                    "WHERE username = ?",
+                    (username,),
+                ).fetchone()
+            finally:
+                connection.close()
+        if row is None or not _verify_password(password, row["password_hash"]):
+            LOG.warning("login failed (user=%s)", username)
+            self._reply(401, {"error": "invalid credentials"})
+            return
+        token = _issue_token(row["id"])
+        LOG.info("login ok in %.0fms (user=%d)", (time.time() - started) * 1000, row["id"])
+        self._reply(
+            200, {"token": token, "user": {"id": row["id"], "username": row["username"]}}
+        )
+
+    def _authorized_user(self):
+        header = self.headers.get("Authorization", "")
+        if not header.startswith("Bearer "):
+            return None
+        return _verify_token(header[len("Bearer "):].strip())
+
+    def _handle_sync_get(self, started):
+        user_id = self._authorized_user()
+        if user_id is None:
+            self._reply(401, {"error": "invalid or expired token"})
+            return
+        with _db_lock:
+            connection = _db()
+            try:
+                row = connection.execute(
+                    "SELECT data_json, updated_at FROM sync_state WHERE user_id = ?",
+                    (user_id,),
+                ).fetchone()
+            finally:
+                connection.close()
+        if row is None:
+            self._reply(200, {"data": None, "updatedAt": 0})
+            return
+        self._reply(
+            200,
+            {"data": json.loads(row["data_json"]), "updatedAt": row["updated_at"]},
+        )
+
+    def _handle_sync_put(self, request, started):
+        user_id = self._authorized_user()
+        if user_id is None:
+            self._reply(401, {"error": "invalid or expired token"})
+            return
+        data = request.get("data")
+        updated_at = request.get("updatedAt")
+        if (
+            not isinstance(data, dict)
+            or not isinstance(updated_at, int)
+            or updated_at <= 0
+        ):
+            self._reply(
+                400,
+                {"error": "data must be an object and updatedAt a positive "
+                 "epoch-millis integer"},
+            )
+            return
+        with _db_lock:
+            connection = _db()
+            try:
+                row = connection.execute(
+                    "SELECT data_json, updated_at FROM sync_state WHERE user_id = ?",
+                    (user_id,),
+                ).fetchone()
+                if row is not None and row["updated_at"] >= updated_at:
+                    self._reply(
+                        200,
+                        {
+                            "data": json.loads(row["data_json"]),
+                            "updatedAt": row["updated_at"],
+                            "accepted": False,
+                        },
+                    )
+                    return
+                connection.execute(
+                    "INSERT INTO sync_state (user_id, data_json, updated_at) "
+                    "VALUES (?, ?, ?) "
+                    "ON CONFLICT(user_id) DO UPDATE SET "
+                    "data_json = excluded.data_json, "
+                    "updated_at = excluded.updated_at",
+                    (
+                        user_id,
+                        json.dumps(data, ensure_ascii=False),
+                        updated_at,
+                    ),
+                )
+                connection.commit()
+            finally:
+                connection.close()
+        LOG.info(
+            "sync put ok in %.0fms (user=%d)",
+            (time.time() - started) * 1000,
+            user_id,
+        )
+        self._reply(200, {"data": data, "updatedAt": updated_at, "accepted": True})
+
     def _reply(self, status: int, body: dict):
         data = json.dumps(body, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(data)))
+        self._cors_headers()
         self.end_headers()
         self.wfile.write(data)
 
+    def _cors_headers(self):
+        # Web 版（独立项目）未来可能跨域调用同一网关；native 客户端无影响。
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header(
+            "Access-Control-Allow-Headers", "Authorization, Content-Type"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Account & cloud sync (v1.1 login) — standard library only.
+#
+# Storage: SQLite at DIANDUJI_SYNC_DB (default: dianduji-sync.db next to this
+# file, git-ignored). Passwords: hashlib.scrypt. Tokens: HMAC-SHA256 signed,
+# 7-day expiry, key from DIANDUJI_SYNC_DB / keys.env. Sync payloads are
+# opaque JSON objects; conflicts resolve last-write-wins by updatedAt
+# (epoch milliseconds). See sync-api.md for the full contract.
+# ---------------------------------------------------------------------------
+
+MAX_REQUEST_BYTES = 10 * 1024 * 1024
+SYNC_DB_PATH = os.environ.get(
+    "DIANDUJI_SYNC_DB",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "dianduji-sync.db"),
+)
+TOKEN_TTL_SECONDS = 7 * 24 * 3600
+SCRYPT_N = 2 ** 14
+SCRYPT_R = 8
+SCRYPT_P = 1
+MIN_PASSWORD_LENGTH = 6
+
+_db_lock = threading.Lock()
+
+
+def _db() -> sqlite3.Connection:
+    connection = sqlite3.connect(SYNC_DB_PATH)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def init_sync_db():
+    with _db_lock:
+        connection = _db()
+        try:
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS users ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "username TEXT NOT NULL UNIQUE, "
+                "password_hash TEXT NOT NULL, "
+                "created_at INTEGER NOT NULL)"
+            )
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS sync_state ("
+                "user_id INTEGER PRIMARY KEY, "
+                "data_json TEXT NOT NULL, "
+                "updated_at INTEGER NOT NULL)"
+            )
+            connection.commit()
+        finally:
+            connection.close()
+
+
+def _sync_secret() -> str:
+    return os.environ.get("DIANDUJI_SYNC_SECRET", "").strip()
+
+
+def _hash_password(password: str) -> str:
+    salt = os.urandom(16)
+    digest = hashlib.scrypt(
+        password.encode("utf-8"),
+        salt=salt,
+        n=SCRYPT_N,
+        r=SCRYPT_R,
+        p=SCRYPT_P,
+    )
+    return "scrypt${}${}${}${}${}".format(
+        SCRYPT_N, SCRYPT_R, SCRYPT_P, salt.hex(), digest.hex()
+    )
+
+
+def _verify_password(password: str, stored: str) -> bool:
+    try:
+        _, n, r, p, salt_hex, hash_hex = stored.split("$")
+        digest = hashlib.scrypt(
+            password.encode("utf-8"),
+            salt=bytes.fromhex(salt_hex),
+            n=int(n),
+            r=int(r),
+            p=int(p),
+        )
+        return hmac.compare_digest(digest.hex(), hash_hex)
+    except (ValueError, TypeError):
+        return False
+
+
+def _issue_token(user_id: int) -> str:
+    payload = {"uid": user_id, "exp": int(time.time()) + TOKEN_TTL_SECONDS}
+    encoded = base64.urlsafe_b64encode(
+        json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    ).rstrip(b"=").decode("ascii")
+    signature = hmac.new(
+        _sync_secret().encode("utf-8"), encoded.encode("ascii"), hashlib.sha256
+    ).digest()
+    return encoded + "." + base64.urlsafe_b64encode(signature).rstrip(b"=").decode(
+        "ascii"
+    )
+
+
+def _verify_token(token: str):
+    """Returns the user id, or None for invalid/expired tokens."""
+    try:
+        encoded, signature = token.split(".")
+        expected = hmac.new(
+            _sync_secret().encode("utf-8"), encoded.encode("ascii"), hashlib.sha256
+        ).digest()
+        provided = base64.urlsafe_b64decode(signature + "=" * (-len(signature) % 4))
+        if not hmac.compare_digest(provided, expected):
+            return None
+        payload = json.loads(
+            base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4)).decode(
+                "utf-8"
+            )
+        )
+        if payload.get("exp", 0) < time.time():
+            return None
+        return int(payload["uid"])
+    except Exception:  # noqa: BLE001 —— 任何解析失败都视为无效令牌
+        return None
+
 
 def main():
+    init_sync_db()
     secret_id = os.environ.get("TENCENT_SECRET_ID", "")
     secret_key = os.environ.get("TENCENT_SECRET_KEY", "")
     if not secret_id or not secret_key:
