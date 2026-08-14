@@ -43,9 +43,10 @@
 
 ## 3. 阶段路线图
 
-### 阶段 1：上线就绪（约 3-5 天）
+### 阶段 1：上线就绪（已完成，2026-08-16 交付）
 
-1. 品牌化：应用名「点读机」、图标（AI/设计师出稿或简单矢量）、启动页。
+1. 品牌化：应用名「典读鸡」、占位图标（`tool/generate_launcher_icon.ps1`
+   生成，正式品牌图标待 GPT 出稿后替换）、启动页待做。
 2. 版本化：`versionName 1.0.0` / `versionCode 1`，README 发布清单。
 3. 隐私政策：`docs/privacy-policy.md` + 商店 URL 版（可用 GitHub Pages /
    自建静态页）。
