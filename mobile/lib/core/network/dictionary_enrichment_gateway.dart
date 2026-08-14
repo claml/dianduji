@@ -54,6 +54,11 @@ class HttpDictionaryEnrichmentGateway implements DictionaryEnrichmentGateway {
           .transform(utf8.decoder)
           .join()
           .timeout(timeout);
+      if (response.statusCode == 503) {
+        throw const OnlineEnrichmentException(
+          '整理服务未配置：请检查网关 keys.env 中的 DeepSeek API Key',
+        );
+      }
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw HttpException(
           'enrich failed with HTTP ${response.statusCode}',
