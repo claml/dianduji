@@ -1,6 +1,5 @@
 import 'package:dian_du_ji/features/dictionary/data/dictionary_repository.dart';
 import 'package:dian_du_ji/features/dictionary/data/specialized_term_catalog.dart';
-import 'package:dian_du_ji/features/dictionary/domain/specialized_terms.dart';
 import 'package:dian_du_ji/features/dictionary/presentation/translation_view_model.dart';
 import 'package:dian_du_ji/features/documents/domain/models/parsed_block.dart';
 import 'package:dian_du_ji/features/learning/data/learning_repository.dart';

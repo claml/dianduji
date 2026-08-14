@@ -138,6 +138,19 @@ class AppSettings extends Table {
   Set<Column<Object>> get primaryKey => {key};
 }
 
+/// Cached structured online-translation results. The payload is JSON and the
+/// cache key hashes the normalized term, sentence digest, language, domain and
+/// service version. No PDF page text, document title, or file path is stored.
+class OnlineTranslationCache extends Table {
+  TextColumn get cacheKey => text()();
+  TextColumn get term => text()();
+  TextColumn get payload => text()();
+  DateTimeColumn get fetchedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {cacheKey};
+}
+
 class LookupRecord {
   const LookupRecord({
     required this.surface,
@@ -216,6 +229,7 @@ enum LearningVocabularySort { recent, alphabetical, lookupCount }
     VocabularyEntries,
     SavedPhrases,
     AppSettings,
+    OnlineTranslationCache,
   ],
   daos: [DocumentsDao, LearningDao, SettingsDao],
 )
@@ -223,10 +237,15 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.createTable(onlineTranslationCache);
+      }
+    },
     beforeOpen: (details) async {
       await customStatement('PRAGMA foreign_keys = ON');
     },

@@ -4764,6 +4764,326 @@ class AppSettingsCompanion extends UpdateCompanion<AppSetting> {
   }
 }
 
+class $OnlineTranslationCacheTable extends OnlineTranslationCache
+    with TableInfo<$OnlineTranslationCacheTable, OnlineTranslationCacheData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $OnlineTranslationCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _cacheKeyMeta = const VerificationMeta(
+    'cacheKey',
+  );
+  @override
+  late final GeneratedColumn<String> cacheKey = GeneratedColumn<String>(
+    'cache_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _termMeta = const VerificationMeta('term');
+  @override
+  late final GeneratedColumn<String> term = GeneratedColumn<String>(
+    'term',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _payloadMeta = const VerificationMeta(
+    'payload',
+  );
+  @override
+  late final GeneratedColumn<String> payload = GeneratedColumn<String>(
+    'payload',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fetchedAtMeta = const VerificationMeta(
+    'fetchedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> fetchedAt = GeneratedColumn<DateTime>(
+    'fetched_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [cacheKey, term, payload, fetchedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'online_translation_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<OnlineTranslationCacheData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('cache_key')) {
+      context.handle(
+        _cacheKeyMeta,
+        cacheKey.isAcceptableOrUnknown(data['cache_key']!, _cacheKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_cacheKeyMeta);
+    }
+    if (data.containsKey('term')) {
+      context.handle(
+        _termMeta,
+        term.isAcceptableOrUnknown(data['term']!, _termMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_termMeta);
+    }
+    if (data.containsKey('payload')) {
+      context.handle(
+        _payloadMeta,
+        payload.isAcceptableOrUnknown(data['payload']!, _payloadMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_payloadMeta);
+    }
+    if (data.containsKey('fetched_at')) {
+      context.handle(
+        _fetchedAtMeta,
+        fetchedAt.isAcceptableOrUnknown(data['fetched_at']!, _fetchedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_fetchedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {cacheKey};
+  @override
+  OnlineTranslationCacheData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return OnlineTranslationCacheData(
+      cacheKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cache_key'],
+      )!,
+      term: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}term'],
+      )!,
+      payload: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}payload'],
+      )!,
+      fetchedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}fetched_at'],
+      )!,
+    );
+  }
+
+  @override
+  $OnlineTranslationCacheTable createAlias(String alias) {
+    return $OnlineTranslationCacheTable(attachedDatabase, alias);
+  }
+}
+
+class OnlineTranslationCacheData extends DataClass
+    implements Insertable<OnlineTranslationCacheData> {
+  final String cacheKey;
+  final String term;
+  final String payload;
+  final DateTime fetchedAt;
+  const OnlineTranslationCacheData({
+    required this.cacheKey,
+    required this.term,
+    required this.payload,
+    required this.fetchedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['cache_key'] = Variable<String>(cacheKey);
+    map['term'] = Variable<String>(term);
+    map['payload'] = Variable<String>(payload);
+    map['fetched_at'] = Variable<DateTime>(fetchedAt);
+    return map;
+  }
+
+  OnlineTranslationCacheCompanion toCompanion(bool nullToAbsent) {
+    return OnlineTranslationCacheCompanion(
+      cacheKey: Value(cacheKey),
+      term: Value(term),
+      payload: Value(payload),
+      fetchedAt: Value(fetchedAt),
+    );
+  }
+
+  factory OnlineTranslationCacheData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return OnlineTranslationCacheData(
+      cacheKey: serializer.fromJson<String>(json['cacheKey']),
+      term: serializer.fromJson<String>(json['term']),
+      payload: serializer.fromJson<String>(json['payload']),
+      fetchedAt: serializer.fromJson<DateTime>(json['fetchedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'cacheKey': serializer.toJson<String>(cacheKey),
+      'term': serializer.toJson<String>(term),
+      'payload': serializer.toJson<String>(payload),
+      'fetchedAt': serializer.toJson<DateTime>(fetchedAt),
+    };
+  }
+
+  OnlineTranslationCacheData copyWith({
+    String? cacheKey,
+    String? term,
+    String? payload,
+    DateTime? fetchedAt,
+  }) => OnlineTranslationCacheData(
+    cacheKey: cacheKey ?? this.cacheKey,
+    term: term ?? this.term,
+    payload: payload ?? this.payload,
+    fetchedAt: fetchedAt ?? this.fetchedAt,
+  );
+  OnlineTranslationCacheData copyWithCompanion(
+    OnlineTranslationCacheCompanion data,
+  ) {
+    return OnlineTranslationCacheData(
+      cacheKey: data.cacheKey.present ? data.cacheKey.value : this.cacheKey,
+      term: data.term.present ? data.term.value : this.term,
+      payload: data.payload.present ? data.payload.value : this.payload,
+      fetchedAt: data.fetchedAt.present ? data.fetchedAt.value : this.fetchedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OnlineTranslationCacheData(')
+          ..write('cacheKey: $cacheKey, ')
+          ..write('term: $term, ')
+          ..write('payload: $payload, ')
+          ..write('fetchedAt: $fetchedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(cacheKey, term, payload, fetchedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is OnlineTranslationCacheData &&
+          other.cacheKey == this.cacheKey &&
+          other.term == this.term &&
+          other.payload == this.payload &&
+          other.fetchedAt == this.fetchedAt);
+}
+
+class OnlineTranslationCacheCompanion
+    extends UpdateCompanion<OnlineTranslationCacheData> {
+  final Value<String> cacheKey;
+  final Value<String> term;
+  final Value<String> payload;
+  final Value<DateTime> fetchedAt;
+  final Value<int> rowid;
+  const OnlineTranslationCacheCompanion({
+    this.cacheKey = const Value.absent(),
+    this.term = const Value.absent(),
+    this.payload = const Value.absent(),
+    this.fetchedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  OnlineTranslationCacheCompanion.insert({
+    required String cacheKey,
+    required String term,
+    required String payload,
+    required DateTime fetchedAt,
+    this.rowid = const Value.absent(),
+  }) : cacheKey = Value(cacheKey),
+       term = Value(term),
+       payload = Value(payload),
+       fetchedAt = Value(fetchedAt);
+  static Insertable<OnlineTranslationCacheData> custom({
+    Expression<String>? cacheKey,
+    Expression<String>? term,
+    Expression<String>? payload,
+    Expression<DateTime>? fetchedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (cacheKey != null) 'cache_key': cacheKey,
+      if (term != null) 'term': term,
+      if (payload != null) 'payload': payload,
+      if (fetchedAt != null) 'fetched_at': fetchedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  OnlineTranslationCacheCompanion copyWith({
+    Value<String>? cacheKey,
+    Value<String>? term,
+    Value<String>? payload,
+    Value<DateTime>? fetchedAt,
+    Value<int>? rowid,
+  }) {
+    return OnlineTranslationCacheCompanion(
+      cacheKey: cacheKey ?? this.cacheKey,
+      term: term ?? this.term,
+      payload: payload ?? this.payload,
+      fetchedAt: fetchedAt ?? this.fetchedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (cacheKey.present) {
+      map['cache_key'] = Variable<String>(cacheKey.value);
+    }
+    if (term.present) {
+      map['term'] = Variable<String>(term.value);
+    }
+    if (payload.present) {
+      map['payload'] = Variable<String>(payload.value);
+    }
+    if (fetchedAt.present) {
+      map['fetched_at'] = Variable<DateTime>(fetchedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('OnlineTranslationCacheCompanion(')
+          ..write('cacheKey: $cacheKey, ')
+          ..write('term: $term, ')
+          ..write('payload: $payload, ')
+          ..write('fetchedAt: $fetchedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4777,6 +5097,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
       $VocabularyEntriesTable(this);
   late final $SavedPhrasesTable savedPhrases = $SavedPhrasesTable(this);
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
+  late final $OnlineTranslationCacheTable onlineTranslationCache =
+      $OnlineTranslationCacheTable(this);
   late final DocumentsDao documentsDao = DocumentsDao(this as AppDatabase);
   late final LearningDao learningDao = LearningDao(this as AppDatabase);
   late final SettingsDao settingsDao = SettingsDao(this as AppDatabase);
@@ -4793,6 +5115,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     vocabularyEntries,
     savedPhrases,
     appSettings,
+    onlineTranslationCache,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -8609,6 +8932,206 @@ typedef $$AppSettingsTableProcessedTableManager =
       AppSetting,
       PrefetchHooks Function()
     >;
+typedef $$OnlineTranslationCacheTableCreateCompanionBuilder =
+    OnlineTranslationCacheCompanion Function({
+      required String cacheKey,
+      required String term,
+      required String payload,
+      required DateTime fetchedAt,
+      Value<int> rowid,
+    });
+typedef $$OnlineTranslationCacheTableUpdateCompanionBuilder =
+    OnlineTranslationCacheCompanion Function({
+      Value<String> cacheKey,
+      Value<String> term,
+      Value<String> payload,
+      Value<DateTime> fetchedAt,
+      Value<int> rowid,
+    });
+
+class $$OnlineTranslationCacheTableFilterComposer
+    extends Composer<_$AppDatabase, $OnlineTranslationCacheTable> {
+  $$OnlineTranslationCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get cacheKey => $composableBuilder(
+    column: $table.cacheKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get term => $composableBuilder(
+    column: $table.term,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get fetchedAt => $composableBuilder(
+    column: $table.fetchedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$OnlineTranslationCacheTableOrderingComposer
+    extends Composer<_$AppDatabase, $OnlineTranslationCacheTable> {
+  $$OnlineTranslationCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get cacheKey => $composableBuilder(
+    column: $table.cacheKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get term => $composableBuilder(
+    column: $table.term,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get payload => $composableBuilder(
+    column: $table.payload,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get fetchedAt => $composableBuilder(
+    column: $table.fetchedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$OnlineTranslationCacheTableAnnotationComposer
+    extends Composer<_$AppDatabase, $OnlineTranslationCacheTable> {
+  $$OnlineTranslationCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get cacheKey =>
+      $composableBuilder(column: $table.cacheKey, builder: (column) => column);
+
+  GeneratedColumn<String> get term =>
+      $composableBuilder(column: $table.term, builder: (column) => column);
+
+  GeneratedColumn<String> get payload =>
+      $composableBuilder(column: $table.payload, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get fetchedAt =>
+      $composableBuilder(column: $table.fetchedAt, builder: (column) => column);
+}
+
+class $$OnlineTranslationCacheTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $OnlineTranslationCacheTable,
+          OnlineTranslationCacheData,
+          $$OnlineTranslationCacheTableFilterComposer,
+          $$OnlineTranslationCacheTableOrderingComposer,
+          $$OnlineTranslationCacheTableAnnotationComposer,
+          $$OnlineTranslationCacheTableCreateCompanionBuilder,
+          $$OnlineTranslationCacheTableUpdateCompanionBuilder,
+          (
+            OnlineTranslationCacheData,
+            BaseReferences<
+              _$AppDatabase,
+              $OnlineTranslationCacheTable,
+              OnlineTranslationCacheData
+            >,
+          ),
+          OnlineTranslationCacheData,
+          PrefetchHooks Function()
+        > {
+  $$OnlineTranslationCacheTableTableManager(
+    _$AppDatabase db,
+    $OnlineTranslationCacheTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$OnlineTranslationCacheTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$OnlineTranslationCacheTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$OnlineTranslationCacheTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> cacheKey = const Value.absent(),
+                Value<String> term = const Value.absent(),
+                Value<String> payload = const Value.absent(),
+                Value<DateTime> fetchedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => OnlineTranslationCacheCompanion(
+                cacheKey: cacheKey,
+                term: term,
+                payload: payload,
+                fetchedAt: fetchedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String cacheKey,
+                required String term,
+                required String payload,
+                required DateTime fetchedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => OnlineTranslationCacheCompanion.insert(
+                cacheKey: cacheKey,
+                term: term,
+                payload: payload,
+                fetchedAt: fetchedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$OnlineTranslationCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $OnlineTranslationCacheTable,
+      OnlineTranslationCacheData,
+      $$OnlineTranslationCacheTableFilterComposer,
+      $$OnlineTranslationCacheTableOrderingComposer,
+      $$OnlineTranslationCacheTableAnnotationComposer,
+      $$OnlineTranslationCacheTableCreateCompanionBuilder,
+      $$OnlineTranslationCacheTableUpdateCompanionBuilder,
+      (
+        OnlineTranslationCacheData,
+        BaseReferences<
+          _$AppDatabase,
+          $OnlineTranslationCacheTable,
+          OnlineTranslationCacheData
+        >,
+      ),
+      OnlineTranslationCacheData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -8629,6 +9152,11 @@ class $AppDatabaseManager {
       $$SavedPhrasesTableTableManager(_db, _db.savedPhrases);
   $$AppSettingsTableTableManager get appSettings =>
       $$AppSettingsTableTableManager(_db, _db.appSettings);
+  $$OnlineTranslationCacheTableTableManager get onlineTranslationCache =>
+      $$OnlineTranslationCacheTableTableManager(
+        _db,
+        _db.onlineTranslationCache,
+      );
 }
 
 mixin _$DocumentsDaoMixin on DatabaseAccessor<AppDatabase> {
