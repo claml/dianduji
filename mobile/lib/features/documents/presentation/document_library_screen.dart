@@ -187,6 +187,7 @@ class DocumentLibraryScreen extends StatelessWidget {
               onOpen?.call(document.id);
             }
           },
+          onOpen: onOpen == null ? null : () => onOpen!(document.id),
           onRetry: onRetry == null ? null : () => onRetry!(document.id),
           onCancel: onCancel == null ? null : () => onCancel!(document.id),
           onDelete: onDelete == null ? null : () => onDelete!(document.id),
@@ -250,6 +251,7 @@ class _DocumentTile extends StatelessWidget {
     required this.document,
     required this.selected,
     required this.onTap,
+    this.onOpen,
     this.onRetry,
     this.onCancel,
     this.onDelete,
@@ -258,6 +260,7 @@ class _DocumentTile extends StatelessWidget {
   final LibraryDocument document;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback? onOpen;
   final VoidCallback? onRetry;
   final VoidCallback? onCancel;
   final VoidCallback? onDelete;
@@ -310,6 +313,7 @@ class _DocumentTile extends StatelessWidget {
                   ),
                   _DocumentActions(
                     document: document,
+                    onOpen: onOpen,
                     onRetry: onRetry,
                     onCancel: onCancel,
                     onDelete: onDelete,
@@ -354,12 +358,14 @@ class _FormatBadge extends StatelessWidget {
 class _DocumentActions extends StatelessWidget {
   const _DocumentActions({
     required this.document,
+    this.onOpen,
     this.onRetry,
     this.onCancel,
     this.onDelete,
   });
 
   final LibraryDocument document;
+  final VoidCallback? onOpen;
   final VoidCallback? onRetry;
   final VoidCallback? onCancel;
   final VoidCallback? onDelete;
@@ -388,9 +394,37 @@ class _DocumentActions extends StatelessWidget {
         onPressed: onCancel,
         icon: const Icon(Icons.close_rounded),
       ),
-      _ => IconButton(
+      _ => PopupMenuButton<String>(
         tooltip: '更多操作',
-        onPressed: () {},
+        enabled: onOpen != null || onDelete != null,
+        onSelected: (value) {
+          switch (value) {
+            case 'open':
+              onOpen?.call();
+            case 'delete':
+              onDelete?.call();
+          }
+        },
+        itemBuilder: (context) => [
+          if (onOpen != null)
+            PopupMenuItem(
+              value: 'open',
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.chrome_reader_mode_rounded),
+                title: const Text('打开文档'),
+              ),
+            ),
+          if (onDelete != null)
+            PopupMenuItem(
+              value: 'delete',
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.delete_outline_rounded),
+                title: const Text('删除文档'),
+              ),
+            ),
+        ],
         icon: const Icon(Icons.more_horiz_rounded),
       ),
     };

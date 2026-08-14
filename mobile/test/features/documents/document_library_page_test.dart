@@ -214,6 +214,43 @@ void main() {
     expect(openedId, 'doc-1');
   });
 
+  testWidgets('completed document menu offers open and delete actions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = _PageRepository();
+    final controller = DocumentImportController(
+      picker: _PagePicker(),
+      importer: _PageImporter(),
+      repository: repository,
+    );
+    addTearDown(controller.dispose);
+    String? openedId;
+    repository.emit([_pageSummary('doc-1', 'Lesson')]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DocumentLibraryPage(
+          controller: controller,
+          onOpen: (id) => openedId = id,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('更多操作'));
+    await tester.pumpAndSettle();
+    expect(find.text('打开文档'), findsOneWidget);
+    expect(find.text('删除文档'), findsOneWidget);
+
+    await tester.tap(find.text('打开文档'));
+    await tester.pumpAndSettle();
+    expect(openedId, 'doc-1');
+  });
+
   testWidgets(
     'page exposes search and sort controls and opens a selected document',
     (tester) async {
