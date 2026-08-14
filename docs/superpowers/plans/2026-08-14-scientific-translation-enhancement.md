@@ -1,6 +1,6 @@
 # Scientific Translation Enhancement Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Give the reader card scientific-grade content: a four-domain offline specialized dictionary (computer science, medicine, biology, chemistry), multi-word term recognition, a layered lookup chain (general → specialized → optional online translation), an online translation gateway with minimal disclosure, first-use consent, a settings switch, cancellation, timeouts, and local caching — without breaking any existing learning data.
 
@@ -33,11 +33,11 @@
 - Produces: `SpecializedTerm { term, domain, definition, synonyms?, source, version, license }`, `SpecializedTermCatalog.lookup(term)`, `SpecializedTermCatalog.lookupPrefix(term)`, `SpecializedTermCatalog.domains`.
 - Consumes: bundled JSON asset.
 
-- [ ] **Step 1: Write failing catalog tests**
-- [ ] **Step 2: Verify RED**
-- [ ] **Step 3: Author the four-domain term table** (≈200–400 entries per domain; MIT-licensed self-curated list; LICENSE.md records sources)
-- [ ] **Step 4: Implement the loader and index** (exact match + longest-prefix match; case-insensitive)
-- [ ] **Step 5: Verify GREEN, `flutter analyze`, commit**
+- [x] **Step 1: Write failing catalog tests**
+- [x] **Step 2: Verify RED**
+- [x] **Step 3: Author the four-domain term table** (≈200–400 entries per domain; MIT-licensed self-curated list; LICENSE.md records sources)
+- [x] **Step 4: Implement the loader and index** (exact match + longest-prefix match; case-insensitive)
+- [x] **Step 5: Verify GREEN, `flutter analyze`, commit**
 
 ### Task 2: Multi-Word Term Recognition
 
@@ -49,10 +49,10 @@
 - Produces: `List<TermCandidate> { surface, startToken, endToken, domains, score }` from a sentence's tokens plus the tapped token ordinal.
 - Ranking: specialized exact hit > contains tapped word > longer term > domain match; the single word remains the final fallback.
 
-- [ ] **Step 1: Write failing recognizer tests** (2–5 word terms, hyphenated compounds, apostrophes, tapped-word containment, ranking)
-- [ ] **Step 2: Verify RED**
-- [ ] **Step 3: Implement**
-- [ ] **Step 4: Verify GREEN, commit**
+- [x] **Step 1: Write failing recognizer tests** (2–5 word terms, hyphenated compounds, apostrophes, tapped-word containment, ranking)
+- [x] **Step 2: Verify RED**
+- [x] **Step 3: Implement**
+- [x] **Step 4: Verify GREEN, commit**
 
 ### Task 3: Layered Lookup Chain
 
@@ -66,10 +66,10 @@
 - Produces: `LayeredLookupResult { generalEntry?, specializedTerms[], online? }`; general and specialized lookups run in parallel and merge; a general hit never shadows a specialized multi-word term.
 - Consumes: `DictionaryLookup`, `SpecializedTermCatalog`, `TermCandidateRecognizer`.
 
-- [ ] **Step 1: Write failing layered tests** (parallel merge, specialized-only hit, both-hit display order, offline fallback)
-- [ ] **Step 2: Verify RED**
-- [ ] **Step 3: Implement and wire `TranslationViewModel.lookup` to consume candidates and layered results**
-- [ ] **Step 4: Verify GREEN + full regression, commit**
+- [x] **Step 1: Write failing layered tests** (parallel merge, specialized-only hit, both-hit display order, offline fallback)
+- [x] **Step 2: Verify RED**
+- [x] **Step 3: Implement and wire `TranslationViewModel.lookup` to consume candidates and layered results**
+- [x] **Step 4: Verify GREEN + full regression, commit**
 
 ### Task 4: Online Translation Gateway and Cache
 
@@ -87,11 +87,11 @@
 - Produces: `OnlineTranslationGateway.translate(OnlineTranslationRequest) → OnlineTranslationResult`; request = term, single sentence, targetLanguage, domain; result = term translation, domain gloss, sentence translation, examples, source id, cacheable version.
 - Enforces: timeout, cancellation of stale requests, offline error mapping, malformed-response discard (no cache write, no card overwrite), no document metadata in logs.
 
-- [ ] **Step 1: Write failing gateway contract tests** (request shape, timeout, cancellation, offline mapping, malformed response)
-- [ ] **Step 2: Verify RED**
-- [ ] **Step 3: Implement the HTTP gateway** (base URL + key from `--dart-define` `DIANDUJI_TRANSLATE_BASE_URL` / `DIANDUJI_TRANSLATE_API_KEY`; no hard-coded key)
-- [ ] **Step 4: Add the cache table with a forward migration and old-data retention test**
-- [ ] **Step 5: Verify GREEN + full regression, commit**
+- [x] **Step 1: Write failing gateway contract tests** (request shape, timeout, cancellation, offline mapping, malformed response)
+- [x] **Step 2: Verify RED**
+- [x] **Step 3: Implement the HTTP gateway** (base URL + key from `--dart-define` `DIANDUJI_TRANSLATE_BASE_URL` / `DIANDUJI_TRANSLATE_API_KEY`; no hard-coded key)
+- [x] **Step 4: Add the cache table with a forward migration and old-data retention test**
+- [x] **Step 5: Verify GREEN + full regression, commit**
 
 ### Task 5: Translation Card Information Architecture
 
@@ -105,10 +105,10 @@
 - Local results render first; online supplements without rebuilding the PDF viewer. The card scrolls on phones; tablet pane/floating card keep existing modes and never squeeze the PDF area.
 - No blank section titles when data is absent.
 
-- [ ] **Step 1: Write failing card tests** (ordering, domain tags, sentence block, online badge, scrollability)
-- [ ] **Step 2: Verify RED**
-- [ ] **Step 3: Implement**
-- [ ] **Step 4: Verify GREEN + goldens regeneration if visuals change, commit**
+- [x] **Step 1: Write failing card tests** (ordering, domain tags, sentence block, online badge, scrollability)
+- [x] **Step 2: Verify RED**
+- [x] **Step 3: Implement**
+- [x] **Step 4: Verify GREEN + goldens regeneration if visuals change, commit**
 
 ### Task 6: Settings, Consent, and Cache Control
 
@@ -122,10 +122,10 @@
 - Settings gains: "在线翻译" master switch (default off), first-use consent dialog ("仅发送所点词与所在句子"), "清除在线翻译缓存" action, and privacy copy stating minimal disclosure.
 - Offline/no-network: card shows local results + unavailable reason.
 
-- [ ] **Step 1: Write failing settings tests**
-- [ ] **Step 2: Verify RED**
-- [ ] **Step 3: Implement**
-- [ ] **Step 4: Verify GREEN, commit**
+- [x] **Step 1: Write failing settings tests**
+- [x] **Step 2: Verify RED**
+- [x] **Step 3: Implement**
+- [x] **Step 4: Verify GREEN, commit**
 
 ### Task 7: Full Verification and Documentation
 
@@ -134,10 +134,10 @@
 - Modify: `mobile/docs/third-party-notices.md`
 - Create: `mobile/integration_test/scientific_translation_flow_test.dart` (device: specialized hit + consent-off card + settings switch)
 
-- [ ] **Step 1: Run `flutter analyze` and the full test suite**
-- [ ] **Step 2: Run the device integration test on BTK-W00**
-- [ ] **Step 3: Update README (features, privacy, dart-define keys) and third-party notices**
-- [ ] **Step 4: Final commit**
+- [x] **Step 1: Run `flutter analyze` and the full test suite**
+- [x] **Step 2: Run the device integration test on BTK-W00**
+- [x] **Step 3: Update README (features, privacy, dart-define keys) and third-party notices**
+- [x] **Step 4: Final commit**
 
 ## Requirements Traceability
 
