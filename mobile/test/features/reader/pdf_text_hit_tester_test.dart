@@ -192,6 +192,35 @@ void main() {
       );
     });
 
+    test('merges a U+0002 control-character split into one word', () {
+      // The Deciphering paper's extracted text uses U+0002 (STX) at every
+      // line-break split: "cognitive de\u0002mands of everyday navigation".
+      const text =
+          'The cognitive de\u0002mands of everyday navigation grow.';
+      final rects = List<PdfRect>.filled(text.length, PdfRect.empty);
+      _placeText(rects, 0, 100, 100, 'The cognitive de');
+      _placeText(
+        rects,
+        text.indexOf('mands'),
+        100,
+        122,
+        'mands of everyday navigation grow.',
+      );
+      final page = _geometryWithRects(text, rects);
+
+      final fromLeft = hitTestPdfText(page, const PdfPoint(220, 94));
+      final fromRight = hitTestPdfText(page, const PdfPoint(104, 116));
+
+      expect(fromLeft?.surface, 'demands');
+      expect(fromLeft?.normalized, 'demands');
+      expect(fromRight?.surface, 'demands');
+      expect(fromRight?.bounds, hasLength(2));
+      expect(
+        fromRight?.contextText,
+        'The cognitive demands of everyday navigation grow.',
+      );
+    });
+
     test('recovers a soft wrap across one malformed boundary glyph', () {
       const text = 'sidebar\nmecha-\nnisms';
       final rects = List<PdfRect>.filled(text.length, PdfRect.empty);

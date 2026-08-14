@@ -136,6 +136,16 @@ _TextRange? _wordRangeAt(PdfPageGeometry page, int textIndex) {
       }
       continue;
     }
+    // Control-character split markers (U+0002): the engine maps line-break
+    // hyphens to STX in some PDFs ("de\u0002mands"); treat them as part of
+    // the word and drop them from the surface.
+    if (_isSoftBreakAt(text, end) && _isLetterAt(text, end + 1)) {
+      end += 2;
+      while (_isLetterAt(text, end)) {
+        end++;
+      }
+      continue;
+    }
     if (_isHyphenAt(text, end)) {
       if (_isLetterAt(text, end + 1) &&
           _sameLineAcross(page, start, end, end + 1, text.length)) {
@@ -160,6 +170,13 @@ _TextRange? _wordRangeAt(PdfPageGeometry page, int textIndex) {
 
   while (true) {
     if (_isApostropheAt(text, start - 1) && _isLetterAt(text, start - 2)) {
+      start -= 2;
+      while (_isLetterAt(text, start - 1)) {
+        start--;
+      }
+      continue;
+    }
+    if (_isSoftBreakAt(text, start - 1) && _isLetterAt(text, start - 2)) {
       start -= 2;
       while (_isLetterAt(text, start - 1)) {
         start--;
@@ -442,6 +459,7 @@ String _sentenceAt(String text, int offset) {
 
 String _normalizeSoftLineBreaks(String text) {
   return text
+      .replaceAll('\u0002', '')
       .replaceAll(_softLineBreak, '')
       .replaceAll(_lineBreak, ' ')
       .replaceAll(_whitespace, ' ')
@@ -477,6 +495,14 @@ bool _isApostropheAt(String text, int index) {
 bool _isHyphenAt(String text, int index) {
   if (index < 0 || index >= text.length) return false;
   return _isHyphenCodeUnit(text.codeUnitAt(index));
+}
+
+/// True for the U+0002 (STX) control character that some PDF engines emit at
+/// line-break word splits (`de\u0002mands`), replacing the break hyphen.
+bool _isSoftBreakAt(String text, int index) {
+  return index >= 0 &&
+      index < text.length &&
+      text.codeUnitAt(index) == 0x0002;
 }
 
 /// True for ASCII '-' and the Unicode hyphen variants that extracted PDF
