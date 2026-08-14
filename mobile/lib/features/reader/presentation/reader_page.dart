@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:pdfrx/pdfrx.dart' show PdfViewerController;
 
 import '../../../app/providers.dart';
 import '../../dictionary/presentation/translation_view_model.dart';
@@ -10,6 +11,7 @@ import '../../documents/domain/document_models.dart';
 import '../../settings/data/reading_settings.dart';
 import '../../settings/presentation/persisted_settings_page.dart';
 import '../data/reader_card_preferences.dart';
+import '../domain/pdf_reader_extras.dart';
 import '../domain/reader_selection.dart';
 import 'reader_controller.dart';
 import 'reader_chrome_controller.dart';
@@ -41,12 +43,17 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
   final _sentenceKeys = <String, GlobalKey>{};
   final _tokenKeys = <String, GlobalKey>{};
   late final ReaderCardPreferencesStore _cardPreferencesStore;
+  final _pdfController = PdfViewerController();
+  final _pdfExtras = PdfReaderExtras();
+  double? _restoredPdfZoom;
   var _cardPreferences = ReaderCardPreferences.defaults;
   var _cardPreferencesRevision = 0;
   var _opened = false;
   var _positionScheduled = false;
   var _restoringPosition = false;
   var _pdfPageCount = 1;
+
+  static const _zoomKeyPrefix = 'pdf-zoom-';
 
   @override
   void initState() {
@@ -75,7 +82,39 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
     _scrollController.addListener(_recordPosition);
     _cardPreferencesStore = ref.read(readerCardPreferencesRepositoryProvider);
     unawaited(_loadCardPreferences());
+    unawaited(_loadRestoredPdfZoom());
     _open();
+  }
+
+  Future<void> _loadRestoredPdfZoom() async {
+    try {
+      final dao = ref.read(appDatabaseProvider).settingsDao;
+      final value = await dao.getValue('$_zoomKeyPrefix${widget.documentId}');
+      final zoom = double.tryParse(value ?? '');
+      if (zoom != null && zoom.isFinite && zoom > 0) {
+        _restoredPdfZoom = zoom;
+      }
+    } on Object {
+      // Zoom memory is best-effort.
+    }
+  }
+
+  void _rememberPdfZoom(double zoom) {
+    if (!zoom.isFinite || zoom <= 0) return;
+    unawaited(
+      ref
+          .read(appDatabaseProvider)
+          .settingsDao
+          .setValue(
+            '$_zoomKeyPrefix${widget.documentId}',
+            zoom.toStringAsFixed(4),
+          )
+          .catchError((Object _) {}),
+    );
+  }
+
+  void _jumpToPdfPage(int page) {
+    unawaited(_pdfController.goToPage(pageNumber: page));
   }
 
   Future<void> _loadCardPreferences() async {
@@ -281,10 +320,12 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
             localPath: storedDocument.localPath,
             selection: state.selection,
             initialPageNumber: state.restoredPageNumber,
+            controller: _pdfController,
             onWordTap: _selectPdfWord,
             onContentScroll: _chromeController.handleContentScroll,
             onPageChanged: (pageNumber, pageCount) {
               _pdfPageCount = pageCount;
+              _pdfExtras.updatePage(pageNumber, pageCount);
               _controller.updatePdfReadingPosition(
                 pageNumber: pageNumber,
                 pageCount: pageCount,
@@ -294,6 +335,10 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
                     : 0,
               );
             },
+            onOutlineAvailable: (outline) =>
+                _pdfExtras.setOutline(flattenPdfOutline(outline)),
+            restoreZoom: _restoredPdfZoom,
+            onZoomChanged: _rememberPdfZoom,
             renderer: widget.pdfRenderer,
           )
         : null;
@@ -335,6 +380,8 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
         chromeController: _chromeController,
         cardPreferences: _cardPreferences,
         onCardPreferencesChanged: _updateCardPreferences,
+        pdfExtras: pdfDocument == null ? null : _pdfExtras,
+        onPdfPageJump: pdfDocument == null ? null : _jumpToPdfPage,
       ),
     );
   }
@@ -346,6 +393,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
       ..removeListener(_recordPosition)
       ..dispose();
     _chromeController.dispose();
+    _pdfExtras.dispose();
     _controller.removeListener(_changed);
     _controller.forceSave();
     if (_ownsController) _controller.dispose();

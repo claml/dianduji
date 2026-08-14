@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 
@@ -10,6 +12,7 @@ import 'pdf_word_overlay.dart';
 typedef PdfDocumentRenderer =
     Widget Function(BuildContext context, PdfDocumentView view);
 typedef PdfPageProgressChanged = void Function(int pageNumber, int pageCount);
+typedef PdfOutlineAvailable = void Function(List<PdfOutlineNode> outline);
 
 /// Inverts the PDF page bitmap so paper becomes dark and text becomes light.
 /// Applied only in night mode; PDF images render as negatives, which is the
@@ -37,6 +40,9 @@ class PdfDocumentView extends StatefulWidget {
     this.onContentScroll,
     this.renderer,
     this.textStore,
+    this.onOutlineAvailable,
+    this.restoreZoom,
+    this.onZoomChanged,
     super.key,
   });
 
@@ -49,6 +55,15 @@ class PdfDocumentView extends StatefulWidget {
   final ValueChanged<double>? onContentScroll;
   final PdfDocumentRenderer? renderer;
   final PdfPageTextStore? textStore;
+
+  /// Fires once after the document loads, with the PDF outline (bookmarks).
+  final PdfOutlineAvailable? onOutlineAvailable;
+
+  /// Zoom level to restore after the document opens (zoom memory), or null.
+  final double? restoreZoom;
+
+  /// Fires when the user changes the zoom (used to persist zoom memory).
+  final ValueChanged<double>? onZoomChanged;
 
   @override
   State<PdfDocumentView> createState() => _PdfDocumentViewState();
@@ -149,8 +164,12 @@ class _PdfDocumentViewState extends State<PdfDocumentView> {
             widget.onContentScroll?.call(delta);
           }
         },
+        onInteractionEnd: (details) {
+          widget.onZoomChanged?.call(widget.controller?.currentZoom ?? 1.0);
+        },
         onViewerReady: (document, controller) {
           _pageCount = document.pages.length;
+          unawaited(_loadOutlineAndRestoreZoom(document, controller));
         },
         calculateInitialPageNumber: (document, controller) =>
             clampPdfInitialPage(
@@ -202,6 +221,28 @@ class _PdfDocumentViewState extends State<PdfDocumentView> {
         },
       ),
     );
+  }
+
+  Future<void> _loadOutlineAndRestoreZoom(
+    PdfDocument document,
+    PdfViewerController controller,
+  ) async {
+    final restoreZoom = widget.restoreZoom;
+    if (restoreZoom != null && restoreZoom.isFinite && restoreZoom > 0) {
+      try {
+        final center = controller.viewSize.center(Offset.zero);
+        await controller.setZoom(center, restoreZoom);
+      } on Object {
+        // Restoring zoom is best-effort; a failure must not block reading.
+      }
+    }
+    if (widget.onOutlineAvailable == null) return;
+    try {
+      final outline = await document.loadOutline();
+      if (mounted) widget.onOutlineAvailable!(outline);
+    } on Object {
+      // A document without a usable outline simply has no table of contents.
+    }
   }
 }
 

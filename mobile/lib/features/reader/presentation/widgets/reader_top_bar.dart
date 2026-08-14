@@ -12,6 +12,7 @@ class ReaderTopBar extends StatelessWidget {
     required this.onBack,
     required this.onReveal,
     required this.onSettings,
+    this.onOutline,
     super.key,
   });
 
@@ -20,6 +21,9 @@ class ReaderTopBar extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback onReveal;
   final VoidCallback? onSettings;
+
+  /// Opens the PDF table of contents; only shown for PDFs with an outline.
+  final VoidCallback? onOutline;
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +67,13 @@ class ReaderTopBar extends StatelessWidget {
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                       ),
+                      if (onOutline != null)
+                        IconButton(
+                          key: const Key('reader-outline-button'),
+                          tooltip: '目录',
+                          onPressed: onOutline,
+                          icon: const Icon(Icons.toc_rounded),
+                        ),
                       IconButton(
                         key: const Key('reader-settings-button'),
                         tooltip: '阅读设置',
