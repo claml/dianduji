@@ -225,7 +225,7 @@ class Handler(BaseHTTPRequestHandler):
             self._reply(404, {"error": "not found"})
 
     def _handle_enrich(self, request, started):
-        api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+        api_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
         if not api_key:
             self._reply(503, {"error": "DEEPSEEK_API_KEY is not configured"})
             return

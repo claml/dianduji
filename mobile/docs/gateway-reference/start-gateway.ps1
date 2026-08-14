@@ -19,6 +19,8 @@ Get-Content $keysFile | ForEach-Object {
 $env:TENCENT_SECRET_ID = $keys['TENCENT_SECRET_ID']
 $env:TENCENT_SECRET_KEY = $keys['TENCENT_SECRET_KEY']
 $env:TENCENT_REGION = if ($keys['TENCENT_REGION']) { $keys['TENCENT_REGION'] } else { 'ap-guangzhou' }
+$env:DEEPSEEK_API_KEY = if ($keys['DEEPSEEK_API_KEY']) { $keys['DEEPSEEK_API_KEY'] } else { '' }
+$env:DEEPSEEK_MODEL = if ($keys['DEEPSEEK_MODEL']) { $keys['DEEPSEEK_MODEL'] } else { 'deepseek-v4-flash' }
 $env:PORT = if ($keys['PORT']) { $keys['PORT'] } else { '8080' }
 
 $script = Join-Path $PSScriptRoot 'gateway_tencent.py'
