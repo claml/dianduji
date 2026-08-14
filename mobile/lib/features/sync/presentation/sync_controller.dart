@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../domain/sync_api_client.dart';
@@ -81,6 +83,10 @@ class SyncController extends ChangeNotifier {
         clearError: true,
         syncing: false,
       );
+      notifyListeners();
+      // First sync runs right after login so the device picks up the
+      // cloud snapshot immediately; failures surface through syncNow.
+      unawaited(syncNow());
     } on SyncApiException catch (error) {
       _state = _state.copyWith(
         status: SyncUiStatus.loggedOut,
