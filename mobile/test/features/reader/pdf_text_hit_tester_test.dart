@@ -172,6 +172,26 @@ void main() {
       expect(resultFromRight?.contextText, 'It explains mechanisms at scale.');
     });
 
+    test('merges a Unicode hyphen (U+2010) soft wrap into one word', () {
+      // Real extracted PDF text uses U+2010 HYPHEN instead of ASCII '-'.
+      const text = 'It measures per\u2010\nformance of the model.';
+      final fixture = _laidOutText(text);
+      final page = PdfPageGeometry.fromStructured(fixture.pageText);
+
+      final fromLeft = hitTestPdfText(page, fixture.pointIn('per'));
+      final fromRight = hitTestPdfText(page, fixture.pointIn('formance'));
+
+      // The break hyphen is removed so the dictionary sees the joined word.
+      expect(fromLeft?.surface, 'performance');
+      expect(fromLeft?.normalized, 'performance');
+      expect(fromRight?.surface, 'performance');
+      expect(fromRight?.bounds, hasLength(2));
+      expect(
+        fromRight?.contextText,
+        'It measures performance of the model.',
+      );
+    });
+
     test('recovers a soft wrap across one malformed boundary glyph', () {
       const text = 'sidebar\nmecha-\nnisms';
       final rects = List<PdfRect>.filled(text.length, PdfRect.empty);

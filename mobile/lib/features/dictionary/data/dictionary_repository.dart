@@ -37,8 +37,25 @@ class DictionaryRepository implements DictionaryLookup {
       'SELECT lemma FROM lemmas WHERE form = ? LIMIT 1',
       [normalized],
     );
-    if (lemmaRows.isEmpty) return null;
-    return _findEntry(lemmaRows.single['lemma'] as String);
+    if (lemmaRows.isNotEmpty) {
+      return _findEntry(lemmaRows.single['lemma'] as String);
+    }
+
+    // Dehyphenation fallback: a soft-wrapped word was merged with its break
+    // hyphen (per-formance); the dictionary may know the joined form.
+    if (normalized.contains('-')) {
+      final joined = normalized.replaceAll('-', '');
+      final joinedEntry = _findEntry(joined);
+      if (joinedEntry != null) return joinedEntry;
+      final joinedLemmaRows = database.select(
+        'SELECT lemma FROM lemmas WHERE form = ? LIMIT 1',
+        [joined],
+      );
+      if (joinedLemmaRows.isNotEmpty) {
+        return _findEntry(joinedLemmaRows.single['lemma'] as String);
+      }
+    }
+    return null;
   }
 
   DictionaryEntry? _findEntry(String word) {

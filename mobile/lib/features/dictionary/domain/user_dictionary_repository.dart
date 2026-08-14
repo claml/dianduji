@@ -58,5 +58,10 @@ abstract interface class UserDictionaryStore {
   Future<void> clearCandidates();
 }
 
-String normalizeUserLemma(String surface) =>
-    surface.trim().toLowerCase().replaceAll('’', "'");
+String normalizeUserLemma(String surface) => surface
+    .trim()
+    .toLowerCase()
+    .replaceAll('’', "'")
+    .replaceAll('\u2010', '-')
+    .replaceAll('\u2011', '-')
+    .replaceAll('\u2212', '-');

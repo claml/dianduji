@@ -30,7 +30,7 @@ final _authorList = RegExp(
   r"[A-Z][A-Za-z.'\u2019-]*(?:\s+[A-Z][A-Za-z.'\u2019-]*){1,3}"
   r'[0-9*\u2020\u2021]*)+$',
 );
-final _softLineBreak = RegExp(r'-\s*[\r\n]\s*');
+final _softLineBreak = RegExp(r'[-‐‑−]\s*[\r\n]\s*');
 final _lineBreak = RegExp(r'[\r\n]+');
 final _whitespace = RegExp(r'\s+');
 
@@ -57,13 +57,22 @@ PdfWordHitTarget? hitTestPdfText(
   return PdfWordHitTarget(
     pageNumber: page.pageNumber,
     surface: surface,
-    normalized: surface.toLowerCase().replaceAll('\u2019', "'"),
+    normalized: _normalizeUnicodeHyphens(surface.toLowerCase())
+        .replaceAll('\u2019', "'"),
     start: range.start,
     end: range.end,
     bounds: bounds,
     contextText: _sentenceAt(page.fullText, textIndex),
   );
 }
+
+/// Maps Unicode hyphen variants to ASCII '-' so dictionary lookups of a
+/// merged soft-wrap word (`per‐formance` -> `per-formance`) behave like the
+/// hyphenated form.
+String _normalizeUnicodeHyphens(String text) => text
+    .replaceAll('\u2010', '-')
+    .replaceAll('\u2011', '-')
+    .replaceAll('\u2212', '-');
 
 int? _findCharacterAt(PdfPageGeometry page, PdfPoint point, double margin) {
   int? containingIndex;
@@ -466,7 +475,19 @@ bool _isApostropheAt(String text, int index) {
 }
 
 bool _isHyphenAt(String text, int index) {
-  return index >= 0 && index < text.length && text.codeUnitAt(index) == 45;
+  if (index < 0 || index >= text.length) return false;
+  return _isHyphenCodeUnit(text.codeUnitAt(index));
+}
+
+/// True for ASCII '-' and the Unicode hyphen variants that extracted PDF
+/// text commonly uses (U+2010 HYPHEN, U+2011 NON-BREAKING HYPHEN, U+2212
+/// MINUS SIGN). Recognizing them is what lets soft-wrap dehyphenation merge
+/// `per‐` + `formance` into one word.
+bool _isHyphenCodeUnit(int codeUnit) {
+  return codeUnit == 45 || // '-'
+      codeUnit == 0x2010 || // '‐' HYPHEN
+      codeUnit == 0x2011 || // '‑' NON-BREAKING HYPHEN
+      codeUnit == 0x2212; // '−' MINUS SIGN
 }
 
 bool _isWhitespaceAt(String text, int index) {

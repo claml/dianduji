@@ -40,6 +40,15 @@ INSERT INTO lemmas VALUES
     expect(await repository.lookup('notaword'), isNull);
   });
 
+  test('falls back to the joined form for a merged soft-wrap word', () async {
+    // A dehyphenation merge produces a hyphenated surface (true hyphenated
+    // compounds keep the hyphen); the joined form is checked as a fallback.
+    final entry = await repository.lookup('lan-guage');
+
+    expect(entry?.word, 'language');
+    expect(entry?.definitionChinese, '语言');
+  });
+
   test('returns the fields required by the translation card', () async {
     final entry = await repository.lookup('language');
 

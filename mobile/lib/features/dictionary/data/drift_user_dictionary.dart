@@ -12,11 +12,19 @@ class DriftUserDictionary implements UserDictionaryStore {
 
   @override
   Future<DictionaryEntry?> lookupConfirmed(String surface) async {
-    final lemma = normalizeUserLemma(surface);
-    final row = await (_database.select(_database.userDictionary)
+    var lemma = normalizeUserLemma(surface);
+    var row = await (_database.select(_database.userDictionary)
           ..where((entry) => entry.lemma.equals(lemma))
           ..where((entry) => entry.status.equals('confirmed')))
         .getSingleOrNull();
+    // Dehyphenation fallback for merged soft-wrap words (per-formance).
+    if (row == null && lemma.contains('-')) {
+      lemma = lemma.replaceAll('-', '');
+      row = await (_database.select(_database.userDictionary)
+            ..where((entry) => entry.lemma.equals(lemma))
+            ..where((entry) => entry.status.equals('confirmed')))
+          .getSingleOrNull();
+    }
     if (row == null) return null;
     return DictionaryEntry(
       word: row.surface,
