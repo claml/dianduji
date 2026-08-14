@@ -262,6 +262,55 @@ void main() {
     expect(find.text('Mitochondria produce ATP.'), findsOneWidget);
     expect(find.text('专业词典·生物'), findsOneWidget);
   });
+
+  testWidgets('not-found card still offers whole-sentence translation', (
+    tester,
+  ) async {
+    var tapped = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TranslationDetail(
+          state: const TranslationState(
+            status: TranslationStatus.notFound,
+            surface: 'MEC',
+            sentence: 'MEC is short for Mobile Edge Computing.',
+          ),
+          onClose: _noop,
+          onTranslateSentence: () => tapped++,
+        ),
+      ),
+    );
+
+    expect(find.text('本地词典未收录'), findsOneWidget);
+    expect(find.text('原文'), findsOneWidget);
+    expect(find.text('MEC is short for Mobile Edge Computing.'), findsOneWidget);
+    expect(
+      find.byKey(const Key('translate-sentence-button')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('translate-sentence-button')));
+    expect(tapped, 1);
+  });
+
+  testWidgets('sentence translation button is hidden without a callback', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TranslationDetail(
+          state: TranslationState(
+            status: TranslationStatus.notFound,
+            surface: 'mystery',
+            sentence: 'A mystery sentence.',
+          ),
+          onClose: _noop,
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('translate-sentence-button')), findsNothing);
+  });
 }
 
 void _noop() {}

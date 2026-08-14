@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/network/online_translation_gateway.dart';
 import '../../../core/platform/android_pronunciation_service.dart';
 import '../../../core/platform/pronunciation_service.dart';
 import '../../phrases/domain/phrase_recognizer.dart';
@@ -118,8 +119,8 @@ class _TranslationDetailState extends State<TranslationDetail> {
 
   Widget _notFound(TranslationState state) {
     final onAdd = widget.onAddManualDefinition;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return ListView(
+      padding: EdgeInsets.zero,
       children: [
         const Text('本地词典未收录'),
         if (onAdd != null) ...[
@@ -131,6 +132,7 @@ class _TranslationDetailState extends State<TranslationDetail> {
             label: const Text('添加自定义释义'),
           ),
         ],
+        ..._sentenceBlocks(state, state.onlineResult),
       ],
     );
   }
@@ -182,54 +184,7 @@ class _TranslationDetailState extends State<TranslationDetail> {
             child: Text(specialized.definition),
           ),
         ],
-        if (state.sentence.isNotEmpty) ...[
-          _sectionTitle('原文'),
-          Text(state.sentence),
-          if (widget.onTranslateSentence != null) ...[
-            const SizedBox(height: 12),
-            if (state.sentenceTranslationStatus ==
-                OnlineTranslationStatus.loading)
-              const Row(
-                children: [
-                  SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  SizedBox(width: 10),
-                  Text('正在翻译整句…'),
-                ],
-              )
-            else
-              OutlinedButton.icon(
-                key: const Key('translate-sentence-button'),
-                onPressed: widget.onTranslateSentence,
-                icon: const Icon(Icons.translate_rounded),
-                label: Text(
-                  state.sentenceTranslationStatus ==
-                          OnlineTranslationStatus.available
-                      ? '重新翻译整句'
-                      : '翻译整句',
-                ),
-              ),
-            if (state.sentenceTranslationStatus ==
-                OnlineTranslationStatus.unavailable)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  '翻译失败，请检查网络后重试',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              ),
-          ],
-        ],
-        if (state.sentenceTranslation.isNotEmpty) ...[
-          _sectionTitle('译文'),
-          Text(state.sentenceTranslation),
-        ] else if (online != null && online.sentenceTranslation.isNotEmpty) ...[
-          _sectionTitle('译文'),
-          Text(online.sentenceTranslation),
-        ],
+        ..._sentenceBlocks(state, online),
         if (online != null && online.examples.isNotEmpty) ...[
           _sectionTitle('例句'),
           for (final example in online.examples)
@@ -280,6 +235,65 @@ class _TranslationDetailState extends State<TranslationDetail> {
         ),
       ],
     );
+  }
+
+  /// Original-sentence section shared by the found and not-found cards:
+  /// the source text, an optional explicit "translate sentence" action with
+  /// its loading / failure states, and the translated sentence (an explicit
+  /// result takes precedence over the gateway's automatic one).
+  List<Widget> _sentenceBlocks(
+    TranslationState state,
+    OnlineTranslationResult? online,
+  ) {
+    if (state.sentence.isEmpty) return const [];
+    return [
+      _sectionTitle('原文'),
+      Text(state.sentence),
+      if (widget.onTranslateSentence != null) ...[
+        const SizedBox(height: 12),
+        if (state.sentenceTranslationStatus ==
+            OnlineTranslationStatus.loading)
+          const Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 10),
+              Text('正在翻译整句…'),
+            ],
+          )
+        else
+          OutlinedButton.icon(
+            key: const Key('translate-sentence-button'),
+            onPressed: widget.onTranslateSentence,
+            icon: const Icon(Icons.translate_rounded),
+            label: Text(
+              state.sentenceTranslationStatus ==
+                      OnlineTranslationStatus.available
+                  ? '重新翻译整句'
+                  : '翻译整句',
+            ),
+          ),
+        if (state.sentenceTranslationStatus ==
+            OnlineTranslationStatus.unavailable)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              '翻译失败，请检查网络后重试',
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ),
+      ],
+      if (state.sentenceTranslation.isNotEmpty) ...[
+        _sectionTitle('译文'),
+        Text(state.sentenceTranslation),
+      ] else if (online != null && online.sentenceTranslation.isNotEmpty) ...[
+        _sectionTitle('译文'),
+        Text(online.sentenceTranslation),
+      ],
+    ];
   }
 
   Widget _sectionTitle(String title) => Padding(
