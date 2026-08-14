@@ -83,6 +83,8 @@ flutter:
     - assets/dictionary/ecdict.sqlite
     - assets/dictionary/LICENSE-ECDICT
     - assets/phrases/phrases.json
+    - assets/specialized/terms.json
+    - assets/specialized/LICENSE.md
     - integration_test/fixtures/sample_utf8.txt
     - integration_test/fixtures/sample_gb18030.txt
     - integration_test/fixtures/sample.docx
