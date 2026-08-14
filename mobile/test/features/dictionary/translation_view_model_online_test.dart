@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dian_du_ji/core/network/online_translation_gateway.dart';
 import 'package:dian_du_ji/features/dictionary/data/dictionary_repository.dart';
 import 'package:dian_du_ji/features/dictionary/domain/user_dictionary_repository.dart';
@@ -158,6 +160,102 @@ void main() {
     expect(vm.state.entry?.definitionChinese, '词语（用户词典）');
     expect(vm.state.fromUserDictionary, isTrue);
   });
+
+  test('whole-sentence translation stores the gateway result', () async {
+    final gateway = _RecordingGateway();
+    final vm = viewModel(gateway: gateway, onlineEnabled: true);
+
+    await vm.lookup(
+      tokens: tokensOf('an unknown phrase here'),
+      selectedTokenOrdinal: 1,
+    );
+    await vm.translateSentence();
+
+    expect(
+      vm.state.sentenceTranslationStatus,
+      OnlineTranslationStatus.available,
+    );
+    expect(vm.state.sentenceTranslation, '未知短语的译文。');
+    expect(gateway.lastRequest?.sentence, 'an unknown phrase here');
+  });
+
+  test('whole-sentence translation failure is surfaced as unavailable', (
+  ) async {
+    final gateway = _FailingGateway();
+    final vm = viewModel(gateway: gateway, onlineEnabled: true);
+
+    await vm.lookup(
+      tokens: tokensOf('an unknown phrase here'),
+      selectedTokenOrdinal: 1,
+    );
+    await vm.translateSentence();
+
+    expect(
+      vm.state.sentenceTranslationStatus,
+      OnlineTranslationStatus.unavailable,
+    );
+    expect(vm.state.sentenceTranslation, isEmpty);
+  });
+
+  test('whole-sentence translation is skipped when online is off', () async {
+    final gateway = _RecordingGateway();
+    final vm = viewModel(gateway: gateway, onlineEnabled: false);
+
+    await vm.lookup(
+      tokens: tokensOf('an unknown phrase here'),
+      selectedTokenOrdinal: 1,
+    );
+    await vm.translateSentence();
+
+    expect(gateway.calls, 0);
+    expect(vm.state.sentenceTranslationStatus, OnlineTranslationStatus.none);
+  });
+
+  test('whole-sentence translation without a sentence is a no-op', () async {
+    final gateway = _RecordingGateway();
+    final vm = viewModel(gateway: gateway, onlineEnabled: true);
+
+    await vm.translateSentence();
+
+    expect(gateway.calls, 0);
+    expect(vm.state.sentenceTranslationStatus, OnlineTranslationStatus.none);
+  });
+
+  test('a stale whole-sentence response is dropped', () async {
+    final gateway = _FirstHangsGateway();
+    final vm = TranslationViewModel(
+      dictionary: const _General({
+        'known': DictionaryEntry(
+          word: 'known',
+          phonetic: '',
+          partOfSpeech: 'adj',
+          definitionEnglish: 'known',
+          definitionChinese: '已知的',
+        ),
+      }),
+      learning: const _Learning(),
+      phraseRecognizer: PhraseRecognizer(const []),
+      onlineGateway: gateway,
+      onlineEnabled: true,
+    );
+    await vm.lookup(tokens: tokensOf('a known word'), selectedTokenOrdinal: 1);
+
+    final first = vm.translateSentence();
+    await vm.translateSentence();
+
+    expect(vm.state.sentenceTranslation, '第二句译文。');
+    gateway.first.complete(
+      const OnlineTranslationResult(
+        termTranslation: '旧译文',
+        sentenceTranslation: '旧译文。',
+        sourceId: 'g',
+        cacheVersion: '1',
+      ),
+    );
+    await first;
+
+    expect(vm.state.sentenceTranslation, '第二句译文。');
+  });
 }
 
 class _MemoryUserDictionary implements UserDictionaryStore {
@@ -216,6 +314,28 @@ class _FailingGateway implements OnlineTranslationGateway {
     OnlineTranslationRequest request,
   ) async {
     throw const OnlineTranslationException(OnlineTranslationError.offline);
+  }
+}
+
+/// First call hangs until [first] completes; later calls succeed immediately.
+class _FirstHangsGateway implements OnlineTranslationGateway {
+  final first = Completer<OnlineTranslationResult>();
+  var calls = 0;
+
+  @override
+  Future<OnlineTranslationResult> translate(
+    OnlineTranslationRequest request,
+  ) {
+    calls++;
+    if (calls == 1) return first.future;
+    return Future.value(
+      const OnlineTranslationResult(
+        termTranslation: '已知词',
+        sentenceTranslation: '第二句译文。',
+        sourceId: 'g',
+        cacheVersion: '1',
+      ),
+    );
   }
 }
 

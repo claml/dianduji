@@ -1,7 +1,8 @@
 # 典读鸡 (Dianduji)
 
 面向科研与英语阅读的点读翻译应用：离线导入 TXT / 文本 PDF / DOCX，点按单词
-即查本地词典（ECDICT），自动收录生词与短语，支持手机、平板、桌面与 Web。
+即查本地词典（ECDICT），自动收录生词与短语，支持手机、平板与桌面
+（Web 版为独立项目）。
 
 - **离线优先**：全部解析、查询、学习数据在本机完成。
 - **科研翻译**：五领域专业词典（计算机/医学/生物/化学/地理信息 1065+ 条）、
@@ -35,7 +36,6 @@ $flutter = 'D:\local_environment\Flutter\flutter\bin\flutter.bat'
 & $flutter pub get
 & $flutter analyze
 & $flutter test
-& $flutter build web            # Web 产物: build\web
 ```
 
 ### 在线翻译（可选）
@@ -50,15 +50,9 @@ $flutter = 'D:\local_environment\Flutter\flutter\bin\flutter.bat'
 
 ## 测试与质量
 
-- 326+ 单元/组件测试；覆盖率约 94%
+- 328 项单元/组件测试（含 golden 视觉基线）；CI 另跑 analyze 与覆盖统计
 - 性能：词典查询 ~196µs/次；千页 PDF 导入 ~1.9s；真机滚动 86-118 FPS
 - 隐私：离线优先；在线请求仅含所点词与所在单句（≤1000 字符）
-
-## 开源
-
-- 许可证：MIT（`LICENSE`）
-- 数据许可：ECDICT（MIT）、专业词典（MIT 自建汇编）——见 `mobile/docs/third-party-notices.md`
-- 贡献指南：`CONTRIBUTING.md`
 
 ## 目录
 
