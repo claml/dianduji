@@ -8,6 +8,7 @@ import '../core/database/app_database.dart';
 import '../core/platform/android_shared_file_receiver.dart';
 import '../core/platform/shared_file_receiver.dart';
 import '../features/dictionary/data/dictionary_repository.dart';
+import '../features/dictionary/domain/specialized_terms.dart';
 import '../features/documents/data/drift_document_import_store.dart';
 import '../features/documents/data/drift_document_repository.dart';
 import '../features/documents/data/default_document_parser_resolver.dart';
@@ -50,6 +51,10 @@ final dictionaryLookupProvider = Provider<DictionaryLookup>((ref) {
 
 final phraseRecognizerProvider = Provider<PhraseRecognizer>((ref) {
   return ref.watch(appRuntimeProvider).phraseRecognizer;
+});
+
+final specializedTermCatalogProvider = Provider<SpecializedTermIndex?>((ref) {
+  return ref.watch(appRuntimeProvider).specializedIndex;
 });
 
 final learningRepositoryProvider = Provider<LearningRepository>((ref) {

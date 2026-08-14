@@ -32,6 +32,7 @@ void main() {
       database: userDatabase,
       dictionary: DictionaryRepository(dictionaryDatabase),
       phraseRecognizer: PhraseRecognizer(const []),
+      specializedIndex: null,
     );
     final container = ProviderContainer(
       overrides: [

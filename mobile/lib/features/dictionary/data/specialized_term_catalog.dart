@@ -95,11 +95,13 @@ class SpecializedTermCatalog implements SpecializedTermIndex {
       _all.any((term) => term.domain == domain);
 
   /// Exact (case-insensitive, normalized) term or synonym hit.
+  @override
   SpecializedTerm? lookup(String term) => _exactIndex[_normalize(term)];
 
   /// The longest term whose normalized form starts with [term]. Returns null
   /// when no specialized term extends [term] (a shorter exact hit is not a
   /// prefix hit by itself).
+  @override
   SpecializedTerm? lookupLongestPrefix(String term) {
     final normalized = _normalize(term);
     if (normalized.isEmpty) return null;

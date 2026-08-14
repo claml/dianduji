@@ -76,6 +76,7 @@ _RuntimeFixture _runtime() {
       database: database,
       dictionary: DictionaryRepository(dictionary),
       phraseRecognizer: PhraseRecognizer(const []),
+      specializedIndex: null,
     ),
   );
 }

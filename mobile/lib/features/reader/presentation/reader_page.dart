@@ -61,6 +61,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
             dictionary: ref.read(dictionaryLookupProvider),
             learning: ref.read(learningRepositoryProvider),
             phraseRecognizer: ref.read(phraseRecognizerProvider),
+            specializedIndex: ref.read(specializedTermCatalogProvider),
           ),
           settings: ReadingSettings(autoSaveVocabulary: false),
         );
