@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
-import 'dart:ui' show SemanticsFlag, Tristate;
+import 'dart:ui' show Tristate;
 
 import 'package:dian_du_ji/core/platform/pdf_text_extractor.dart';
 import 'package:dian_du_ji/features/documents/data/drift_document_repository.dart';

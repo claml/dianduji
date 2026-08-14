@@ -856,7 +856,7 @@ git commit -m "test: verify responsive Android learning flow"
 - Consumes: the complete MVP and the approved thresholds.
 - Produces coverage/performance reports, privacy/license evidence, reproducible setup instructions, a debug APK, and a release AAB signed only from external credentials.
 
-- [ ] **Step 1: Add a deterministic core-coverage gate**
+- [x] **Step 1: Add a deterministic core-coverage gate**
 
 Parse `coverage/lcov.info` and calculate line coverage only for document parsing/structure, dictionary, phrase, import state, learning repository, and reader-controller paths. Exit nonzero below 90%; print included files and uncovered lines.
 
@@ -865,7 +865,9 @@ Parse `coverage/lcov.info` and calculate line coverage only for document parsing
 dart run tool/check_coverage.dart coverage/lcov.info --minimum 90
 ```
 
-- [ ] **Step 2: Add and run performance gates**
+> Result: tracked core coverage 708/750 = 94.4% PASS. Note: `dart run` triggers the sqlite3 native-assets C build hook, which fails on hosts without a Visual Studio toolchain; use `dart tool/check_coverage.dart ...` directly (documented in README).
+
+- [x] **Step 2: Add and run performance gates**
 
 Measure and record:
 
@@ -876,11 +878,16 @@ Measure and record:
 
 Write JSON results containing device model, OS, build mode, fixture SHA-256, duration, frame count, and pass/fail. Store no document body text in results or logs.
 
-- [ ] **Step 3: Audit privacy and licenses**
+> Completed: 1,000 ECDICT lookups measured on the host through the real `DictionaryAssetStore` path (196µs/lookup, PASS, JSON line printed by `test/benchmarks/dictionary_benchmark_test.dart`). The benchmark lives in `test/` because sqlite3 3.5+ loads through Dart native assets that `dart run` cannot provide on this host; `flutter test` resolves them.
+> Deferred to device time (BTK-W00 not attached): tap-to-selection latency, scroll FPS trace, and the 1,000-page PDF duration/memory report.
+
+- [x] **Step 3: Audit privacy and licenses**
 
 Verify ECDICT MIT attribution, PDFBox Android/Apache-2.0 attribution, Dart/Flutter package notices, zero translation network calls, no document text in diagnostic logs, and no broad storage permission. Add a user-facing privacy page that states all document and lookup processing is local.
 
-- [ ] **Step 4: Configure release signing without secrets in Git**
+> Notes: PDFBox was superseded by the approved `pdfrx` engine (BSD-3-Clause); `docs/third-party-notices.md` records ECDICT MIT, Flutter/Dart, pdfrx, Riverpod/Drift/SQLite, file_picker and friends. The app declares no network permission, logs no document body text, and requests no broad storage permission. Settings gained user-facing privacy and license dialogs.
+
+- [x] **Step 4: Configure release signing without secrets in Git**
 
 Read `DIANDUJI_STORE_FILE`, `DIANDUJI_STORE_PASSWORD`, `DIANDUJI_KEY_ALIAS`, and `DIANDUJI_KEY_PASSWORD` from Gradle properties/environment for release builds. Fail release configuration with an actionable message when any is missing. Commit only `key.properties.example`; ignore real keystores and property files. Remove the current debug signing assignment from the release build type.
 
@@ -908,7 +915,7 @@ signingConfigs {
 }
 ```
 
-- [ ] **Step 5: Write exact operator documentation**
+- [x] **Step 5: Write exact operator documentation**
 
 `mobile/README.md` must include Flutter/JDK/SDK/NDK versions, the `T:` path mapping, why Kotlin incremental compilation is disabled, device setup, dictionary rebuild command and hashes, fixture provenance, all test commands, database migration rules, privacy behavior, the current `file_picker` pin, iOS verification limitation, signing variables, and artifact locations.
 
@@ -930,6 +937,8 @@ dart run tool/check_coverage.dart coverage/lcov.info --minimum 90
 
 Expected: all commands exit 0. The release command is run only after the four signing values are supplied; never fall back to debug signing for a release artifact.
 
+> This round verified (all on the working tree, no `flutter clean` to preserve the toolchain): `flutter analyze` clean, full `flutter test` suite green (232 tests), coverage gate 94.4% PASS, benchmark PASS, and `flutter build apk --debug` producing `build/app/outputs/flutter-apk/app-debug.apk`. The clean-build full pipeline and device integration tests remain for device time; release AAB requires the signing values.
+
 - [ ] **Step 7: Install the final APK and record evidence**
 
 ```powershell
@@ -942,7 +951,7 @@ Get-FileHash build\app\outputs\flutter-apk\app-debug.apk -Algorithm SHA256
 
 Expected: install succeeds, the application PID is returned, and the final SHA-256 is copied into the release evidence section of the README.
 
-- [ ] **Step 8: Commit Task 9**
+- [x] **Step 8: Commit Task 9**
 
 ```powershell
 git add mobile

@@ -242,6 +242,30 @@ void main() {
     );
   });
 
+  testWidgets('privacy and license tiles open their dialogs', (tester) async {
+    final cleanup = _RecordingCacheCleanupService();
+    await tester.pumpWidget(_settingsApp(cleanup));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('隐私说明'), 120);
+    await tester.tap(find.text('隐私说明'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('本应用的所有功能均在本机离线完成'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('不收集、不上传文档内容'), findsOneWidget);
+    await tester.tap(find.text('知道了'));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.text('开源许可证'), 120);
+    await tester.tap(find.text('开源许可证'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('ECDICT 英汉词典'), findsOneWidget);
+    await tester.tap(find.text('关闭'));
+    await tester.pumpAndSettle();
+  });
+
   testWidgets('cancelled cache cleanup performs no deletion', (tester) async {
     final cleanup = _RecordingCacheCleanupService();
     await tester.pumpWidget(_settingsApp(cleanup));

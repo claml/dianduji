@@ -106,15 +106,17 @@ class PersistedSettingsPage extends ConsumerWidget {
             onChanged: controller.updateAutoSaveVocabulary,
           ),
           const Divider(),
-          const ListTile(
+          ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text('隐私说明'),
-            subtitle: Text('文档与查询均在本机离线处理'),
+            title: const Text('隐私说明'),
+            subtitle: const Text('文档与查询均在本机离线处理'),
+            onTap: () => _showPrivacyDialog(context),
           ),
-          const ListTile(
+          ListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text('开源许可证'),
-            subtitle: Text('ECDICT MIT 等第三方许可证'),
+            title: const Text('开源许可证'),
+            subtitle: const Text('ECDICT MIT 等第三方许可证'),
+            onTap: () => _showLicensesDialog(context),
           ),
           ListTile(
             contentPadding: EdgeInsets.zero,
@@ -127,6 +129,51 @@ class PersistedSettingsPage extends ConsumerWidget {
       ),
     );
   }
+
+  Future<void> _showPrivacyDialog(BuildContext context) => showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('隐私说明'),
+      content: const SingleChildScrollView(
+        child: Text(
+          '本应用的所有功能均在本机离线完成：\n'
+          '· 文档解析、词典查询、短语识别与学习记录不离开设备；\n'
+          '· 不收集、不上传文档内容、查询记录或阅读历史；\n'
+          '· 从其他应用分享的文档仅通过系统授权读取，并复制到应用私有目录后解析；\n'
+          '· 应用不请求通讯录、定位、麦克风等无关权限。',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('知道了'),
+        ),
+      ],
+    ),
+  );
+
+  Future<void> _showLicensesDialog(BuildContext context) => showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('开源许可证'),
+      content: const SingleChildScrollView(
+        child: Text(
+          '本应用基于以下开源组件构建：\n'
+          '· ECDICT 英汉词典（MIT）\n'
+          '· Flutter / Dart（BSD-3-Clause）\n'
+          '· pdfrx PDF 引擎（BSD-3-Clause）\n'
+          '· Riverpod、Drift、SQLite 等（MIT / 公有领域）\n'
+          '完整清单见 docs/third-party-notices.md。',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('关闭'),
+        ),
+      ],
+    ),
+  );
 
   Future<void> _confirmCacheCleanup(BuildContext context, WidgetRef ref) async {
     final confirmed = await showDialog<bool>(

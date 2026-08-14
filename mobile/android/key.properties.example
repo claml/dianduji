@@ -1,0 +1,19 @@
+# 发布签名配置示例 (Release signing example)
+#
+# 复制为 android/key.properties 并填写真实值，或通过环境变量提供。
+# 真实 keystore 与 key.properties 已在 .gitignore 中排除，切勿提交。
+#
+# 环境变量等价项:
+#   DIANDUJI_STORE_FILE       -> key.properties 的 storeFile
+#   DIANDUJI_STORE_PASSWORD   -> storePassword
+#   DIANDUJI_KEY_ALIAS        -> keyAlias
+#   DIANDUJI_KEY_PASSWORD     -> keyPassword
+#
+# 生成 keystore 示例:
+#   keytool -genkeypair -v -keystore dianduji-release.jks -alias dianduji \
+#     -keyalg RSA -keysize 2048 -validity 10000
+
+storeFile=dianduji-release.jks
+storePassword=CHANGE_ME
+keyAlias=dianduji
+keyPassword=CHANGE_ME

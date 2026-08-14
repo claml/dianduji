@@ -4,6 +4,31 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Release signing reads DIANDUJI_STORE_FILE / DIANDUJI_STORE_PASSWORD /
+// DIANDUJI_KEY_ALIAS / DIANDUJI_KEY_PASSWORD from Gradle properties (e.g.
+// android/key.properties) or environment variables. Release builds fail with
+// an actionable message when any value is missing; debug builds stay
+// development-signed. See android/key.properties.example.
+val releaseValues = listOf(
+    "DIANDUJI_STORE_FILE",
+    "DIANDUJI_STORE_PASSWORD",
+    "DIANDUJI_KEY_ALIAS",
+    "DIANDUJI_KEY_PASSWORD",
+).associateWith { key ->
+    providers.gradleProperty(key).orNull ?: System.getenv(key)
+}
+
+val releaseRequested =
+    gradle.startParameter.taskNames.any { it.contains("Release") }
+val missingReleaseValues = releaseValues.filterValues { it.isNullOrBlank() }.keys
+if (releaseRequested && missingReleaseValues.isNotEmpty()) {
+    error(
+        "Missing release signing values: ${missingReleaseValues.joinToString()}.\n" +
+            "Provide them via android/key.properties (see key.properties.example) " +
+            "or the DIANDUJI_* environment variables.",
+    )
+}
+
 android {
     namespace = "com.dianduji.dian_du_ji"
     compileSdk = flutter.compileSdkVersion
@@ -22,10 +47,24 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (missingReleaseValues.isEmpty()) {
+            create("release") {
+                storeFile = releaseValues.getValue("DIANDUJI_STORE_FILE")
+                    ?.let { file(it) }
+                storePassword = releaseValues.getValue("DIANDUJI_STORE_PASSWORD")
+                keyAlias = releaseValues.getValue("DIANDUJI_KEY_ALIAS")
+                keyPassword = releaseValues.getValue("DIANDUJI_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Development-only signing until release credentials are provisioned.
-            signingConfig = signingConfigs.getByName("debug")
+            // Signed only from externally provided credentials; never falls
+            // back to the debug key for a release artifact.
+            val releaseSigning = signingConfigs.findByName("release")
+            if (releaseSigning != null) signingConfig = releaseSigning
         }
     }
 
