@@ -1,8 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 在线翻译网关访问所需（仅本地词典未命中且用户开启在线翻译时使用） -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="dian_du_ji"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:networkSecurityConfig="@xml/network_security_config">
         <activity
             android:name=".MainActivity"
             android:exported="true"
