@@ -753,6 +753,8 @@ eventSink.success(mapOf(
 Also manually share one TXT, PDF, and DOCX from the Huawei file manager into 点读机 in both stopped and already-running states.
 
 > Device note: BTK-W00 (`26DYD24119408737`) was not attached during this round. Dart channel/controller tests pass on the host (219 total, including 9 new shared-file tests) and `gradlew testDebugUnitTest` covers the fingerprint deduplicator on the JVM. The device integration test and the manual share checks above remain pending device time.
+>
+> **Device verification (later round):** `flutter test integration_test/shared_file_import_test.dart -d 26DYD24119408737` PASSES on BTK-W00 (Android 12).
 
 - [x] **Step 6: Commit Task 7**
 
@@ -829,6 +831,8 @@ Flow: reset test database → import real TXT → wait for completed → open �
 Review every updated golden visually before accepting it. Do not update goldens merely to make a regression pass.
 
 > Device note: the host-side gates pass (full `flutter test` suite is green, including accessibility and goldens). `core_learning_flow_test.dart` and `shared_file_import_test.dart` are ready but require the BTK-W00 tablet (`26DYD24119408737`), which was not attached this round.
+>
+> **Device verification (later round):** on BTK-W00 (Android 12), `txt_docx_import_test.dart`, `core_learning_flow_test.dart`, and `shared_file_import_test.dart` all PASS on device. Golden PNGs additionally verified by pixel sampling on device: night-mode PDF reading shows dark paper, light text, and no inverted-shadow white border after the night-mode fixes.
 
 - [x] **Step 6: Commit Task 8**
 
