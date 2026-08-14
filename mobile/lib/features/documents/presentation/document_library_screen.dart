@@ -480,7 +480,9 @@ class _DocumentDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    // Scrollable so a tall title or a shrunken viewport (e.g. the on-screen
+    // keyboard on tablets) can never overflow the pane.
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -502,7 +504,7 @@ class _DocumentDetail extends StatelessWidget {
           Text('阅读进度 ${(document.progress * 100).round()}%'),
           const SizedBox(height: 12),
           LinearProgressIndicator(value: document.progress, minHeight: 6),
-          const Spacer(),
+          const SizedBox(height: 32),
           Row(
             children: [
               FilledButton.icon(
