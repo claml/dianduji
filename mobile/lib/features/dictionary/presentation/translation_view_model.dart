@@ -255,6 +255,12 @@ class TranslationViewModel extends ChangeNotifier {
     _setState(const TranslationState());
   }
 
+  /// Saves a user-written definition into the user dictionary. The reader
+  /// card shows the entry on the next tap of the same word.
+  Future<void> saveManualDefinition(ManualDictionaryEntry entry) async {
+    await _userDictionary?.saveManualEntry(entry);
+  }
+
   void _setState(TranslationState value) {
     _state = value;
     notifyListeners();

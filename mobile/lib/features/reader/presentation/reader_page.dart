@@ -376,6 +376,7 @@ class _ReaderPageState extends ConsumerState<ReaderPage>
             _controller.selectToken(sentenceId: sentence.id, tokenId: token.id),
         onCloseTranslation: _controller.closeTranslation,
         onSavePhrase: _controller.savePhrase,
+        onAddManualDefinition: _controller.saveManualDefinition,
         onNavigateBack: _leaveReader,
         onSettings: _openReadingSettings,
         chromeController: _chromeController,

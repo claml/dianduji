@@ -1,6 +1,7 @@
 import 'package:dian_du_ji/features/dictionary/data/dictionary_repository.dart';
 import 'package:dian_du_ji/features/dictionary/domain/specialized_terms.dart';
 import 'package:dian_du_ji/features/dictionary/domain/term_candidate_recognizer.dart';
+import 'package:dian_du_ji/features/dictionary/domain/user_dictionary_repository.dart';
 import 'package:dian_du_ji/features/dictionary/presentation/translation_detail.dart';
 import 'package:dian_du_ji/features/dictionary/presentation/translation_view_model.dart';
 import 'package:dian_du_ji/features/phrases/domain/phrase_recognizer.dart';
@@ -55,6 +56,59 @@ void main() {
     );
 
     expect(find.text('本地词典未收录'), findsOneWidget);
+  });
+
+  testWidgets('not-found card offers a manual definition action', (
+    tester,
+  ) async {
+    ManualDictionaryEntry? saved;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: TranslationDetail(
+          state: const TranslationState(
+            status: TranslationStatus.notFound,
+            surface: 'MEC',
+          ),
+          onClose: _noop,
+          onAddManualDefinition: (entry) async => saved = entry,
+        ),
+      ),
+    );
+
+    expect(find.text('添加自定义释义'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('add-manual-definition')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('添加自定义释义'), findsWidgets); // dialog title
+    await tester.enterText(
+      find.byKey(const Key('manual-chinese')),
+      '城市设计与导航实验（缩写）',
+    );
+    await tester.tap(find.byKey(const Key('manual-save')));
+    await tester.pumpAndSettle();
+
+    expect(saved, isNotNull);
+    expect(saved!.surface, 'MEC');
+    expect(saved!.definitionChinese, '城市设计与导航实验（缩写）');
+    expect(find.text('已收录，再次点击即可查询'), findsOneWidget);
+  });
+
+  testWidgets('manual definition action is hidden without a callback', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: TranslationDetail(
+          state: TranslationState(
+            status: TranslationStatus.notFound,
+            surface: 'mystery',
+          ),
+          onClose: _noop,
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('add-manual-definition')), findsNothing);
   });
 
   testWidgets('exposes a phrase save action and forwards its phrase once', (

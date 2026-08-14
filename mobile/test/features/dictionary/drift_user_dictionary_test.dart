@@ -104,6 +104,27 @@ void main() {
     expect(await store.lookupConfirmed('two'), isNotNull);
   });
 
+  test('saveManualEntry confirms a user-written definition', () async {
+    await store.collectCandidate('MEC', source: 'online-translation');
+
+    await store.saveManualEntry(
+      const ManualDictionaryEntry(
+        surface: 'MEC',
+        phonetic: 'em-i-si',
+        partOfSpeech: 'abbr.',
+        definitionEnglish: 'an experimental abbreviation',
+        definitionChinese: '城市设计与导航实验（缩写）',
+        author: '本机用户',
+      ),
+    );
+
+    expect(await store.pendingCandidateCount(), 0);
+    final entry = await store.lookupConfirmed('mec');
+    expect(entry, isNotNull);
+    expect(entry!.definitionChinese, '城市设计与导航实验（缩写）');
+    expect(entry.partOfSpeech, 'abbr.');
+  });
+
   test('normalizeUserLemma collapses case and apostrophes', () {
     expect(normalizeUserLemma("  Don'T  "), "don't");
     expect(normalizeUserLemma('Don’t'), "don't");

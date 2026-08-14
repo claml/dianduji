@@ -22,6 +22,29 @@ class EnrichedDictionaryEntry {
   final bool isValid;
 }
 
+/// A definition the user wrote themselves (proper nouns, abbreviations, or
+/// context-specific senses). Stored as a confirmed user-dictionary entry.
+class ManualDictionaryEntry {
+  const ManualDictionaryEntry({
+    required this.surface,
+    required this.phonetic,
+    required this.partOfSpeech,
+    required this.definitionEnglish,
+    required this.definitionChinese,
+    this.author = '',
+  });
+
+  final String surface;
+  final String phonetic;
+  final String partOfSpeech;
+  final String definitionEnglish;
+  final String definitionChinese;
+
+  /// Reserved for future community sharing; locally it stays the device
+  /// owner.
+  final String author;
+}
+
 class UserDictionaryCandidate {
   const UserDictionaryCandidate({
     required this.lemma,
@@ -54,6 +77,10 @@ abstract interface class UserDictionaryStore {
   /// Applies LLM enrichment: valid entries become confirmed, invalid ones are
   /// removed.
   Future<void> applyEnrichment(List<EnrichedDictionaryEntry> entries);
+
+  /// Saves a user-written definition as a confirmed entry, replacing any
+  /// candidate of the same lemma.
+  Future<void> saveManualEntry(ManualDictionaryEntry entry);
 
   Future<void> clearCandidates();
 }

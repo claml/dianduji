@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../../dictionary/presentation/translation_view_model.dart';
+import '../../dictionary/domain/user_dictionary_repository.dart';
 import '../../documents/data/drift_document_repository.dart';
 import '../../documents/domain/document_models.dart';
 import '../../documents/domain/models/parsed_block.dart';
@@ -233,6 +234,10 @@ class ReaderController extends ChangeNotifier {
       ),
     );
   }
+
+  /// Saves a user-written definition for a word the dictionaries missed.
+  Future<void> saveManualDefinition(ManualDictionaryEntry entry) =>
+      translation.saveManualDefinition(entry);
 
   Future<void> savePhrase(PhraseMatch phrase) {
     final sentenceId = _state.selectedSentenceId;

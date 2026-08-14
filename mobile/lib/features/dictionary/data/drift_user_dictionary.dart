@@ -112,6 +112,27 @@ class DriftUserDictionary implements UserDictionaryStore {
   }
 
   @override
+  Future<void> saveManualEntry(ManualDictionaryEntry entry) async {
+    final lemma = normalizeUserLemma(entry.surface);
+    if (lemma.isEmpty) return;
+    await _database.into(_database.userDictionary).insertOnConflictUpdate(
+      UserDictionaryCompanion.insert(
+        lemma: lemma,
+        surface: entry.surface.trim(),
+        phonetic: Value(entry.phonetic),
+        partOfSpeech: Value(entry.partOfSpeech),
+        definitionEnglish: Value(entry.definitionEnglish),
+        definitionChinese: Value(entry.definitionChinese),
+        status: Value('confirmed'),
+        source: Value('manual'),
+        author: Value(entry.author),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ),
+    );
+  }
+
+  @override
   Future<void> clearCandidates() async {
     await (_database.delete(_database.userDictionary)
           ..where((entry) => entry.status.equals('candidate')))

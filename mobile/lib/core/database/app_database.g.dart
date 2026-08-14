@@ -5180,6 +5180,16 @@ class $UserDictionaryTable extends UserDictionary
     requiredDuringInsert: false,
     defaultValue: const Constant(''),
   );
+  static const VerificationMeta _authorMeta = const VerificationMeta('author');
+  @override
+  late final GeneratedColumn<String> author = GeneratedColumn<String>(
+    'author',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -5212,6 +5222,7 @@ class $UserDictionaryTable extends UserDictionary
     definitionChinese,
     status,
     source,
+    author,
     createdAt,
     updatedAt,
   ];
@@ -5288,6 +5299,12 @@ class $UserDictionaryTable extends UserDictionary
         source.isAcceptableOrUnknown(data['source']!, _sourceMeta),
       );
     }
+    if (data.containsKey('author')) {
+      context.handle(
+        _authorMeta,
+        author.isAcceptableOrUnknown(data['author']!, _authorMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -5345,6 +5362,10 @@ class $UserDictionaryTable extends UserDictionary
         DriftSqlType.string,
         data['${effectivePrefix}source'],
       )!,
+      author: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}author'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -5375,8 +5396,12 @@ class UserDictionaryData extends DataClass
   /// candidate (collected, not yet enriched) | confirmed (usable in lookup).
   final String status;
 
-  /// How the candidate entered the table (e.g. online-translation).
+  /// How the entry entered the table (e.g. online-translation, manual).
   final String source;
+
+  /// Author display name of the person who confirmed this entry. Reserved
+  /// for future community sharing; locally it stays the device owner.
+  final String author;
   final DateTime createdAt;
   final DateTime updatedAt;
   const UserDictionaryData({
@@ -5388,6 +5413,7 @@ class UserDictionaryData extends DataClass
     required this.definitionChinese,
     required this.status,
     required this.source,
+    required this.author,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -5402,6 +5428,7 @@ class UserDictionaryData extends DataClass
     map['definition_chinese'] = Variable<String>(definitionChinese);
     map['status'] = Variable<String>(status);
     map['source'] = Variable<String>(source);
+    map['author'] = Variable<String>(author);
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     return map;
@@ -5417,6 +5444,7 @@ class UserDictionaryData extends DataClass
       definitionChinese: Value(definitionChinese),
       status: Value(status),
       source: Value(source),
+      author: Value(author),
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
     );
@@ -5436,6 +5464,7 @@ class UserDictionaryData extends DataClass
       definitionChinese: serializer.fromJson<String>(json['definitionChinese']),
       status: serializer.fromJson<String>(json['status']),
       source: serializer.fromJson<String>(json['source']),
+      author: serializer.fromJson<String>(json['author']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
     );
@@ -5452,6 +5481,7 @@ class UserDictionaryData extends DataClass
       'definitionChinese': serializer.toJson<String>(definitionChinese),
       'status': serializer.toJson<String>(status),
       'source': serializer.toJson<String>(source),
+      'author': serializer.toJson<String>(author),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
     };
@@ -5466,6 +5496,7 @@ class UserDictionaryData extends DataClass
     String? definitionChinese,
     String? status,
     String? source,
+    String? author,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) => UserDictionaryData(
@@ -5477,6 +5508,7 @@ class UserDictionaryData extends DataClass
     definitionChinese: definitionChinese ?? this.definitionChinese,
     status: status ?? this.status,
     source: source ?? this.source,
+    author: author ?? this.author,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
   );
@@ -5496,6 +5528,7 @@ class UserDictionaryData extends DataClass
           : this.definitionChinese,
       status: data.status.present ? data.status.value : this.status,
       source: data.source.present ? data.source.value : this.source,
+      author: data.author.present ? data.author.value : this.author,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -5512,6 +5545,7 @@ class UserDictionaryData extends DataClass
           ..write('definitionChinese: $definitionChinese, ')
           ..write('status: $status, ')
           ..write('source: $source, ')
+          ..write('author: $author, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -5528,6 +5562,7 @@ class UserDictionaryData extends DataClass
     definitionChinese,
     status,
     source,
+    author,
     createdAt,
     updatedAt,
   );
@@ -5543,6 +5578,7 @@ class UserDictionaryData extends DataClass
           other.definitionChinese == this.definitionChinese &&
           other.status == this.status &&
           other.source == this.source &&
+          other.author == this.author &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -5556,6 +5592,7 @@ class UserDictionaryCompanion extends UpdateCompanion<UserDictionaryData> {
   final Value<String> definitionChinese;
   final Value<String> status;
   final Value<String> source;
+  final Value<String> author;
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<int> rowid;
@@ -5568,6 +5605,7 @@ class UserDictionaryCompanion extends UpdateCompanion<UserDictionaryData> {
     this.definitionChinese = const Value.absent(),
     this.status = const Value.absent(),
     this.source = const Value.absent(),
+    this.author = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -5581,6 +5619,7 @@ class UserDictionaryCompanion extends UpdateCompanion<UserDictionaryData> {
     this.definitionChinese = const Value.absent(),
     this.status = const Value.absent(),
     this.source = const Value.absent(),
+    this.author = const Value.absent(),
     required DateTime createdAt,
     required DateTime updatedAt,
     this.rowid = const Value.absent(),
@@ -5597,6 +5636,7 @@ class UserDictionaryCompanion extends UpdateCompanion<UserDictionaryData> {
     Expression<String>? definitionChinese,
     Expression<String>? status,
     Expression<String>? source,
+    Expression<String>? author,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -5610,6 +5650,7 @@ class UserDictionaryCompanion extends UpdateCompanion<UserDictionaryData> {
       if (definitionChinese != null) 'definition_chinese': definitionChinese,
       if (status != null) 'status': status,
       if (source != null) 'source': source,
+      if (author != null) 'author': author,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -5625,6 +5666,7 @@ class UserDictionaryCompanion extends UpdateCompanion<UserDictionaryData> {
     Value<String>? definitionChinese,
     Value<String>? status,
     Value<String>? source,
+    Value<String>? author,
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<int>? rowid,
@@ -5638,6 +5680,7 @@ class UserDictionaryCompanion extends UpdateCompanion<UserDictionaryData> {
       definitionChinese: definitionChinese ?? this.definitionChinese,
       status: status ?? this.status,
       source: source ?? this.source,
+      author: author ?? this.author,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -5671,6 +5714,9 @@ class UserDictionaryCompanion extends UpdateCompanion<UserDictionaryData> {
     if (source.present) {
       map['source'] = Variable<String>(source.value);
     }
+    if (author.present) {
+      map['author'] = Variable<String>(author.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -5694,6 +5740,7 @@ class UserDictionaryCompanion extends UpdateCompanion<UserDictionaryData> {
           ..write('definitionChinese: $definitionChinese, ')
           ..write('status: $status, ')
           ..write('source: $source, ')
+          ..write('author: $author, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')
@@ -9762,6 +9809,7 @@ typedef $$UserDictionaryTableCreateCompanionBuilder =
       Value<String> definitionChinese,
       Value<String> status,
       Value<String> source,
+      Value<String> author,
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<int> rowid,
@@ -9776,6 +9824,7 @@ typedef $$UserDictionaryTableUpdateCompanionBuilder =
       Value<String> definitionChinese,
       Value<String> status,
       Value<String> source,
+      Value<String> author,
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<int> rowid,
@@ -9827,6 +9876,11 @@ class $$UserDictionaryTableFilterComposer
 
   ColumnFilters<String> get source => $composableBuilder(
     column: $table.source,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get author => $composableBuilder(
+    column: $table.author,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -9890,6 +9944,11 @@ class $$UserDictionaryTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get author => $composableBuilder(
+    column: $table.author,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -9939,6 +9998,9 @@ class $$UserDictionaryTableAnnotationComposer
 
   GeneratedColumn<String> get source =>
       $composableBuilder(column: $table.source, builder: (column) => column);
+
+  GeneratedColumn<String> get author =>
+      $composableBuilder(column: $table.author, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -9992,6 +10054,7 @@ class $$UserDictionaryTableTableManager
                 Value<String> definitionChinese = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String> source = const Value.absent(),
+                Value<String> author = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -10004,6 +10067,7 @@ class $$UserDictionaryTableTableManager
                 definitionChinese: definitionChinese,
                 status: status,
                 source: source,
+                author: author,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,
@@ -10018,6 +10082,7 @@ class $$UserDictionaryTableTableManager
                 Value<String> definitionChinese = const Value.absent(),
                 Value<String> status = const Value.absent(),
                 Value<String> source = const Value.absent(),
+                Value<String> author = const Value.absent(),
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<int> rowid = const Value.absent(),
@@ -10030,6 +10095,7 @@ class $$UserDictionaryTableTableManager
                 definitionChinese: definitionChinese,
                 status: status,
                 source: source,
+                author: author,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 rowid: rowid,

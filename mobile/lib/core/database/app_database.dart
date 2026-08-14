@@ -153,8 +153,9 @@ class OnlineTranslationCache extends Table {
 
 /// User-grown dictionary entries. Words that miss every local dictionary and
 /// are translated online are collected as candidates; after LLM enrichment
-/// they are confirmed and take priority over the bundled dictionaries. This
-/// table is user data and is never touched by asset upgrades.
+/// or manual editing they are confirmed and take priority over the bundled
+/// dictionaries. This table is user data and is never touched by asset
+/// upgrades.
 class UserDictionary extends Table {
   /// Normalized (lower-case, apostrophe-collapsed) word form.
   TextColumn get lemma => text()();
@@ -167,8 +168,12 @@ class UserDictionary extends Table {
   /// candidate (collected, not yet enriched) | confirmed (usable in lookup).
   TextColumn get status => text().withDefault(const Constant('candidate'))();
 
-  /// How the candidate entered the table (e.g. online-translation).
+  /// How the entry entered the table (e.g. online-translation, manual).
   TextColumn get source => text().withDefault(const Constant(''))();
+
+  /// Author display name of the person who confirmed this entry. Reserved
+  /// for future community sharing; locally it stays the device owner.
+  TextColumn get author => text().withDefault(const Constant(''))();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();
 
@@ -263,7 +268,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -273,6 +278,9 @@ class AppDatabase extends _$AppDatabase {
       }
       if (from < 3) {
         await m.createTable(userDictionary);
+      }
+      if (from < 4) {
+        await m.addColumn(userDictionary, userDictionary.author);
       }
     },
     beforeOpen: (details) async {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../dictionary/presentation/translation_detail.dart';
 import '../../dictionary/presentation/translation_view_model.dart';
+import '../../dictionary/domain/user_dictionary_repository.dart';
 import '../../documents/domain/document_models.dart';
 import '../../phrases/domain/phrase_recognizer.dart';
 import '../data/reader_card_preferences.dart';
@@ -40,6 +41,7 @@ class ReaderScreen extends StatefulWidget {
     this.scrollController,
     this.tokenKeyFor,
     this.onSavePhrase,
+    this.onAddManualDefinition,
     this.onNavigateBack,
     this.onSettings,
     this.chromeController,
@@ -67,6 +69,8 @@ class ReaderScreen extends StatefulWidget {
   final ScrollController? scrollController;
   final Key? Function(String tokenId)? tokenKeyFor;
   final Future<void> Function(PhraseMatch phrase)? onSavePhrase;
+  final Future<void> Function(ManualDictionaryEntry entry)?
+  onAddManualDefinition;
   final Future<void> Function()? onNavigateBack;
   final VoidCallback? onSettings;
   final ReaderChromeController? chromeController;
@@ -128,6 +132,7 @@ class _ReaderScreenState extends State<ReaderScreen> {
               word: _selectedSurface,
               onClose: _close,
               onSavePhrase: widget.onSavePhrase,
+              onAddManualDefinition: widget.onAddManualDefinition,
             ),
       preferences: widget.cardPreferences,
       onPreferencesChanged:

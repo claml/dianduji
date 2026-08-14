@@ -582,6 +582,9 @@ class _UpdateCenterStore implements UserDictionaryStore {
   Future<void> collectCandidate(String surface, {String source = ''}) async {}
 
   @override
+  Future<void> saveManualEntry(ManualDictionaryEntry entry) async {}
+
+  @override
   Future<DictionaryEntry?> lookupConfirmed(String surface) async => null;
 
   @override

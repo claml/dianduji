@@ -178,6 +178,9 @@ class _MemoryUserDictionary implements UserDictionaryStore {
   }
 
   @override
+  Future<void> saveManualEntry(ManualDictionaryEntry entry) async {}
+
+  @override
   Future<DictionaryEntry?> lookupConfirmed(String surface) async =>
       confirmed[normalizeUserLemma(surface)];
 

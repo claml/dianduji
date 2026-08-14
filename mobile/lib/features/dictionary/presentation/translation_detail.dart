@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../../core/platform/android_pronunciation_service.dart';
 import '../../../core/platform/pronunciation_service.dart';
 import '../../phrases/domain/phrase_recognizer.dart';
+import '../domain/user_dictionary_repository.dart';
+import 'manual_definition_dialog.dart';
 import 'translation_view_model.dart';
 
 class TranslationDetail extends StatefulWidget {
@@ -14,6 +16,7 @@ class TranslationDetail extends StatefulWidget {
     required this.onClose,
     this.onSavePhrase,
     this.pronunciation,
+    this.onAddManualDefinition,
     super.key,
   });
 
@@ -22,6 +25,11 @@ class TranslationDetail extends StatefulWidget {
   final VoidCallback onClose;
   final Future<void> Function(PhraseMatch phrase)? onSavePhrase;
   final PronunciationService? pronunciation;
+
+  /// Saves a user-written definition for a word the dictionaries missed;
+  /// when null the "add definition" action is hidden.
+  final Future<void> Function(ManualDictionaryEntry entry)?
+  onAddManualDefinition;
 
   @override
   State<TranslationDetail> createState() => _TranslationDetailState();
@@ -99,10 +107,46 @@ class _TranslationDetailState extends State<TranslationDetail> {
         LinearProgressIndicator(),
       ],
     ),
-    TranslationStatus.notFound => const Text('本地词典未收录'),
+    TranslationStatus.notFound => _notFound(state),
     TranslationStatus.failed => Text('查询失败：${state.errorMessage ?? '请稍后重试'}'),
     TranslationStatus.found => _found(state),
   };
+
+  Widget _notFound(TranslationState state) {
+    final onAdd = widget.onAddManualDefinition;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('本地词典未收录'),
+        if (onAdd != null) ...[
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            key: const Key('add-manual-definition'),
+            onPressed: () => _addManualDefinition(state),
+            icon: const Icon(Icons.edit_note_rounded),
+            label: const Text('添加自定义释义'),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _addManualDefinition(TranslationState state) async {
+    final entry = await showManualDefinitionDialog(
+      context,
+      surface: state.surface,
+    );
+    if (entry == null || !mounted) return;
+    try {
+      await widget.onAddManualDefinition!(entry);
+    } on Object {
+      if (!mounted) return;
+      setState(() => _feedback = '保存失败，请重试');
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _feedback = '已收录，再次点击即可查询');
+  }
 
   Widget _found(TranslationState state) {
     final entry = state.entry;
