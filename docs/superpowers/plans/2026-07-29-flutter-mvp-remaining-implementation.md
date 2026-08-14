@@ -754,7 +754,7 @@ Also manually share one TXT, PDF, and DOCX from the Huawei file manager into 点
 
 > Device note: BTK-W00 (`26DYD24119408737`) was not attached during this round. Dart channel/controller tests pass on the host (219 total, including 9 new shared-file tests) and `gradlew testDebugUnitTest` covers the fingerprint deduplicator on the JVM. The device integration test and the manual share checks above remain pending device time.
 >
-> **Device verification (later round):** `flutter test integration_test/shared_file_import_test.dart -d 26DYD24119408737` PASSES on BTK-W00 (Android 12).
+> **Device verification (later round):** `flutter test integration_test/shared_file_import_test.dart -d 26DYD24119408737` PASSES on BTK-W00 (Android 12). Automated adb intent injection (`am start --grant-read-uri-permission -a ACTION_SEND ...`) was attempted on this EMUI build but the system freezes/app-launcher focus races make it unreliable; the real file-manager share (cold + warm) remains a manual step.
 
 - [x] **Step 6: Commit Task 7**
 
@@ -883,7 +883,7 @@ Measure and record:
 Write JSON results containing device model, OS, build mode, fixture SHA-256, duration, frame count, and pass/fail. Store no document body text in results or logs.
 
 > Completed: 1,000 ECDICT lookups measured on the host through the real `DictionaryAssetStore` path (196µs/lookup, PASS, JSON line printed by `test/benchmarks/dictionary_benchmark_test.dart`). The benchmark lives in `test/` because sqlite3 3.5+ loads through Dart native assets that `dart run` cannot provide on this host; `flutter test` resolves them.
-> Deferred to device time (BTK-W00 not attached): tap-to-selection latency, scroll FPS trace, and the 1,000-page PDF duration/memory report.
+> **Device performance gate (BTK-W00, 2026-08-14):** `integration_test/performance_gate_test.dart` PASSES in debug mode — tap-to-visible-selection 396ms (debug JIT; the 100ms budget is a profile-mode gate via `flutter drive --profile`, command documented in README), long-document scroll 86–118 FPS, and the fixed 1,000-page text PDF fixture (`tool/generate_thousand_page_pdf.dart`, SHA-256 in `PDF_FIXTURES.md`) imports in **1.9s** (target ≤30s). JSON result lines are printed by the test.
 
 - [x] **Step 3: Audit privacy and licenses**
 

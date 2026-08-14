@@ -68,6 +68,29 @@ $flutter = 'D:\local_environment\Flutter\flutter\bin\flutter.bat'
 - 词典基准在 `flutter test` 环境中运行（sqlite3 3.5+ 通过 Dart native assets
   加载，纯 `dart run` 不可用），预算为每次查询 <10ms。
 
+### 真机性能门禁（BTK-W00，2026-08-14 实测）
+
+```powershell
+& $flutter test integration_test/performance_gate_test.dart -d 26DYD24119408737
+```
+
+| 指标 | 目标 | 实测（debug） | 状态 |
+|---|---|---|---|
+| 点击到词卡可见延迟 | <100ms（profile 门禁） | 396ms（debug JIT） | 记录；profile 门禁命令见下 |
+| 长文档滚动帧率 | ≥55 FPS（profile） | 86–118 FPS | 通过 |
+| 1,000 页文本 PDF 导入 | ≤30s | **1.9s** | 通过 |
+
+profile 模式正式门禁（100ms 延迟 / 55 FPS）：
+
+```powershell
+& $flutter drive --driver=test_driver/integration_test.dart `
+  --target=integration_test/performance_gate_test.dart `
+  --profile -d 26DYD24119408737
+```
+
+千页 PDF 夹具由 `dart run tool/generate_thousand_page_pdf.dart` 确定性生成，
+哈希见 `integration_test/fixtures/PDF_FIXTURES.md`。
+
 ### 真机集成测试（需连接 BTK-W00）
 
 ```powershell
@@ -159,6 +182,8 @@ $env:DIANDUJI_KEY_PASSWORD = '...'
 
 - Debug APK：`build\app\outputs\flutter-apk\app-debug.apk`
 - Release AAB：`build\app\outputs\bundle\release\app-release.aab`（需签名变量）
+- 最终验收 APK（2026-08-14）SHA-256：
+  `334BABDF6754FAD04D29590575763B4D34DCB77FF4A38AD5DDB71DBFE1FDDB94`
 - 安装验证：
 
 ```powershell
