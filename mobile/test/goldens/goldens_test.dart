@@ -1,3 +1,6 @@
+@Tags(['golden'])
+library;
+
 import 'dart:async';
 import 'dart:io';
 
@@ -34,6 +37,10 @@ import 'package:flutter_test/flutter_test.dart';
 /// and loads the system Chinese font so text renders with real glyphs.
 /// Regenerate with `flutter test test/goldens --update-goldens` and review
 /// every changed PNG visually before accepting it.
+///
+/// Tagged `golden`: the reference PNGs are produced on Windows (the font
+/// loader looks for `C:/Windows/Fonts/`), so CI (Linux) excludes this file
+/// via `--exclude-tags golden` rather than failing on font mismatch.
 void main() {
   setUpAll(_loadChineseFont);
 

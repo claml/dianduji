@@ -1,3 +1,6 @@
+@Tags(['benchmark'])
+library;
+
 import 'dart:io';
 
 import 'package:dian_du_ji/features/dictionary/data/dictionary_asset_store.dart';
@@ -16,6 +19,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// sqlite3 package 3.5+ loads its native library through Dart native assets,
 /// which `dart run` cannot provide on hosts without a C toolchain, while
 /// `flutter test` resolves them from the Flutter build.
+/// Tagged `benchmark`: a performance smoke gate whose budget is measured
+/// against the reference device (BTK-W00 tablet); CI excludes it via
+/// `--exclude-tags benchmark` because shared runners are not comparable.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 

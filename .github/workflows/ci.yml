@@ -9,7 +9,7 @@ jobs:
   analyze-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.44.8'
@@ -22,7 +22,10 @@ jobs:
         run: flutter analyze
       - name: Test
         working-directory: mobile
-        run: flutter test --coverage
+        # golden: reference PNGs are produced on Windows (fonts from
+        # C:/Windows/Fonts), not comparable on Linux. benchmark: a performance
+        # gate measured against the reference device, not shared runners.
+        run: flutter test --coverage --exclude-tags golden,benchmark
 
   # Web 版独立开发中（见 README「Web 版」章节），完成后在此追加
   # build-web / deploy-pages jobs。
