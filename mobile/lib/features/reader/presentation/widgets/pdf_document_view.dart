@@ -11,6 +11,16 @@ typedef PdfDocumentRenderer =
     Widget Function(BuildContext context, PdfDocumentView view);
 typedef PdfPageProgressChanged = void Function(int pageNumber, int pageCount);
 
+/// Inverts the PDF page bitmap so paper becomes dark and text becomes light.
+/// Applied only in night mode; PDF images render as negatives, which is the
+/// standard trade-off of PDF night modes.
+const List<double> _nightInvertMatrix = [
+  -1, 0, 0, 0, 255, //
+  0, -1, 0, 0, 255, //
+  0, 0, -1, 0, 255, //
+  0, 0, 0, 1, 0, //
+];
+
 int clampPdfInitialPage(int requestedPage, int pageCount) {
   if (requestedPage < 1 || requestedPage > pageCount) return 1;
   return requestedPage;
@@ -95,17 +105,31 @@ class _PdfDocumentViewState extends State<PdfDocumentView> {
 
   @override
   Widget build(BuildContext context) {
-    return _renderedDocument ??=
-        widget.renderer?.call(context, widget) ?? _buildPdfViewer();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final viewer =
+        _renderedDocument ??=
+        widget.renderer?.call(context, widget) ??
+        _buildPdfViewer(context, isDark: isDark);
+    if (!isDark) return viewer;
+    // Night mode: invert the rendered pages (paper -> dark, text -> light)
+    // and let the viewer background follow the dark surface.
+    return ColorFiltered(
+      key: const Key('pdf-night-color-filter'),
+      colorFilter: const ColorFilter.matrix(_nightInvertMatrix),
+      child: viewer,
+    );
   }
 
-  Widget _buildPdfViewer() {
+  Widget _buildPdfViewer(BuildContext context, {required bool isDark}) {
     return PdfViewer.file(
       widget.localPath,
       key: const Key('pdf-original-page-viewer'),
       controller: widget.controller,
       initialPageNumber: widget.initialPageNumber,
       params: PdfViewerParams(
+        backgroundColor: isDark
+            ? const Color(0xFF16191E)
+            : Colors.grey,
         onInteractionUpdate: (details) {
           if (details.pointerCount != 1 || (details.scale - 1).abs() > 0.01) {
             return;

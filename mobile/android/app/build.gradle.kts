@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -5,18 +7,29 @@ plugins {
 }
 
 // Release signing reads DIANDUJI_STORE_FILE / DIANDUJI_STORE_PASSWORD /
-// DIANDUJI_KEY_ALIAS / DIANDUJI_KEY_PASSWORD from Gradle properties (e.g.
-// android/key.properties) or environment variables. Release builds fail with
-// an actionable message when any value is missing; debug builds stay
-// development-signed. See android/key.properties.example.
+// DIANDUJI_KEY_ALIAS / DIANDUJI_KEY_PASSWORD from, in order of precedence:
+//   1. android/key.properties (the documented operator flow; never committed)
+//   2. environment variables (CI use)
+//   3. Gradle -P properties
+// Release builds fail with an actionable message when any value is missing;
+// debug builds stay development-signed. See android/key.properties.example.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(keystorePropertiesFile.inputStream())
+}
+
+fun releaseValue(key: String): String? =
+    keystoreProperties.getProperty(key)
+        ?: System.getenv(key)
+        ?: providers.gradleProperty(key).orNull
+
 val releaseValues = listOf(
     "DIANDUJI_STORE_FILE",
     "DIANDUJI_STORE_PASSWORD",
     "DIANDUJI_KEY_ALIAS",
     "DIANDUJI_KEY_PASSWORD",
-).associateWith { key ->
-    providers.gradleProperty(key).orNull ?: System.getenv(key)
-}
+).associateWith(::releaseValue)
 
 val releaseRequested =
     gradle.startParameter.taskNames.any { it.contains("Release") }

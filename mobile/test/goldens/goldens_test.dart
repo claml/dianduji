@@ -117,6 +117,10 @@ void main() {
         ReadingSettings(theme: ReaderTheme.night),
       ),
       brightness: Brightness.dark,
+      // Night surfaces must stay dark, mirroring the app's darkTheme
+      // (scaffold 0xFF16191E); a light surface here produced a white
+      // background with white text in the golden.
+      surface: const Color(0xFF16191E),
     );
     await expectLater(
       find.byType(PersistedSettingsPage),
