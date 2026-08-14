@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dian_du_ji/features/dictionary/data/dictionary_repository.dart';
+import 'package:dian_du_ji/features/dictionary/domain/user_dictionary_repository.dart';
 import 'package:dian_du_ji/features/learning/data/learning_repository.dart';
 import 'package:dian_du_ji/features/phrases/domain/phrase_type.dart';
 import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
@@ -10,7 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('AppLocalDataProvider', () {
-    test('collect serializes vocabulary, phrases and settings', () async {
+    test('collect serializes vocabulary, phrases, custom definitions and settings', () async {
       final learning = _MemoryLearning()
         ..vocabulary.add(
           VocabularyListItem(
@@ -39,9 +40,20 @@ void main() {
             sourceTitle: '',
           ),
         );
+      final userDictionary = _MemoryUserDictionary()
+        ..manual.add(
+          const ManualDictionaryEntry(
+            surface: 'MEC',
+            phonetic: '',
+            partOfSpeech: 'n.',
+            definitionEnglish: 'Mobile Edge Computing',
+            definitionChinese: '移动边缘计算',
+          ),
+        );
       final provider = AppLocalDataProvider(
         learning: learning,
         settings: _MemorySettings(),
+        userDictionary: userDictionary,
       );
 
       final snapshot = await provider.collect();
@@ -59,19 +71,38 @@ void main() {
         'meaning': '查阅',
         'type': 'phrasalVerb',
       });
+      final custom = snapshot.data['customDefinitions'] as List<Object?>;
+      expect(custom.single, {
+        'surface': 'MEC',
+        'phonetic': '',
+        'partOfSpeech': 'n.',
+        'definitionEnglish': 'Mobile Edge Computing',
+        'definitionChinese': '移动边缘计算',
+      });
       expect(snapshot.updatedAt, greaterThanOrEqualTo(2000));
     });
 
-    test('apply rebuilds vocabulary and phrases from the remote snapshot',
+    test('apply rebuilds vocabulary, phrases and custom definitions',
         () async {
       final learning = _MemoryLearning()
         ..vocabulary.add(_word('stale', 500))
         ..phrases.add(
           _phrase('old-phrase', 'old phrase', '旧短语', PhraseType.idiom, 500),
         );
+      final userDictionary = _MemoryUserDictionary()
+        ..manual.add(
+          const ManualDictionaryEntry(
+            surface: 'Old',
+            phonetic: '',
+            partOfSpeech: '',
+            definitionEnglish: '',
+            definitionChinese: '旧定义',
+          ),
+        );
       final provider = AppLocalDataProvider(
         learning: learning,
         settings: _MemorySettings(),
+        userDictionary: userDictionary,
       );
 
       await provider.apply(
@@ -82,6 +113,15 @@ void main() {
           ],
           'phrases': [
             {'surface': 'look up', 'meaning': '查阅', 'type': 'phrasalVerb'},
+          ],
+          'customDefinitions': [
+            {
+              'surface': 'MEC',
+              'phonetic': '',
+              'partOfSpeech': 'n.',
+              'definitionEnglish': 'Mobile Edge Computing',
+              'definitionChinese': '移动边缘计算',
+            },
           ],
         },
         9999,
@@ -95,6 +135,9 @@ void main() {
           .first;
       expect(saved.map((p) => p.surface), ['look up']);
       expect(saved.single.type, PhraseType.phrasalVerb);
+      final manual = await userDictionary.listManualEntries();
+      expect(manual.map((e) => e.surface), ['MEC']);
+      expect(manual.single.definitionChinese, '移动边缘计算');
     });
 
     test('apply clamps remote font sizes and ignores unknown versions',
@@ -104,6 +147,7 @@ void main() {
       final provider = AppLocalDataProvider(
         learning: learning,
         settings: settings,
+        userDictionary: _MemoryUserDictionary(),
       );
 
       await provider.apply(
@@ -226,6 +270,45 @@ class _MemoryLearning implements LearningRepository {
   Future<void> deleteSavedPhrase(String phraseKey) async {
     phrases.removeWhere((p) => p.phraseKey == phraseKey);
   }
+}
+
+class _MemoryUserDictionary implements UserDictionaryStore {
+  final manual = <ManualDictionaryEntry>[];
+
+  @override
+  Future<void> applyEnrichment(List<EnrichedDictionaryEntry> entries) async {}
+
+  @override
+  Future<void> clearCandidates() async {}
+
+  @override
+  Future<void> collectCandidate(String surface, {String source = ''}) async {}
+
+  @override
+  Future<void> saveManualEntry(ManualDictionaryEntry entry) async {
+    manual.removeWhere((e) => normalizeUserLemma(e.surface) == normalizeUserLemma(entry.surface));
+    manual.add(entry);
+  }
+
+  @override
+  Future<List<ManualDictionaryEntry>> listManualEntries() async =>
+      List.of(manual);
+
+  @override
+  Future<void> deleteManualEntry(String surface) async {
+    manual.removeWhere(
+      (e) => normalizeUserLemma(e.surface) == normalizeUserLemma(surface),
+    );
+  }
+
+  @override
+  Future<DictionaryEntry?> lookupConfirmed(String surface) async => null;
+
+  @override
+  Future<int> pendingCandidateCount() async => 0;
+
+  @override
+  Future<List<UserDictionaryCandidate>> pendingCandidates() async => const [];
 }
 
 class _MemorySettings implements SettingsRepository {

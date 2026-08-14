@@ -279,6 +279,12 @@ class _MemoryUserDictionary implements UserDictionaryStore {
   Future<void> saveManualEntry(ManualDictionaryEntry entry) async {}
 
   @override
+  Future<List<ManualDictionaryEntry>> listManualEntries() async => const [];
+
+  @override
+  Future<void> deleteManualEntry(String surface) async {}
+
+  @override
   Future<DictionaryEntry?> lookupConfirmed(String surface) async =>
       confirmed[normalizeUserLemma(surface)];
 

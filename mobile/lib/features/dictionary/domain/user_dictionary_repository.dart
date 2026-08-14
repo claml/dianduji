@@ -82,6 +82,12 @@ abstract interface class UserDictionaryStore {
   /// candidate of the same lemma.
   Future<void> saveManualEntry(ManualDictionaryEntry entry);
 
+  /// Lists all user-written definitions (source = manual), for cloud sync.
+  Future<List<ManualDictionaryEntry>> listManualEntries();
+
+  /// Removes a user-written definition by its normalized surface.
+  Future<void> deleteManualEntry(String surface);
+
   Future<void> clearCandidates();
 }
 

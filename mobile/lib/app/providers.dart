@@ -210,6 +210,7 @@ final syncEngineProvider = Provider<SyncEngine>((ref) {
     local: AppLocalDataProvider(
       learning: ref.watch(learningRepositoryProvider),
       settings: ref.watch(settingsRepositoryProvider),
+      userDictionary: ref.watch(userDictionaryProvider),
     ),
   );
 });

@@ -11,6 +11,7 @@ import 'package:dian_du_ji/features/documents/domain/document_models.dart';
 import 'package:dian_du_ji/features/documents/domain/import_document_use_case.dart';
 import 'package:dian_du_ji/features/documents/presentation/document_import_controller.dart';
 import 'package:dian_du_ji/features/dictionary/data/dictionary_repository.dart';
+import 'package:dian_du_ji/features/dictionary/domain/user_dictionary_repository.dart';
 import 'package:dian_du_ji/features/learning/data/learning_repository.dart';
 import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
 import 'package:dian_du_ji/features/settings/data/settings_repository.dart';
@@ -84,6 +85,7 @@ Widget _app(_SettingsRepository settings) => ProviderScope(
     }),
     learningRepositoryProvider.overrideWithValue(const _LearningRepository()),
     settingsRepositoryProvider.overrideWithValue(settings),
+    userDictionaryProvider.overrideWithValue(const _UserDictionary()),
   ],
   child: const DianDuJiApp(),
 );
@@ -194,4 +196,35 @@ class _LearningRepository implements LearningRepository {
     String lemma,
     VocabularyProficiency value,
   ) async {}
+}
+
+class _UserDictionary implements UserDictionaryStore {
+  const _UserDictionary();
+
+  @override
+  Future<void> applyEnrichment(List<EnrichedDictionaryEntry> entries) async {}
+
+  @override
+  Future<void> clearCandidates() async {}
+
+  @override
+  Future<void> collectCandidate(String surface, {String source = ''}) async {}
+
+  @override
+  Future<void> saveManualEntry(ManualDictionaryEntry entry) async {}
+
+  @override
+  Future<List<ManualDictionaryEntry>> listManualEntries() async => const [];
+
+  @override
+  Future<void> deleteManualEntry(String surface) async {}
+
+  @override
+  Future<DictionaryEntry?> lookupConfirmed(String surface) async => null;
+
+  @override
+  Future<int> pendingCandidateCount() async => 0;
+
+  @override
+  Future<List<UserDictionaryCandidate>> pendingCandidates() async => const [];
 }

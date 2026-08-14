@@ -1,3 +1,4 @@
+import '../../dictionary/domain/user_dictionary_repository.dart';
 import '../../learning/data/learning_repository.dart';
 import '../../phrases/domain/phrase_type.dart';
 import '../../settings/data/reading_settings.dart';
@@ -9,6 +10,8 @@ import 'sync_engine.dart';
 ///   "version": 1,
 ///   "vocabulary": [ {"lemma","definition","proficiency"} ... ],
 ///   "phrases": [ {"surface","meaning","type"} ... ],
+///   "customDefinitions": [ {"surface","phonetic","partOfSpeech",
+///                           "definitionEnglish","definitionChinese"} ... ],
 ///   "settings": { "theme","fontSize","lineHeight","onlineTranslationEnabled" }
 /// }
 ///
@@ -18,16 +21,20 @@ class AppLocalDataProvider implements LocalDataProvider {
   AppLocalDataProvider({
     required LearningRepository learning,
     required SettingsRepository settings,
+    required UserDictionaryStore userDictionary,
   })  :
         // ignore: prefer_initializing_formals — private field, public name.
         _learning = learning,
         // ignore: prefer_initializing_formals — private field, public name.
-        _settings = settings;
+        _settings = settings,
+        // ignore: prefer_initializing_formals — private field, public name.
+        _userDictionary = userDictionary;
 
   static const version = 1;
 
   final LearningRepository _learning;
   final SettingsRepository _settings;
+  final UserDictionaryStore _userDictionary;
 
   @override
   Future<({Map<String, Object?> data, int updatedAt})> collect() async {
@@ -37,6 +44,7 @@ class AppLocalDataProvider implements LocalDataProvider {
     final phrases = await _learning
         .watchSavedPhrases(const SavedPhraseQuery())
         .first;
+    final manualEntries = await _userDictionary.listManualEntries();
     final settings = await _settings.load();
     final newestLookup = vocabulary
         .map((item) => item.lastLookupAt.millisecondsSinceEpoch)
@@ -66,6 +74,16 @@ class AppLocalDataProvider implements LocalDataProvider {
               'surface': item.surface,
               'meaning': item.meaning,
               'type': item.type.storageValue,
+            },
+        ],
+        'customDefinitions': [
+          for (final entry in manualEntries)
+            {
+              'surface': entry.surface,
+              'phonetic': entry.phonetic,
+              'partOfSpeech': entry.partOfSpeech,
+              'definitionEnglish': entry.definitionEnglish,
+              'definitionChinese': entry.definitionChinese,
             },
         ],
         'settings': {
@@ -161,6 +179,50 @@ class AppLocalDataProvider implements LocalDataProvider {
       }
       for (final draft in drafts) {
         await _learning.savePhrase(draft);
+      }
+    }
+
+    final rawCustom = data['customDefinitions'];
+    if (rawCustom is List<Object?>) {
+      // Rebuild user-written definitions from the remote snapshot.
+      final remoteSurfaces = <String>{};
+      final entries = <ManualDictionaryEntry>[];
+      for (final raw in rawCustom) {
+        if (raw is! Map<Object?, Object?>) continue;
+        final surface = raw['surface'];
+        final phonetic = raw['phonetic'];
+        final partOfSpeech = raw['partOfSpeech'];
+        final definitionEnglish = raw['definitionEnglish'];
+        final definitionChinese = raw['definitionChinese'];
+        if (surface is! String ||
+            phonetic is! String ||
+            partOfSpeech is! String ||
+            definitionEnglish is! String ||
+            definitionChinese is! String) {
+          continue;
+        }
+        final normalized = normalizeUserLemma(surface);
+        if (normalized.isEmpty) continue;
+        remoteSurfaces.add(normalized);
+        entries.add(
+          ManualDictionaryEntry(
+            surface: surface,
+            phonetic: phonetic,
+            partOfSpeech: partOfSpeech,
+            definitionEnglish: definitionEnglish,
+            definitionChinese: definitionChinese,
+          ),
+        );
+      }
+
+      final local = await _userDictionary.listManualEntries();
+      for (final entry in local) {
+        if (!remoteSurfaces.contains(normalizeUserLemma(entry.surface))) {
+          await _userDictionary.deleteManualEntry(entry.surface);
+        }
+      }
+      for (final entry in entries) {
+        await _userDictionary.saveManualEntry(entry);
       }
     }
 

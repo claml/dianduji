@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Persistent storage for the sync token.
@@ -23,7 +22,9 @@ class SecureTokenStorage implements TokenStorage {
   Future<String?> read() async {
     try {
       return await _storage.read(key: _key);
-    } on PlatformException {
+    } on Object {
+      // PlatformException (keystore issue) or MissingPluginException in
+      // tests: the sync section degrades to logged-out instead of crashing.
       return null;
     }
   }
