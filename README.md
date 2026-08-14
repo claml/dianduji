@@ -13,9 +13,17 @@
 
 ## 平台
 
-- Android（参考真机：Huawei BTK-W00）
-- Web（构建部署见下方；核心离线功能）
-- Windows / macOS / Linux（桌面构建可用，未全量验证）
+- **Android（主平台，持续维护）**：参考真机 Huawei BTK-W00；本仓库的所有
+  开发、测试与真机验证围绕移动端。
+- Windows / macOS / Linux：桌面构建可用（Windows 已验证冒烟）。
+- **Web 版**：独立项目（独立分支/仓库开发中），目标为免费托管的在线版本；
+  与移动端共享设计文档与网关契约，代码不互相阻塞。
+
+## 开源
+
+- 许可证：MIT（`LICENSE`）
+- 数据许可：ECDICT（MIT）、专业词典（MIT 自建汇编）——见 `mobile/docs/third-party-notices.md`
+- 贡献指南：`CONTRIBUTING.md`
 
 ## 快速开始
 
@@ -51,11 +59,10 @@ $flutter = 'D:\local_environment\Flutter\flutter\bin\flutter.bat'
 - 许可证：MIT（`LICENSE`）
 - 数据许可：ECDICT（MIT）、专业词典（MIT 自建汇编）——见 `mobile/docs/third-party-notices.md`
 - 贡献指南：`CONTRIBUTING.md`
-- 在线体验：<https://dianduji.github.io/dianduji>（构建部署后可用）
 
 ## 目录
 
-- `mobile/`：Flutter 应用（Android / Web / 桌面）
+- `mobile/`：Flutter 应用（Android 主平台 / 桌面）
 - `mobile/docs/`：设计、契约、部署文档
 - `docs/superpowers/`：开发计划与规格
 

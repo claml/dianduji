@@ -24,46 +24,5 @@ jobs:
         working-directory: mobile
         run: flutter test --coverage
 
-  build-web:
-    runs-on: ubuntu-latest
-    needs: analyze-test
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.44.8'
-          channel: stable
-      - name: Prepare
-        working-directory: mobile
-        run: flutter pub get
-      - name: Build web
-        working-directory: mobile
-        run: flutter build web --release
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-build
-          path: mobile/build/web
-          if-no-files-found: error
-
-  deploy-pages:
-    if: github.ref == 'refs/heads/main'
-    needs: build-web
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: web-build
-          path: web-build
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: web-build
-      - id: deployment
-        uses: actions/deploy-pages@v4
+  # Web 版独立开发中（见 README「Web 版」章节），完成后在此追加
+  # build-web / deploy-pages jobs。
