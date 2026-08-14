@@ -64,6 +64,6 @@ $flutter = 'D:\local_environment\Flutter\flutter\bin\flutter.bat'
 
 - `mobile/`：Flutter 应用（Android 主平台 / 桌面）
 - `mobile/docs/`：设计、契约、部署文档
-- `docs/superpowers/`：开发计划与规格
+- `docs/superpowers/specs/`：设计规格（开发计划文档为本地私有，不提交）
 
 © 2026 典读鸡 contributors

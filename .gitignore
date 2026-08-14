@@ -18,6 +18,9 @@ coverage/
 .superpowers/
 .worktrees/
 
+# Local planning documents (never committed)
+.planning/
+
 # Local signing and secrets
 *.jks
 *.keystore
