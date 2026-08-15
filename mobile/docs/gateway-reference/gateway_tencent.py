@@ -452,6 +452,8 @@ class Handler(BaseHTTPRequestHandler):
                     return
                 # Collect vocabulary candidates into the cloud pool so the
                 # web admin can review them (dictionary update center).
+                # The lemma (lowercased) is the dedup key; the original
+                # surface keeps its case for display (MEC, RNA, ...).
                 raw_candidates = data.get("candidates")
                 if isinstance(raw_candidates, list):
                     now = int(time.time() * 1000)
@@ -459,11 +461,12 @@ class Handler(BaseHTTPRequestHandler):
                         surface = str(word).strip()
                         if not surface:
                             continue
+                        lemma = surface.lower()
                         connection.execute(
                             "INSERT OR IGNORE INTO candidates "
-                            "(surface, user_id, source, created_at) "
-                            "VALUES (?, ?, 'online-translation', ?)",
-                            (surface.lower(), user_id, now),
+                            "(lemma, surface, user_id, source, created_at) "
+                            "VALUES (?, ?, ?, 'online-translation', ?)",
+                            (lemma, surface, user_id, now),
                         )
                 connection.execute(
                     "INSERT INTO sync_state (user_id, data_json, updated_at) "
@@ -548,7 +551,7 @@ class Handler(BaseHTTPRequestHandler):
                     placeholders = ",".join("?" for _ in requested)
                     rows = connection.execute(
                         f"SELECT surface FROM candidates WHERE status = 'pending' "
-                        f"AND surface IN ({placeholders}) LIMIT {ENRICH_BATCH}",
+                        f"AND lemma IN ({placeholders}) LIMIT {ENRICH_BATCH}",
                         [str(s).strip().lower() for s in requested],
                     ).fetchall()
                 else:
@@ -573,22 +576,23 @@ class Handler(BaseHTTPRequestHandler):
             connection = _db()
             try:
                 for entry in entries:
+                    lemma = entry["surface"].strip().lower()
                     if not entry["isValid"]:
                         connection.execute(
-                            "DELETE FROM candidates WHERE surface = ?",
-                            (entry["surface"].strip().lower(),),
+                            "DELETE FROM candidates WHERE lemma = ?",
+                            (lemma,),
                         )
                         continue
                     connection.execute(
                         "UPDATE candidates SET phonetic = ?, part_of_speech = ?, "
                         "definition_english = ?, definition_chinese = ? "
-                        "WHERE surface = ?",
+                        "WHERE lemma = ?",
                         (
                             entry["phonetic"],
                             entry["partOfSpeech"],
                             entry["definitionEnglish"],
                             entry["definitionChinese"],
-                            entry["surface"].strip().lower(),
+                            lemma,
                         ),
                     )
                     updated += 1
@@ -602,7 +606,7 @@ class Handler(BaseHTTPRequestHandler):
         if self._authorized_user() is None:
             self._reply(401, {"error": "invalid or expired token"})
             return
-        surface = str(request.get("surface", "")).strip().lower()
+        surface = str(request.get("surface", "")).strip()
         action = str(request.get("action", "")).strip()
         if not surface or action not in ("confirm", "drop"):
             self._reply(400, {"error": "surface and action are required"})
@@ -611,8 +615,8 @@ class Handler(BaseHTTPRequestHandler):
             connection = _db()
             try:
                 cursor = connection.execute(
-                    "UPDATE candidates SET status = ? WHERE surface = ?",
-                    ("confirmed" if action == "confirm" else "dropped", surface),
+                    "UPDATE candidates SET status = ? WHERE lemma = ?",
+                    ("confirmed" if action == "confirm" else "dropped", surface.lower()),
                 )
                 connection.commit()
             finally:
@@ -683,10 +687,20 @@ def init_sync_db():
                 "data_json TEXT NOT NULL, "
                 "updated_at INTEGER NOT NULL)"
             )
+            # Migrate the pre-lemma candidates table (surface UNIQUE) to the
+            # lemma-keyed layout that keeps the display surface's case.
+            columns = [
+                row[1]
+                for row in connection.execute("PRAGMA table_info(candidates)")
+            ]
+            if columns and "lemma" not in columns:
+                LOG.info("migrating candidates table (surface -> lemma key)")
+                connection.execute("DROP TABLE candidates")
             connection.execute(
                 "CREATE TABLE IF NOT EXISTS candidates ("
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                "surface TEXT NOT NULL UNIQUE, "
+                "lemma TEXT NOT NULL UNIQUE, "
+                "surface TEXT NOT NULL, "
                 "user_id INTEGER, "
                 "source TEXT NOT NULL DEFAULT '', "
                 "status TEXT NOT NULL DEFAULT 'pending', "

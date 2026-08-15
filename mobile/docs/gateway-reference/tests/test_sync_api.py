@@ -184,7 +184,8 @@ class SyncApiTest(unittest.TestCase):
         self.assertEqual(status, 401)
 
     def test_candidates_flow(self):
-        # Candidates uploaded with the sync payload land in the cloud pool.
+        # Candidates uploaded with the sync payload land in the cloud pool,
+        # keeping the original surface case (MEC, RNA, ...).
         _, reg = _call(
             self.base, "POST", "/auth/register",
             {"username": "grace", "password": "secret1"},
@@ -193,7 +194,7 @@ class SyncApiTest(unittest.TestCase):
         status, body = _call(
             self.base, "POST", "/sync/put",
             {
-                "data": {"candidates": ["wayfinding", "navigability", "wayfinding"]},
+                "data": {"candidates": ["MEC", "navigability", "mec"]},
                 "updatedAt": 2000,
             },
             token=token,
@@ -201,20 +202,21 @@ class SyncApiTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(body["accepted"])
 
-        # The admin lists pending candidates (deduplicated, newest first).
+        # The admin lists pending candidates (deduplicated case-insensitively,
+        # original case preserved).
         status, body = _call(
             self.base, "GET", "/candidates?status=pending", token=token,
         )
         self.assertEqual(status, 200)
         surfaces = [c["surface"] for c in body["candidates"]]
-        self.assertIn("wayfinding", surfaces)
+        self.assertIn("MEC", surfaces)
         self.assertIn("navigability", surfaces)
         self.assertEqual(len(surfaces), 2)
 
-        # Resolve one as confirmed, one dropped.
+        # Resolve by original surface keeps the case.
         status, _ = _call(
             self.base, "POST", "/candidates/resolve",
-            {"surface": "wayfinding", "action": "confirm"}, token=token,
+            {"surface": "MEC", "action": "confirm"}, token=token,
         )
         self.assertEqual(status, 200)
         status, _ = _call(
@@ -223,11 +225,12 @@ class SyncApiTest(unittest.TestCase):
         )
         self.assertEqual(status, 200)
 
-        # Confirmed candidates come back on the next sync fetch.
+        # Confirmed candidates come back on the next sync fetch with the
+        # original surface.
         status, body = _call(self.base, "GET", "/sync/get", token=token)
         self.assertEqual(status, 200)
         confirmed = body["data"]["confirmedCandidates"]
-        self.assertEqual([c["surface"] for c in confirmed], ["wayfinding"])
+        self.assertEqual([c["surface"] for c in confirmed], ["MEC"])
 
         # Unauthenticated management calls are rejected.
         status, _ = _call(self.base, "GET", "/candidates?status=pending")
