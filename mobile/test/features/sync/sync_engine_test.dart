@@ -139,7 +139,8 @@ void main() {
 
       await engine.login('alice', 'secret1');
       expect(engine.isLoggedIn, isTrue);
-      expect(await storage.read(), 't1');
+      expect((await storage.read())?.token, 't1');
+      expect((await storage.read())?.username, 'alice');
 
       final outcome = await engine.syncNow();
       expect(outcome.pushedLocal, isTrue);
@@ -227,6 +228,36 @@ void main() {
       await engine.logout();
       expect(engine.isLoggedIn, isFalse);
       expect(await storage.read(), isNull);
+    });
+
+    test('restores the username on a fresh engine', () async {
+      final server = await _startServer({
+        '/auth/login': (method, headers, body) => (
+          200,
+          {'token': 't1', 'user': {'id': 1, 'username': 'alice'}},
+        ),
+      });
+      addTearDown(server.close);
+      final api = SyncApiClient(
+        baseUrl: Uri.parse('http://127.0.0.1:${server.port}'),
+      );
+      final storage = MemoryTokenStorage();
+      final engine = SyncEngine(
+        api: api,
+        storage: storage,
+        local: _MemoryLocalData(data: const {}, updatedAt: 0),
+      );
+      await engine.login('alice', 'secret1');
+
+      // A fresh engine over the same storage restores token and username.
+      final restored = SyncEngine(
+        api: api,
+        storage: storage,
+        local: _MemoryLocalData(data: const {}, updatedAt: 0),
+      );
+      expect(await restored.restoreSession(), isTrue);
+      expect(restored.isLoggedIn, isTrue);
+      expect(restored.user?.username, 'alice');
     });
   });
 }

@@ -54,9 +54,10 @@ class SyncEngine {
 
   /// Restores a previously stored session without network traffic.
   Future<bool> restoreSession() async {
-    final token = await _storage.read();
-    if (token == null || token.isEmpty) return false;
-    _token = token;
+    final session = await _storage.read();
+    if (session == null) return false;
+    _token = session.token;
+    _user = SyncUser(id: 0, username: session.username);
     return true;
   }
 
@@ -130,6 +131,6 @@ class SyncEngine {
   Future<void> _storeSession(String token, SyncUser user) async {
     _token = token;
     _user = user;
-    await _storage.write(token);
+    await _storage.write(token, user.username);
   }
 }

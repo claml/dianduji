@@ -2,26 +2,38 @@ import 'dart:convert';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Persistent storage for the sync token.
+/// A persisted session: the bearer token plus the username for display.
+typedef StoredSession = ({String token, String username});
+
+/// Persistent storage for the sync session.
 abstract interface class TokenStorage {
-  Future<String?> read();
-  Future<void> write(String token);
+  Future<StoredSession?> read();
+  Future<void> write(String token, String username);
   Future<void> clear();
 }
 
-/// Secure store (Android Keystore-backed) for the session token.
+/// Secure store (Android Keystore-backed) for the session.
 class SecureTokenStorage implements TokenStorage {
   SecureTokenStorage({FlutterSecureStorage? storage})
       : _storage = storage ?? const FlutterSecureStorage();
 
-  static const _key = 'dianduji.sync.token';
+  static const _key = 'dianduji.sync.session';
 
   final FlutterSecureStorage _storage;
 
   @override
-  Future<String?> read() async {
+  Future<StoredSession?> read() async {
     try {
-      return await _storage.read(key: _key);
+      final raw = await _storage.read(key: _key);
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, Object?>) return null;
+      final token = decoded['token'];
+      final username = decoded['username'];
+      if (token is! String || token.isEmpty || username is! String) {
+        return null;
+      }
+      return (token: token, username: username);
     } on Object {
       // PlatformException (keystore issue) or MissingPluginException in
       // tests: the sync section degrades to logged-out instead of crashing.
@@ -30,25 +42,31 @@ class SecureTokenStorage implements TokenStorage {
   }
 
   @override
-  Future<void> write(String token) =>
-      _storage.write(key: _key, value: token);
+  Future<void> write(String token, String username) async {
+    await _storage.write(
+      key: _key,
+      value: jsonEncode({'token': token, 'username': username}),
+    );
+  }
 
   @override
   Future<void> clear() => _storage.delete(key: _key);
 }
 
-/// In-memory token storage for tests and widget previews.
+/// In-memory session storage for tests and widget previews.
 class MemoryTokenStorage implements TokenStorage {
-  String? _token;
+  StoredSession? _session;
 
   @override
-  Future<String?> read() async => _token;
+  Future<StoredSession?> read() async => _session;
 
   @override
-  Future<void> write(String token) async => _token = token;
+  Future<void> write(String token, String username) async {
+    _session = (token: token, username: username);
+  }
 
   @override
-  Future<void> clear() async => _token = null;
+  Future<void> clear() async => _session = null;
 }
 
 /// Serializes/deserializes the sync payload. The engine treats it as an
