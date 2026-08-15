@@ -194,7 +194,7 @@ class SyncApiClient {
       if (!acceptedStatuses.contains(response.statusCode)) {
         throw SyncApiException(
           SyncApiError.badResponse,
-          'HTTP ${response.statusCode}',
+          _errorMessage(responseBody) ?? 'HTTP ${response.statusCode}',
         );
       }
       return responseBody;
@@ -211,6 +211,20 @@ class SyncApiClient {
     } finally {
       client.close(force: true);
     }
+  }
+
+  /// Extracts the gateway's `error` string from a non-2xx JSON body, so
+  /// actionable messages (e.g. "password must be >= 6 chars") surface.
+  String? _errorMessage(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, Object?> && decoded['error'] is String) {
+        return decoded['error'] as String;
+      }
+    } on FormatException {
+      // fall through
+    }
+    return null;
   }
 
   Map<String, Object?> _decode(String body, {required int expected}) {

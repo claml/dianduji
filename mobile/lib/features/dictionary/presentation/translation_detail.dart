@@ -281,7 +281,7 @@ class _TranslationDetailState extends State<TranslationDetail> {
           Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Text(
-              '翻译失败，请检查网络后重试',
+              state.sentenceTranslationError ?? '翻译失败，请检查网络后重试',
               style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),

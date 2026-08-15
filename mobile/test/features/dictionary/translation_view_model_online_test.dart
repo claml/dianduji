@@ -197,7 +197,8 @@ void main() {
     expect(vm.state.sentenceTranslation, isEmpty);
   });
 
-  test('whole-sentence translation is skipped when online is off', () async {
+  test('whole-sentence translation reports a hint when online is off',
+      () async {
     final gateway = _RecordingGateway();
     final vm = viewModel(gateway: gateway, onlineEnabled: false);
 
@@ -208,7 +209,28 @@ void main() {
     await vm.translateSentence();
 
     expect(gateway.calls, 0);
-    expect(vm.state.sentenceTranslationStatus, OnlineTranslationStatus.none);
+    expect(
+      vm.state.sentenceTranslationStatus,
+      OnlineTranslationStatus.unavailable,
+    );
+    expect(vm.state.sentenceTranslationError, contains('在线翻译未开启'));
+  });
+
+  test('whole-sentence translation reports a hint when the gateway is unset',
+      () async {
+    final vm = viewModel(gateway: null, onlineEnabled: true);
+
+    await vm.lookup(
+      tokens: tokensOf('an unknown phrase here'),
+      selectedTokenOrdinal: 1,
+    );
+    await vm.translateSentence();
+
+    expect(
+      vm.state.sentenceTranslationStatus,
+      OnlineTranslationStatus.unavailable,
+    );
+    expect(vm.state.sentenceTranslationError, contains('未配置'));
   });
 
   test('whole-sentence translation without a sentence is a no-op', () async {

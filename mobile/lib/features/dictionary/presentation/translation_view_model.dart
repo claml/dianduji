@@ -34,6 +34,7 @@ class TranslationState {
     this.fromUserDictionary = false,
     this.sentenceTranslation = '',
     this.sentenceTranslationStatus = OnlineTranslationStatus.none,
+    this.sentenceTranslationError,
   });
 
   final TranslationStatus status;
@@ -63,6 +64,10 @@ class TranslationState {
   final String sentenceTranslation;
   final OnlineTranslationStatus sentenceTranslationStatus;
 
+  /// Human-readable reason when the explicit translation cannot run
+  /// (switch off, gateway unconfigured, network failure). Null on success.
+  final String? sentenceTranslationError;
+
   /// The term surface to present first (the matched term, else the tapped
   /// word).
   String get displaySurface => matchedCandidate?.surface ?? surface;
@@ -81,6 +86,8 @@ class TranslationState {
     bool? fromUserDictionary,
     String? sentenceTranslation,
     OnlineTranslationStatus? sentenceTranslationStatus,
+    String? sentenceTranslationError,
+    bool clearSentenceTranslationError = false,
   }) {
     return TranslationState(
       status: status ?? this.status,
@@ -97,6 +104,9 @@ class TranslationState {
       sentenceTranslation: sentenceTranslation ?? this.sentenceTranslation,
       sentenceTranslationStatus:
           sentenceTranslationStatus ?? this.sentenceTranslationStatus,
+      sentenceTranslationError: clearSentenceTranslationError
+          ? null
+          : (sentenceTranslationError ?? this.sentenceTranslationError),
     );
   }
 }
@@ -309,11 +319,30 @@ class TranslationViewModel extends ChangeNotifier {
   Future<void> translateSentence() async {
     final gateway = onlineGateway;
     final sentence = _state.sentence;
-    if (!_onlineEnabled || gateway == null || sentence.isEmpty) return;
+    if (!_onlineEnabled) {
+      _setState(
+        _state.copyWith(
+          sentenceTranslationStatus: OnlineTranslationStatus.unavailable,
+          sentenceTranslationError: '在线翻译未开启，请在设置中打开',
+        ),
+      );
+      return;
+    }
+    if (gateway == null) {
+      _setState(
+        _state.copyWith(
+          sentenceTranslationStatus: OnlineTranslationStatus.unavailable,
+          sentenceTranslationError: '未配置在线翻译网关地址',
+        ),
+      );
+      return;
+    }
+    if (sentence.isEmpty) return;
     final generation = ++_requestGeneration;
     _setState(
       _state.copyWith(
         sentenceTranslationStatus: OnlineTranslationStatus.loading,
+        clearSentenceTranslationError: true,
       ),
     );
     try {
@@ -329,6 +358,7 @@ class TranslationViewModel extends ChangeNotifier {
         _state.copyWith(
           sentenceTranslation: result.sentenceTranslation,
           sentenceTranslationStatus: OnlineTranslationStatus.available,
+          clearSentenceTranslationError: true,
         ),
       );
     } on Object {
@@ -336,6 +366,7 @@ class TranslationViewModel extends ChangeNotifier {
       _setState(
         _state.copyWith(
           sentenceTranslationStatus: OnlineTranslationStatus.unavailable,
+          sentenceTranslationError: '翻译失败，请检查网络后重试',
         ),
       );
     }

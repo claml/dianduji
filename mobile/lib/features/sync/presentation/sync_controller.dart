@@ -67,11 +67,28 @@ class SyncController extends ChangeNotifier {
     }
   }
 
-  Future<void> register(String username, String password) =>
-      _authenticate(() => _engine.register(username, password));
+  Future<void> register(String username, String password) {
+    final error = _validate(username, password);
+    if (error != null) return _reportLocalError(error);
+    return _authenticate(() => _engine.register(username, password));
+  }
 
-  Future<void> login(String username, String password) =>
-      _authenticate(() => _engine.login(username, password));
+  Future<void> login(String username, String password) {
+    final error = _validate(username, password);
+    if (error != null) return _reportLocalError(error);
+    return _authenticate(() => _engine.login(username, password));
+  }
+
+  String? _validate(String username, String password) {
+    if (username.isEmpty) return '请输入用户名';
+    if (password.length < 6) return '密码至少 6 位';
+    return null;
+  }
+
+  Future<void> _reportLocalError(String message) async {
+    _state = _state.copyWith(errorMessage: message);
+    notifyListeners();
+  }
 
   Future<void> _authenticate(Future<SyncUser> Function() action) async {
     _setWorking();
@@ -155,6 +172,18 @@ class SyncController extends ChangeNotifier {
     SyncApiError.invalidCredentials => '用户名或密码错误',
     SyncApiError.usernameTaken => '用户名已被注册',
     SyncApiError.rejected => '登录已过期，请重新登录',
-    SyncApiError.badResponse => '服务器响应异常，请稍后重试',
+    // Surface the gateway's actionable message when available
+    // (e.g. "password must be >= 6 chars").
+    SyncApiError.badResponse => _friendlyBadResponse(error.message),
   };
+
+  String _friendlyBadResponse(String message) {
+    if (message.contains('password') && message.contains('6')) {
+      return '密码至少 6 位';
+    }
+    if (message.contains('username')) {
+      return '请输入用户名';
+    }
+    return '服务器响应异常，请稍后重试';
+  }
 }
