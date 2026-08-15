@@ -49,13 +49,20 @@ void main() {
             definitionEnglish: 'Mobile Edge Computing',
             definitionChinese: '移动边缘计算',
           ),
+        )
+        ..candidates.add(
+          UserDictionaryCandidate(
+            lemma: 'wayfinding',
+            surface: 'wayfinding',
+            source: 'online-translation',
+            createdAt: DateTime(2026, 8, 15),
+          ),
         );
       final provider = AppLocalDataProvider(
         learning: learning,
         settings: _MemorySettings(),
         userDictionary: userDictionary,
       );
-
       final snapshot = await provider.collect();
 
       expect(snapshot.data['version'], 1);
@@ -79,6 +86,7 @@ void main() {
         'definitionEnglish': 'Mobile Edge Computing',
         'definitionChinese': '移动边缘计算',
       });
+      expect(snapshot.data['candidates'], ['wayfinding']);
       expect(snapshot.updatedAt, greaterThanOrEqualTo(2000));
     });
 
@@ -274,6 +282,7 @@ class _MemoryLearning implements LearningRepository {
 
 class _MemoryUserDictionary implements UserDictionaryStore {
   final manual = <ManualDictionaryEntry>[];
+  final candidates = <UserDictionaryCandidate>[];
 
   @override
   Future<void> applyEnrichment(List<EnrichedDictionaryEntry> entries) async {}
@@ -308,7 +317,8 @@ class _MemoryUserDictionary implements UserDictionaryStore {
   Future<int> pendingCandidateCount() async => 0;
 
   @override
-  Future<List<UserDictionaryCandidate>> pendingCandidates() async => const [];
+  Future<List<UserDictionaryCandidate>> pendingCandidates() async =>
+      List.of(candidates);
 }
 
 class _MemorySettings implements SettingsRepository {

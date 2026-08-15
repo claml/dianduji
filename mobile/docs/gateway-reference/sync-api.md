@@ -60,6 +60,25 @@
 `{"version": 1, "vocabulary": [...], "phrases": [...], "progress": {...},
 "settings": {...}}`），服务端不做结构校验，仅整体存取。
 
+两个例外字段：
+
+- `candidates`（sync/put 时服务端提取）：客户端上传的待整理候选词
+  （字符串数组），网关写入云端候选池（按词去重），供 Web 管理后台
+  查看与 LLM 整理。
+- `confirmedCandidates`（sync/get 时服务端注入）：管理后台确认入库的词
+  （含音标/词性/中英释义），客户端应写入本地用户词典。
+
+## 词库管理端点（管理员，Bearer 鉴权）
+
+| 端点 | 说明 |
+| --- | --- |
+| `GET /candidates?status=pending\|confirmed\|dropped\|all` | 候选词列表（时间倒序，上限 500） |
+| `POST /candidates/enrich` `{"surfaces": [可选]}` | 对 pending 词批量 LLM 整理（DeepSeek），写回音标/词性/中英释义；无效词删除 |
+| `POST /candidates/resolve` `{"surface": "...", "action": "confirm"\|"drop"}` | 确认入库 / 丢弃（确认后随 `confirmedCandidates` 下发到所有客户端） |
+
+管理后台页面：`gateway-reference/admin.html`（单文件，随网关部署；登录后
+可查看/整理/确认/丢弃候选词）。
+
 ## 安全说明
 
 - 密码：`hashlib.scrypt`（n=2^14, r=8, p=1）加盐哈希存储，绝不落明文；

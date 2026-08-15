@@ -183,6 +183,56 @@ class SyncApiTest(unittest.TestCase):
         status, _ = _call(self.base, "GET", "/sync/get", token=tampered)
         self.assertEqual(status, 401)
 
+    def test_candidates_flow(self):
+        # Candidates uploaded with the sync payload land in the cloud pool.
+        _, reg = _call(
+            self.base, "POST", "/auth/register",
+            {"username": "grace", "password": "secret1"},
+        )
+        token = reg["token"]
+        status, body = _call(
+            self.base, "POST", "/sync/put",
+            {
+                "data": {"candidates": ["wayfinding", "navigability", "wayfinding"]},
+                "updatedAt": 2000,
+            },
+            token=token,
+        )
+        self.assertEqual(status, 200)
+        self.assertTrue(body["accepted"])
+
+        # The admin lists pending candidates (deduplicated, newest first).
+        status, body = _call(
+            self.base, "GET", "/candidates?status=pending", token=token,
+        )
+        self.assertEqual(status, 200)
+        surfaces = [c["surface"] for c in body["candidates"]]
+        self.assertIn("wayfinding", surfaces)
+        self.assertIn("navigability", surfaces)
+        self.assertEqual(len(surfaces), 2)
+
+        # Resolve one as confirmed, one dropped.
+        status, _ = _call(
+            self.base, "POST", "/candidates/resolve",
+            {"surface": "wayfinding", "action": "confirm"}, token=token,
+        )
+        self.assertEqual(status, 200)
+        status, _ = _call(
+            self.base, "POST", "/candidates/resolve",
+            {"surface": "navigability", "action": "drop"}, token=token,
+        )
+        self.assertEqual(status, 200)
+
+        # Confirmed candidates come back on the next sync fetch.
+        status, body = _call(self.base, "GET", "/sync/get", token=token)
+        self.assertEqual(status, 200)
+        confirmed = body["data"]["confirmedCandidates"]
+        self.assertEqual([c["surface"] for c in confirmed], ["wayfinding"])
+
+        # Unauthenticated management calls are rejected.
+        status, _ = _call(self.base, "GET", "/candidates?status=pending")
+        self.assertEqual(status, 401)
+
 
 if __name__ == "__main__":
     unittest.main()

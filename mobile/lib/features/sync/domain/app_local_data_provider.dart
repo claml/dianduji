@@ -45,6 +45,7 @@ class AppLocalDataProvider implements LocalDataProvider {
         .watchSavedPhrases(const SavedPhraseQuery())
         .first;
     final manualEntries = await _userDictionary.listManualEntries();
+    final pendingCandidates = await _userDictionary.pendingCandidates();
     final settings = await _settings.load();
     final newestLookup = vocabulary
         .map((item) => item.lastLookupAt.millisecondsSinceEpoch)
@@ -85,6 +86,10 @@ class AppLocalDataProvider implements LocalDataProvider {
               'definitionEnglish': entry.definitionEnglish,
               'definitionChinese': entry.definitionChinese,
             },
+        ],
+        // Vocabulary candidates go to the cloud pool for web-admin review.
+        'candidates': [
+          for (final candidate in pendingCandidates) candidate.surface,
         ],
         'settings': {
           'theme': settings.theme.name,
@@ -223,6 +228,36 @@ class AppLocalDataProvider implements LocalDataProvider {
       }
       for (final entry in entries) {
         await _userDictionary.saveManualEntry(entry);
+      }
+    }
+
+    // Admin-confirmed candidates from the web console fold into the local
+    // user dictionary (they take priority in the lookup chain).
+    final rawConfirmed = data['confirmedCandidates'];
+    if (rawConfirmed is List<Object?>) {
+      for (final raw in rawConfirmed) {
+        if (raw is! Map<Object?, Object?>) continue;
+        final surface = raw['surface'];
+        final phonetic = raw['phonetic'];
+        final partOfSpeech = raw['partOfSpeech'];
+        final definitionEnglish = raw['definitionEnglish'];
+        final definitionChinese = raw['definitionChinese'];
+        if (surface is! String ||
+            phonetic is! String ||
+            partOfSpeech is! String ||
+            definitionEnglish is! String ||
+            definitionChinese is! String) {
+          continue;
+        }
+        await _userDictionary.saveManualEntry(
+          ManualDictionaryEntry(
+            surface: surface,
+            phonetic: phonetic,
+            partOfSpeech: partOfSpeech,
+            definitionEnglish: definitionEnglish,
+            definitionChinese: definitionChinese,
+          ),
+        );
       }
     }
 

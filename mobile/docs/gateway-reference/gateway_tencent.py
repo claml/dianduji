@@ -219,6 +219,8 @@ class Handler(BaseHTTPRequestHandler):
         started = time.time()
         if self.path == "/sync/get":
             self._handle_sync_get(started)
+        elif self.path.startswith("/candidates"):
+            self._handle_candidates_list(started)
         else:
             self._reply(404, {"error": "not found"})
 
@@ -245,6 +247,10 @@ class Handler(BaseHTTPRequestHandler):
             self._handle_login(request, started)
         elif self.path == "/sync/put":
             self._handle_sync_put(request, started)
+        elif self.path == "/candidates/enrich":
+            self._handle_candidates_enrich(request, started)
+        elif self.path == "/candidates/resolve":
+            self._handle_candidates_resolve(request, started)
         else:
             self._reply(404, {"error": "not found"})
 
@@ -398,9 +404,15 @@ class Handler(BaseHTTPRequestHandler):
         if row is None:
             self._reply(200, {"data": None, "updatedAt": 0})
             return
+        data = json.loads(row["data_json"])
+        # Attach the cloud pool's confirmed candidates so clients can fold
+        # admin-confirmed words into their local user dictionary.
+        confirmed = _confirmed_candidates()
+        if confirmed:
+            data["confirmedCandidates"] = confirmed
         self._reply(
             200,
-            {"data": json.loads(row["data_json"]), "updatedAt": row["updated_at"]},
+            {"data": data, "updatedAt": row["updated_at"]},
         )
 
     def _handle_sync_put(self, request, started):
@@ -438,6 +450,21 @@ class Handler(BaseHTTPRequestHandler):
                         },
                     )
                     return
+                # Collect vocabulary candidates into the cloud pool so the
+                # web admin can review them (dictionary update center).
+                raw_candidates = data.get("candidates")
+                if isinstance(raw_candidates, list):
+                    now = int(time.time() * 1000)
+                    for word in raw_candidates[:500]:
+                        surface = str(word).strip()
+                        if not surface:
+                            continue
+                        connection.execute(
+                            "INSERT OR IGNORE INTO candidates "
+                            "(surface, user_id, source, created_at) "
+                            "VALUES (?, ?, 'online-translation', ?)",
+                            (surface.lower(), user_id, now),
+                        )
                 connection.execute(
                     "INSERT INTO sync_state (user_id, data_json, updated_at) "
                     "VALUES (?, ?, ?) "
@@ -459,6 +486,138 @@ class Handler(BaseHTTPRequestHandler):
             user_id,
         )
         self._reply(200, {"data": data, "updatedAt": updated_at, "accepted": True})
+
+    def _handle_candidates_list(self, started):
+        if self._authorized_user() is None:
+            self._reply(401, {"error": "invalid or expired token"})
+            return
+        query = _parse_query(self.path)
+        status_filter = query.get("status", "pending")
+        with _db_lock:
+            connection = _db()
+            try:
+                if status_filter == "all":
+                    rows = connection.execute(
+                        "SELECT surface, user_id, source, status, phonetic, "
+                        "part_of_speech, definition_english, definition_chinese, "
+                        "created_at FROM candidates ORDER BY created_at DESC "
+                        "LIMIT 500"
+                    ).fetchall()
+                else:
+                    rows = connection.execute(
+                        "SELECT surface, user_id, source, status, phonetic, "
+                        "part_of_speech, definition_english, definition_chinese, "
+                        "created_at FROM candidates WHERE status = ? "
+                        "ORDER BY created_at DESC LIMIT 500",
+                        (status_filter,),
+                    ).fetchall()
+            finally:
+                connection.close()
+        self._reply(
+            200,
+            {
+                "candidates": [
+                    {
+                        "surface": row["surface"],
+                        "source": row["source"],
+                        "status": row["status"],
+                        "phonetic": row["phonetic"],
+                        "partOfSpeech": row["part_of_speech"],
+                        "definitionEnglish": row["definition_english"],
+                        "definitionChinese": row["definition_chinese"],
+                        "createdAt": row["created_at"],
+                    }
+                    for row in rows
+                ]
+            },
+        )
+
+    def _handle_candidates_enrich(self, request, started):
+        if self._authorized_user() is None:
+            self._reply(401, {"error": "invalid or expired token"})
+            return
+        api_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
+        if not api_key:
+            self._reply(503, {"error": "DEEPSEEK_API_KEY is not configured"})
+            return
+        requested = request.get("surfaces")
+        with _db_lock:
+            connection = _db()
+            try:
+                if isinstance(requested, list) and requested:
+                    placeholders = ",".join("?" for _ in requested)
+                    rows = connection.execute(
+                        f"SELECT surface FROM candidates WHERE status = 'pending' "
+                        f"AND surface IN ({placeholders}) LIMIT {ENRICH_BATCH}",
+                        [str(s).strip().lower() for s in requested],
+                    ).fetchall()
+                else:
+                    rows = connection.execute(
+                        "SELECT surface FROM candidates WHERE status = 'pending' "
+                        f"LIMIT {ENRICH_BATCH}"
+                    ).fetchall()
+                words = [row["surface"] for row in rows]
+            finally:
+                connection.close()
+        if not words:
+            self._reply(200, {"entries": [], "updated": 0})
+            return
+        try:
+            entries = _enrich_words(api_key, words)
+        except Exception as error:  # noqa: BLE001
+            LOG.warning("candidates enrich failed: %s", error)
+            self._reply(502, {"error": str(error)})
+            return
+        updated = 0
+        with _db_lock:
+            connection = _db()
+            try:
+                for entry in entries:
+                    if not entry["isValid"]:
+                        connection.execute(
+                            "DELETE FROM candidates WHERE surface = ?",
+                            (entry["surface"].strip().lower(),),
+                        )
+                        continue
+                    connection.execute(
+                        "UPDATE candidates SET phonetic = ?, part_of_speech = ?, "
+                        "definition_english = ?, definition_chinese = ? "
+                        "WHERE surface = ?",
+                        (
+                            entry["phonetic"],
+                            entry["partOfSpeech"],
+                            entry["definitionEnglish"],
+                            entry["definitionChinese"],
+                            entry["surface"].strip().lower(),
+                        ),
+                    )
+                    updated += 1
+                connection.commit()
+            finally:
+                connection.close()
+        LOG.info("candidates enrich ok (%d updated)", updated)
+        self._reply(200, {"entries": entries, "updated": updated})
+
+    def _handle_candidates_resolve(self, request, started):
+        if self._authorized_user() is None:
+            self._reply(401, {"error": "invalid or expired token"})
+            return
+        surface = str(request.get("surface", "")).strip().lower()
+        action = str(request.get("action", "")).strip()
+        if not surface or action not in ("confirm", "drop"):
+            self._reply(400, {"error": "surface and action are required"})
+            return
+        with _db_lock:
+            connection = _db()
+            try:
+                cursor = connection.execute(
+                    "UPDATE candidates SET status = ? WHERE surface = ?",
+                    ("confirmed" if action == "confirm" else "dropped", surface),
+                )
+                connection.commit()
+            finally:
+                connection.close()
+        self._reply(200, {"surface": surface, "action": action, "updated": cursor.rowcount})
 
     def _reply(self, status: int, body: dict):
         data = json.dumps(body, ensure_ascii=False).encode("utf-8")
@@ -524,6 +683,19 @@ def init_sync_db():
                 "data_json TEXT NOT NULL, "
                 "updated_at INTEGER NOT NULL)"
             )
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS candidates ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+                "surface TEXT NOT NULL UNIQUE, "
+                "user_id INTEGER, "
+                "source TEXT NOT NULL DEFAULT '', "
+                "status TEXT NOT NULL DEFAULT 'pending', "
+                "phonetic TEXT NOT NULL DEFAULT '', "
+                "part_of_speech TEXT NOT NULL DEFAULT '', "
+                "definition_english TEXT NOT NULL DEFAULT '', "
+                "definition_chinese TEXT NOT NULL DEFAULT '', "
+                "created_at INTEGER NOT NULL)"
+            )
             connection.commit()
         finally:
             connection.close()
@@ -531,6 +703,41 @@ def init_sync_db():
 
 def _sync_secret() -> str:
     return os.environ.get("DIANDUJI_SYNC_SECRET", "").strip()
+
+
+def _parse_query(path: str) -> dict:
+    """Parses ?a=b&c=d from a request path (stdlib only)."""
+    result = {}
+    if "?" not in path:
+        return result
+    for pair in path.split("?", 1)[1].split("&"):
+        if "=" in pair:
+            key, value = pair.split("=", 1)
+            result[key] = value
+    return result
+
+
+def _confirmed_candidates() -> list:
+    """All admin-confirmed candidate words with their enriched fields."""
+    with _db_lock:
+        connection = _db()
+        try:
+            rows = connection.execute(
+                "SELECT surface, phonetic, part_of_speech, definition_english, "
+                "definition_chinese FROM candidates WHERE status = 'confirmed'"
+            ).fetchall()
+        finally:
+            connection.close()
+    return [
+        {
+            "surface": row["surface"],
+            "phonetic": row["phonetic"],
+            "partOfSpeech": row["part_of_speech"],
+            "definitionEnglish": row["definition_english"],
+            "definitionChinese": row["definition_chinese"],
+        }
+        for row in rows
+    ]
 
 
 def _hash_password(password: str) -> str:
