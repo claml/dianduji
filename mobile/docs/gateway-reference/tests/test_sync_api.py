@@ -236,6 +236,35 @@ class SyncApiTest(unittest.TestCase):
         status, _ = _call(self.base, "GET", "/candidates?status=pending")
         self.assertEqual(status, 401)
 
+    def test_paid_endpoints_require_login(self):
+        # /translate without a session is rejected.
+        status, _ = _call(
+            self.base, "POST", "/translate",
+            {"term": "hello", "sentence": ""},
+        )
+        self.assertEqual(status, 401)
+
+        # /enrich without a session is rejected.
+        status, _ = _call(
+            self.base, "POST", "/enrich", {"words": ["hello"]},
+        )
+        self.assertEqual(status, 401)
+
+        # With a session the request proceeds (gateway reachable; the
+        # upstream TMT call is not exercised here since the test server
+        # has no signer, so an authenticated call reaches the handler and
+        # fails at the upstream stage with 502 rather than 401).
+        _, reg = _call(
+            self.base, "POST", "/auth/register",
+            {"username": "paiduser", "password": "secret1"},
+        )
+        status, _ = _call(
+            self.base, "POST", "/translate",
+            {"term": "hello", "sentence": ""},
+            token=reg["token"],
+        )
+        self.assertNotEqual(status, 401)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -52,6 +52,10 @@ class SyncEngine {
   SyncUser? get user => _user;
   bool get isLoggedIn => _token != null;
 
+  /// Current bearer token, for authenticated gateway calls (translation,
+  /// enrichment). Null when logged out.
+  String? get token => _token;
+
   /// Restores a previously stored session without network traffic.
   Future<bool> restoreSession() async {
     final session = await _storage.read();

@@ -89,9 +89,13 @@ final onlineTranslationGatewayProvider = Provider<OnlineTranslationGateway?>((
   debugPrint('ONLINE_GATEWAY_CONFIG baseUrl="$baseUrl"');
   if (baseUrl.isEmpty) return null;
   const apiKey = String.fromEnvironment('DIANDUJI_TRANSLATE_API_KEY');
+  // Paid endpoints require a login session; the sync engine supplies the
+  // bearer token (null when logged out -> calls fail as unauthorized).
+  final syncEngine = ref.watch(syncEngineProvider);
   final inner = HttpOnlineTranslationGateway(
     baseUrl: Uri.parse(baseUrl),
     apiKey: apiKey.isEmpty ? null : apiKey,
+    tokenProvider: () => syncEngine.token,
   );
   final cache = DriftOnlineTranslationCache(ref.watch(appDatabaseProvider));
   return CachedOnlineTranslationGateway(inner: inner, cache: cache);

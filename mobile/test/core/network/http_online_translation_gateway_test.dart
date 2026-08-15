@@ -12,12 +12,17 @@ void main() {
 
   String? lastBody;
   String? lastQueryKey;
+  String? lastAuth;
 
   setUp(() async {
+    lastBody = null;
+    lastQueryKey = null;
+    lastAuth = null;
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     baseUrl = Uri.parse('http://127.0.0.1:${server.port}/translate');
     server.listen((request) async {
       lastQueryKey = request.uri.queryParameters['key'];
+      lastAuth = request.headers.value(HttpHeaders.authorizationHeader);
       expect(
         request.headers.contentLength,
         greaterThan(0),
@@ -50,6 +55,7 @@ void main() {
     final gateway = HttpOnlineTranslationGateway(
       baseUrl: baseUrl,
       apiKey: 'secret',
+      tokenProvider: () => 'session-token',
     );
 
     final result = await gateway.translate(const OnlineTranslationRequest(
@@ -71,6 +77,28 @@ void main() {
     expect(sent['sentence'], 'A random forest classifies samples.');
     expect(sent['domain'], 'computerScience');
     expect(lastQueryKey, 'secret');
+    // Paid endpoints carry the login session.
+    expect(lastAuth, 'Bearer session-token');
+  });
+
+  test('fails with unauthorized when no login session is available',
+      () async {
+    final gateway = HttpOnlineTranslationGateway(baseUrl: baseUrl);
+
+    await expectLater(
+      gateway.translate(const OnlineTranslationRequest(
+        term: 'random forest',
+        sentence: 'A random forest classifies samples.',
+      )),
+      throwsA(
+        isA<OnlineTranslationException>().having(
+          (error) => error.error,
+          'error',
+          OnlineTranslationError.unauthorized,
+        ),
+      ),
+    );
+    expect(lastBody, isNull); // no request was sent
   });
 
   test('maps a non-2xx status to badResponse', () async {
@@ -82,6 +110,7 @@ void main() {
     addTearDown(() => bad.close(force: true));
     final gateway = HttpOnlineTranslationGateway(
       baseUrl: Uri.parse('http://127.0.0.1:${bad.port}/translate'),
+      tokenProvider: () => 'session-token',
     );
 
     expect(
@@ -106,6 +135,7 @@ void main() {
     final gateway = HttpOnlineTranslationGateway(
       baseUrl: Uri.parse('http://127.0.0.1:${raw.port}/translate'),
       timeout: const Duration(seconds: 5),
+      tokenProvider: () => 'session-token',
     );
 
     expect(
@@ -132,7 +162,10 @@ void main() {
       request.response.close();
     });
     addTearDown(() => server.close(force: true));
-    final gateway = HttpOnlineTranslationGateway(baseUrl: url);
+    final gateway = HttpOnlineTranslationGateway(
+      baseUrl: url,
+      tokenProvider: () => 'session-token',
+    );
 
     expect(
       () => gateway.translate(const OnlineTranslationRequest(

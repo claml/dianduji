@@ -14,23 +14,39 @@ const _kAcceptJson = 'application/json';
 /// The base URL and API key are injected at build time via `--dart-define`
 /// (`DIANDUJI_TRANSLATE_BASE_URL`, `DIANDUJI_TRANSLATE_API_KEY`); neither is
 /// hard-coded into the package.
+///
+/// The paid gateway endpoints require a login session: [tokenProvider]
+/// supplies the current bearer token (null when logged out, in which case
+/// every call fails with [OnlineTranslationError.unauthorized]).
 class HttpOnlineTranslationGateway implements OnlineTranslationGateway {
   HttpOnlineTranslationGateway({
     required this.baseUrl,
     this.apiKey,
     this.timeout = const Duration(seconds: 8),
+    String? Function()? tokenProvider,
     HttpClient Function()? clientFactory,
-  }) : _clientFactory = clientFactory ?? HttpClient.new;
+  })  :
+        // ignore: prefer_initializing_formals — private field, public name.
+        _tokenProvider = tokenProvider,
+        _clientFactory = clientFactory ?? HttpClient.new;
 
   final Uri baseUrl;
   final String? apiKey;
   final Duration timeout;
+  final String? Function()? _tokenProvider;
   final HttpClient Function() _clientFactory;
 
   @override
   Future<OnlineTranslationResult> translate(
     OnlineTranslationRequest request,
   ) async {
+    final token = _tokenProvider?.call();
+    if (token == null) {
+      throw const OnlineTranslationException(
+        OnlineTranslationError.unauthorized,
+        'login required',
+      );
+    }
     final client = _clientFactory();
     try {
       final body = <String, Object?>{
@@ -51,6 +67,7 @@ class HttpOnlineTranslationGateway implements OnlineTranslationGateway {
         charset: 'utf-8',
       );
       httpRequest.headers.set(HttpHeaders.acceptHeader, _kAcceptJson);
+      httpRequest.headers.set(HttpHeaders.authorizationHeader, 'Bearer $token');
       // Explicit Content-Length: Dart's HttpClient otherwise streams the body
       // with chunked transfer encoding, which simple reference gateways that
       // read Content-Length (e.g. Python http.server) reject with 400.

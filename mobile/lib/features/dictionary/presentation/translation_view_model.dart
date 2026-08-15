@@ -361,6 +361,16 @@ class TranslationViewModel extends ChangeNotifier {
           clearSentenceTranslationError: true,
         ),
       );
+    } on OnlineTranslationException catch (error) {
+      if (generation != _requestGeneration) return;
+      _setState(
+        _state.copyWith(
+          sentenceTranslationStatus: OnlineTranslationStatus.unavailable,
+          sentenceTranslationError: error.error == OnlineTranslationError.unauthorized
+              ? '在线翻译需登录后使用'
+              : '翻译失败，请检查网络后重试',
+        ),
+      );
     } on Object {
       if (generation != _requestGeneration) return;
       _setState(

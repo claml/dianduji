@@ -254,7 +254,16 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._reply(404, {"error": "not found"})
 
+    def _require_user(self):
+        """Paid endpoints (translation/enrichment) require a login session."""
+        user_id = self._authorized_user()
+        if user_id is None:
+            self._reply(401, {"error": "login required"})
+        return user_id
+
     def _handle_enrich(self, request, started):
+        if self._require_user() is None:
+            return
         api_key = os.environ.get("DEEPSEEK_API_KEY", "").strip()
         if not api_key:
             self._reply(503, {"error": "DEEPSEEK_API_KEY is not configured"})
@@ -282,6 +291,8 @@ class Handler(BaseHTTPRequestHandler):
         )
 
     def _handle_translate(self, request, started):
+        if self._require_user() is None:
+            return
         term = str(request.get("term", "")).strip()
         sentence = str(request.get("sentence", "")).strip()
         if not term and not sentence:
