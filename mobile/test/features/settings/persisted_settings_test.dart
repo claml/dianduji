@@ -2,10 +2,6 @@ import 'dart:io';
 import 'dart:async';
 
 import 'package:dian_du_ji/app/providers.dart';
-import 'package:dian_du_ji/core/network/dictionary_enrichment_gateway.dart';
-import 'package:dian_du_ji/features/dictionary/data/dictionary_repository.dart';
-import 'package:dian_du_ji/features/dictionary/domain/user_dictionary_repository.dart';
-import 'package:dian_du_ji/features/dictionary/presentation/dictionary_update_center.dart';
 import 'package:dian_du_ji/features/settings/data/cache_cleanup_service.dart';
 import 'package:dian_du_ji/features/settings/data/reading_settings.dart';
 import 'package:dian_du_ji/features/settings/data/settings_repository.dart';
@@ -338,7 +334,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(find.text('在线翻译'), 120);
-    await tester.tap(find.byType(SwitchListTile).at(1));
+    await tester.tap(find.byKey(const Key('online-translation-switch')));
     await tester.pumpAndSettle();
     expect(find.text('开启在线翻译'), findsOneWidget);
     expect(find.textContaining('不会上传'), findsOneWidget);
@@ -350,7 +346,7 @@ void main() {
     expect(repository.value.onlineTranslationConsented, isFalse);
 
     // Agreeing turns both on.
-    await tester.tap(find.byType(SwitchListTile).at(1));
+    await tester.tap(find.byKey(const Key('online-translation-switch')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('同意并开启'));
     await tester.pumpAndSettle();
@@ -373,53 +369,11 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(find.text('在线翻译'), 120);
-    await tester.tap(find.byType(SwitchListTile).at(1));
+    await tester.tap(find.byKey(const Key('online-translation-switch')));
     await tester.pumpAndSettle();
 
     expect(repository.value.onlineTranslationEnabled, isFalse);
     expect(repository.value.onlineTranslationConsented, isTrue);
-  });
-
-  testWidgets('dictionary update center shows candidates and enriches', (
-    tester,
-  ) async {
-    final store = _UpdateCenterStore(['wayfinding', 'navigability']);
-    final gateway = _UpdateCenterGateway();
-    final center = DictionaryUpdateCenter(store: store, gateway: gateway);
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          settingsRepositoryProvider.overrideWithValue(_SettingsRepository()),
-          cacheCleanupServiceProvider.overrideWithValue(
-            _RecordingCacheCleanupService(),
-          ),
-          dictionaryUpdateCenterProvider.overrideWith((ref) => center),
-          syncControllerProvider.overrideWith(
-            (_) => SyncController(
-              engine: SyncEngine(
-                api: SyncApiClient(baseUrl: Uri.parse('http://127.0.0.1:0')),
-                storage: MemoryTokenStorage(),
-                local: _NoopLocalData(),
-              ),
-            ),
-          ),
-        ],
-        child: const MaterialApp(home: PersistedSettingsPage()),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    await tester.scrollUntilVisible(find.text('词典更新中心'), 120);
-    await tester.tap(find.text('词典更新中心'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('待整理候选词：2 个'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('dictionary-enrich-button')));
-    await tester.pumpAndSettle();
-
-    expect(gateway.received, ['wayfinding', 'navigability']);
-    expect(find.text('上次整理：入库 1 词，丢弃 1 词'), findsOneWidget);
-    expect(find.text('待整理候选词：0 个'), findsOneWidget);
   });
 
   test('production cleanup only deletes bounded rebuildable caches', () async {
@@ -600,70 +554,4 @@ class _QueuedSaveSettingsRepository implements SettingsRepository {
 
   @override
   Stream<ReadingSettings> watch() => Stream.value(value);
-}
-
-class _UpdateCenterStore implements UserDictionaryStore {
-  _UpdateCenterStore(List<String> candidates) : _candidates = [...candidates];
-
-  final List<String> _candidates;
-
-  @override
-  Future<void> applyEnrichment(List<EnrichedDictionaryEntry> entries) async {
-    _candidates.clear();
-  }
-
-  @override
-  Future<void> clearCandidates() async => _candidates.clear();
-
-  @override
-  Future<void> collectCandidate(String surface, {String source = ''}) async {}
-
-  @override
-  Future<void> saveManualEntry(ManualDictionaryEntry entry) async {}
-
-  @override
-  Future<List<ManualDictionaryEntry>> listManualEntries() async => const [];
-
-  @override
-  Future<void> deleteManualEntry(String surface) async {}
-
-  @override
-  Future<DictionaryEntry?> lookupConfirmed(String surface) async => null;
-
-  @override
-  Future<int> pendingCandidateCount() async => _candidates.length;
-
-  @override
-  Future<List<UserDictionaryCandidate>> pendingCandidates() async => [
-    for (final word in _candidates)
-      UserDictionaryCandidate(
-        lemma: word,
-        surface: word,
-        source: 'online-translation',
-        createdAt: DateTime(2026, 8, 14),
-      ),
-  ];
-}
-
-class _UpdateCenterGateway implements DictionaryEnrichmentGateway {
-  final List<String> received = [];
-
-  @override
-  Future<DictionaryEnrichmentResult> enrich(List<String> words) async {
-    received.addAll(words);
-    return DictionaryEnrichmentResult(
-      entries: [
-        for (var i = 0; i < words.length; i++)
-          EnrichedDictionaryEntry(
-            surface: words[i],
-            phonetic: '',
-            partOfSpeech: 'n.',
-            definitionEnglish: 'definition',
-            definitionChinese: '释义',
-            isValid: i == 0,
-          ),
-      ],
-      sourceId: 'deepseek-v4-flash',
-    );
-  }
 }

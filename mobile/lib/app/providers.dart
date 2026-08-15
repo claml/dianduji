@@ -16,7 +16,6 @@ import '../features/dictionary/data/dictionary_repository.dart';
 import '../features/dictionary/data/drift_user_dictionary.dart';
 import '../features/dictionary/domain/specialized_terms.dart';
 import '../features/dictionary/domain/user_dictionary_repository.dart';
-import '../features/dictionary/presentation/dictionary_update_center.dart';
 import '../features/documents/data/drift_document_import_store.dart';
 import '../features/documents/data/drift_document_repository.dart';
 import '../features/documents/data/default_document_parser_resolver.dart';
@@ -79,14 +78,6 @@ final dictionaryEnrichmentGatewayProvider =
       const baseUrl = String.fromEnvironment('DIANDUJI_TRANSLATE_BASE_URL');
       if (baseUrl.isEmpty) return null;
       return HttpDictionaryEnrichmentGateway(baseUrl: Uri.parse(baseUrl));
-    });
-
-final dictionaryUpdateCenterProvider =
-    ChangeNotifierProvider.autoDispose<DictionaryUpdateCenter>((ref) {
-      return DictionaryUpdateCenter(
-        store: ref.watch(userDictionaryProvider),
-        gateway: ref.watch(dictionaryEnrichmentGatewayProvider),
-      );
     });
 
 final onlineTranslationGatewayProvider = Provider<OnlineTranslationGateway?>((

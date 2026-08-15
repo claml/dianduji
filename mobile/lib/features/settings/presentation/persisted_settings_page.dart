@@ -110,6 +110,7 @@ class PersistedSettingsPage extends ConsumerWidget {
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
+            key: const Key('online-translation-switch'),
             title: const Text('在线翻译'),
             subtitle: const Text('本地未收录时联网查询，仅发送所点词与所在句子'),
             value: settings.onlineTranslationEnabled,
@@ -147,28 +148,12 @@ class PersistedSettingsPage extends ConsumerWidget {
             subtitle: const Text('删除已缓存的在线翻译结果，不影响本地词典'),
             onTap: () => _confirmOnlineCacheCleanup(context, ref),
           ),
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            minVerticalPadding: 12,
-            title: const Text('词典更新中心'),
-            subtitle: const Text('在线翻译过的新词经 AI 整理后存入用户词典，离线可用'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => _openDictionaryUpdateCenter(context),
-          ),
           const Divider(height: 32),
           const SyncSection(),
         ],
       ),
     );
   }
-
-  Future<void> _openDictionaryUpdateCenter(BuildContext context) =>
-      showModalBottomSheet<void>(
-        context: context,
-        showDragHandle: true,
-        isScrollControlled: true,
-        builder: (sheetContext) => const _DictionaryUpdateCenterSheet(),
-      );
 
   Future<void> _toggleOnlineTranslation(
     BuildContext context,
@@ -330,97 +315,5 @@ class PersistedSettingsPage extends ConsumerWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('缓存已清理')));
-  }
-}
-
-/// Bottom-sheet UI for the user-dictionary enrichment loop.
-class _DictionaryUpdateCenterSheet extends ConsumerStatefulWidget {
-  const _DictionaryUpdateCenterSheet();
-
-  @override
-  ConsumerState<_DictionaryUpdateCenterSheet> createState() =>
-      _DictionaryUpdateCenterSheetState();
-}
-
-class _DictionaryUpdateCenterSheetState
-    extends ConsumerState<_DictionaryUpdateCenterSheet> {
-  @override
-  void initState() {
-    super.initState();
-    Future.microtask(
-      () => ref.read(dictionaryUpdateCenterProvider).refresh(),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final center = ref.watch(dictionaryUpdateCenterProvider);
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('词典更新中心', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Text(
-              '在线翻译过的新词会收集为候选词；AI 整理后写入用户词典，'
-              '之后点读同词即可离线查询。',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              '待整理候选词：${center.candidateCount} 个',
-              key: const Key('dictionary-candidate-count'),
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            if (center.lastEnriched > 0) ...[
-              const SizedBox(height: 8),
-              Text(
-                '上次整理：入库 ${center.lastConfirmed} 词，'
-                '丢弃 ${center.lastDropped} 词',
-                key: const Key('dictionary-enrich-summary'),
-              ),
-            ],
-            if (center.error != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                center.error!,
-                key: const Key('dictionary-enrich-error'),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ],
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                key: const Key('dictionary-enrich-button'),
-                onPressed: center.busy || !center.gatewayConfigured
-                    ? null
-                    : () => center.runEnrichment(),
-                icon: center.busy
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.auto_awesome_rounded),
-                label: Text(center.busy ? '正在整理…' : '一键整理并入库'),
-              ),
-            ),
-            if (!center.gatewayConfigured) ...[
-              const SizedBox(height: 8),
-              Text(
-                '未配置在线翻译网关地址，整理功能不可用。',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
   }
 }
